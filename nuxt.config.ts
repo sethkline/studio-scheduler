@@ -34,10 +34,6 @@ export default defineNuxtConfig({
     key: process.env.SUPABASE_ANON_KEY,
     serviceKey: process.env.SUPABASE_SERVICE_KEY,
     redirect: false,
-    redirectOptions: {
-      login: '/login',
-      callback: '/confirm'
-    }
   },
 
   runtimeConfig: {

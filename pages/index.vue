@@ -72,7 +72,6 @@
 </template>
 
 <script setup>
-const client = useSupabaseClient()
 const user = useSupabaseUser()
 const loading = ref(true)
 const upcomingClasses = ref([])
@@ -88,49 +87,27 @@ if (!user.value) {
   router.push('/login')
 }
 
+// Using the API service composable
+const { fetchDashboard } = useApiService()
+
 onMounted(async () => {
   try {
-    // Fetch upcoming classes
-    const { data: classes, error } = await client
-      .from('schedule_classes')
-      .select(`
-        id, 
-        start_time, 
-        end_time,
-        class_instance:class_instance_id (
-          name,
-          class_definition:class_definition_id (
-            dance_style:dance_style_id (name)
-          )
-        )
-      `)
-      .order('start_time')
-      .limit(5)
+    loading.value = true
     
-    if (error) throw error
+    // Use the server API endpoint instead of direct Supabase calls
+    const { data, error } = await fetchDashboard()
     
-    upcomingClasses.value = classes.map(cls => ({
-      id: cls.id,
-      name: cls.class_instance?.name || 'Unnamed Class',
-      start_time: cls.start_time,
-      end_time: cls.end_time,
-      dance_style: cls.class_instance?.class_definition?.dance_style?.name || 'Unknown'
-    }))
-    
-    // Fetch statistics
-    const [classesStats, studentsStats, teachersStats] = await Promise.all([
-      client.from('class_instances').select('id', { count: 'exact' }),
-      client.from('students').select('id', { count: 'exact' }).eq('status', 'active'),
-      client.from('teachers').select('id', { count: 'exact' })
-    ])
-    
-    statistics.value = {
-      totalClasses: classesStats.count || 0,
-      activeStudents: studentsStats.count || 0,
-      teachers: teachersStats.count || 0
+    if (error.value) {
+      console.error('Error from API:', error.value)
+      throw new Error('Failed to fetch dashboard data')
     }
+    
+    // Update component data with API response
+    upcomingClasses.value = data.value.upcomingClasses
+    statistics.value = data.value.statistics
   } catch (error) {
     console.error('Error fetching dashboard data:', error)
+    // You could add a toast notification here
   } finally {
     loading.value = false
   }
