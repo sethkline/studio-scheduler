@@ -1,0 +1,208 @@
+:root {
+  /* Primary Color - Pink (from your config) */
+  --p-primary-50: #fdf2f8;
+  --p-primary-100: #fce7f3;
+  --p-primary-200: #fbcfe8;
+  --p-primary-300: #f9a8d4;
+  --p-primary-400: #f472b6;
+  --p-primary-500: #ec4899;
+  --p-primary-600: #db2777;
+  --p-primary-700: #be185d;
+  --p-primary-800: #9d174d;
+  --p-primary-900: #831843;
+  --p-primary-950: #500724;
+
+  /* Secondary Color - Purple (from your config) */
+  --secondary-50: #f5f3ff;
+  --secondary-100: #ede9fe;
+  --secondary-200: #ddd6fe;
+  --secondary-300: #c4b5fd;
+  --secondary-400: #a78bfa;
+  --secondary-500: #8b5cf6;
+  --secondary-600: #7c3aed;
+  --secondary-700: #6d28d9;
+  --secondary-800: #5b21b6;
+  --secondary-900: #4c1d95;
+  --secondary-950: #2e1065;
+
+  /* Neutral Colors (from your config) */
+  --surface-0: #ffffff;
+  --surface-50: #fafafa;
+  --surface-100: #f4f4f5;
+  --surface-200: #e4e4e7;
+  --surface-300: #d4d4d8;
+  --surface-400: #a1a1aa;
+  --surface-500: #71717a;
+  --surface-600: #52525b;
+  --surface-700: #3f3f46;
+  --surface-800: #27272a;
+  --surface-900: #18181b;
+  --surface-950: #09090b;
+
+  /* Status Colors (from your config) */
+  --success-50: #f0fdf4;
+  --success-100: #dcfce7;
+  --success-200: #bbf7d0;
+  --success-300: #86efac;
+  --success-400: #4ade80;
+  --success-500: #22c55e;
+  --success-600: #16a34a;
+  --success-700: #15803d;
+  --success-800: #166534;
+  --success-900: #14532d;
+
+  --warning-50: #fefce8;
+  --warning-100: #fef9c3;
+  --warning-200: #fef08a;
+  --warning-300: #fde047;
+  --warning-400: #facc15;
+  --warning-500: #eab308;
+  --warning-600: #ca8a04;
+  --warning-700: #a16207;
+  --warning-800: #854d0e;
+  --warning-900: #713f12;
+
+  --error-50: #fef2f2;
+  --error-100: #fee2e2;
+  --error-200: #fecaca;
+  --error-300: #fca5a5;
+  --error-400: #f87171;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  --error-700: #b91c1c;
+  --error-800: #991b1b;
+  --error-900: #7f1d1d;
+
+  --info-50: #f0f9ff;
+  --info-100: #e0f2fe;
+  --info-200: #bae6fd;
+  --info-300: #7dd3fc;
+  --info-400: #38bdf8;
+  --info-500: #0ea5e9;
+  --info-600: #0284c7;
+  --info-700: #0369a1;
+  --info-800: #075985;
+  --info-900: #0c4a6e;
+
+  /* UI Element Variables */
+  --content-border-radius: 6px;
+
+  /* Link Colors */
+  --link-color: #3b82f6;
+  --link-hover-color: #1d4ed8;
+}
+
+/* Light Theme */
+:root {
+  --background: var(--surface-50);
+  --foreground: var(--surface-900);
+  
+  /* Primary theme */
+  --primary-color: var(--primary-600);
+  --primary-contrast-color: var(--surface-0);
+  --primary-hover-color: var(--primary-700);
+  --primary-active-color: var(--primary-800);
+  
+  /* Secondary theme */
+  --secondary-color: var(--secondary-600);
+  --secondary-contrast-color: var(--surface-0);
+  --secondary-hover-color: var(--secondary-700);
+  --secondary-active-color: var(--secondary-800);
+  
+  /* Content styling */
+  --content-border-color: var(--surface-200);
+  --content-hover-background: var(--surface-100);
+  --content-hover-color: var(--surface-800);
+  
+  /* Highlight styling */
+  --highlight-background: var(--primary-50);
+  --highlight-color: var(--primary-700);
+  --highlight-focus-background: var(--primary-100);
+  --highlight-focus-color: var(--primary-800);
+  
+  /* Text styling */
+  --text-color: var(--surface-700);
+  --text-hover-color: var(--surface-800);
+  --text-muted-color: var(--surface-500);
+  --text-hover-muted-color: var(--surface-600);
+}
+
+/* Dark Theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--surface-900);
+    --foreground: var(--surface-50);
+    
+    /* Primary theme */
+    --primary-color: var(--primary-500);
+    --primary-contrast-color: var(--surface-950);
+    --primary-hover-color: var(--primary-400);
+    --primary-active-color: var(--primary-300);
+    
+    /* Secondary theme */
+    --secondary-color: var(--secondary-400);
+    --secondary-contrast-color: var(--surface-950);
+    --secondary-hover-color: var(--secondary-300);
+    --secondary-active-color: var(--secondary-200);
+    
+    /* Content styling */
+    --content-border-color: var(--surface-700);
+    --content-hover-background: var(--surface-800);
+    --content-hover-color: var(--surface-0);
+    
+    /* Highlight styling */
+    --highlight-background: color-mix(in srgb, var(--primary-500), transparent 84%);
+    --highlight-color: rgba(255, 255, 255, 0.87);
+    --highlight-focus-background: color-mix(in srgb, var(--primary-500), transparent 76%);
+    --highlight-focus-color: rgba(255, 255, 255, 0.87);
+    
+    /* Text styling */
+    --text-color: var(--surface-200);
+    --text-hover-color: var(--surface-0);
+    --text-muted-color: var(--surface-400);
+    --text-hover-muted-color: var(--surface-300);
+  }
+}
+
+/* Base styles */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  @apply bg-background text-foreground;
+}
+
+/* Dance-specific color classes for badges */
+.badge-ballet {
+  @apply bg-primary-500 text-white;
+}
+
+.badge-tap {
+  @apply bg-amber-400 text-gray-800;
+}
+
+.badge-jazz {
+  @apply bg-secondary-500 text-white;
+}
+
+.badge-contemporary {
+  @apply bg-teal-500 text-white;
+}
+
+.badge-hip-hop {
+  @apply bg-neutral-900 text-white;
+}
+
+.badge-acro {
+  @apply bg-success-500 text-white;
+}
+
+.badge-worship {
+  @apply bg-info-400 text-white;
+}
+
+.badge-pointe {
+  @apply bg-secondary-400 text-white;
+}
+
+.badge-theater {
+  @apply bg-orange-500 text-white;
+}
