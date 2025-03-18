@@ -26,18 +26,18 @@
   --secondary-950: #2e1065;
 
   /* Neutral Colors (from your config) */
-  --surface-0: #ffffff;
-  --surface-50: #fafafa;
-  --surface-100: #f4f4f5;
-  --surface-200: #e4e4e7;
-  --surface-300: #d4d4d8;
-  --surface-400: #a1a1aa;
-  --surface-500: #71717a;
-  --surface-600: #52525b;
-  --surface-700: #3f3f46;
-  --surface-800: #27272a;
-  --surface-900: #18181b;
-  --surface-950: #09090b;
+  --p-surface-0: #ffffff;
+  --p-surface-50: #fafafa;
+  --p-surface-100: #f4f4f5;
+  --p-surface-200: #e4e4e7;
+  --p-surface-300: #d4d4d8;
+  --p-surface-400: #a1a1aa;
+  --p-surface-500: #71717a;
+  --p-surface-600: #52525b;
+  --p-surface-700: #3f3f46;
+  --p-surface-800: #27272a;
+  --p-surface-900: #18181b;
+  --p-surface-950: #09090b;
 
   /* Status Colors (from your config) */
   --success-50: #f0fdf4;
@@ -94,73 +94,73 @@
 
 /* Light Theme */
 :root {
-  --background: var(--surface-50);
-  --foreground: var(--surface-900);
+  --background: var(--p-surface-50);
+  --foreground: var(--p-surface-900);
   
   /* Primary theme */
-  --primary-color: var(--primary-600);
-  --primary-contrast-color: var(--surface-0);
-  --primary-hover-color: var(--primary-700);
-  --primary-active-color: var(--primary-800);
+  --primary-color: var(--p-primary-600);
+  --primary-contrast-color: var(--p-surface-0);
+  --primary-hover-color: var(--p-primary-700);
+  --primary-active-color: var(--p-primary-800);
   
   /* Secondary theme */
   --secondary-color: var(--secondary-600);
-  --secondary-contrast-color: var(--surface-0);
+  --secondary-contrast-color: var(--p-surface-0);
   --secondary-hover-color: var(--secondary-700);
   --secondary-active-color: var(--secondary-800);
   
   /* Content styling */
-  --content-border-color: var(--surface-200);
-  --content-hover-background: var(--surface-100);
-  --content-hover-color: var(--surface-800);
+  --content-border-color: var(--p-surface-200);
+  --content-hover-background: var(--p-surface-100);
+  --content-hover-color: var(--p-surface-800);
   
   /* Highlight styling */
-  --highlight-background: var(--primary-50);
-  --highlight-color: var(--primary-700);
-  --highlight-focus-background: var(--primary-100);
-  --highlight-focus-color: var(--primary-800);
+  --highlight-background: var(--p-primary-50);
+  --highlight-color: var(--p-primary-700);
+  --highlight-focus-background: var(--p-primary-100);
+  --highlight-focus-color: var(--p-primary-800);
   
   /* Text styling */
-  --text-color: var(--surface-700);
-  --text-hover-color: var(--surface-800);
-  --text-muted-color: var(--surface-500);
-  --text-hover-muted-color: var(--surface-600);
+  --text-color: var(--p-surface-700);
+  --text-hover-color: var(--p-surface-800);
+  --text-muted-color: var(--p-surface-500);
+  --text-hover-muted-color: var(--p-surface-600);
 }
 
 /* Dark Theme */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: var(--surface-900);
-    --foreground: var(--surface-50);
+    --background: var(--p-surface-900);
+    --foreground: var(--p-surface-50);
     
     /* Primary theme */
-    --primary-color: var(--primary-500);
-    --primary-contrast-color: var(--surface-950);
-    --primary-hover-color: var(--primary-400);
-    --primary-active-color: var(--primary-300);
+    --primary-color: var(--p-primary-500);
+    --primary-contrast-color: var(--p-surface-950);
+    --primary-hover-color: var(--p-primary-400);
+    --primary-active-color: var(--p-primary-300);
     
     /* Secondary theme */
     --secondary-color: var(--secondary-400);
-    --secondary-contrast-color: var(--surface-950);
+    --secondary-contrast-color: var(--p-surface-950);
     --secondary-hover-color: var(--secondary-300);
     --secondary-active-color: var(--secondary-200);
     
     /* Content styling */
-    --content-border-color: var(--surface-700);
-    --content-hover-background: var(--surface-800);
-    --content-hover-color: var(--surface-0);
+    --content-border-color: var(--p-surface-700);
+    --content-hover-background: var(--p-surface-800);
+    --content-hover-color: var(--p-surface-0);
     
     /* Highlight styling */
-    --highlight-background: color-mix(in srgb, var(--primary-500), transparent 84%);
+    --highlight-background: color-mix(in srgb, var(--p-primary-500), transparent 84%);
     --highlight-color: rgba(255, 255, 255, 0.87);
-    --highlight-focus-background: color-mix(in srgb, var(--primary-500), transparent 76%);
+    --highlight-focus-background: color-mix(in srgb, var(--p-primary-500), transparent 76%);
     --highlight-focus-color: rgba(255, 255, 255, 0.87);
     
     /* Text styling */
-    --text-color: var(--surface-200);
-    --text-hover-color: var(--surface-0);
-    --text-muted-color: var(--surface-400);
-    --text-hover-muted-color: var(--surface-300);
+    --text-color: var(--p-surface-200);
+    --text-hover-color: var(--p-surface-0);
+    --text-muted-color: var(--p-surface-400);
+    --text-hover-muted-color: var(--p-surface-300);
   }
 }
 

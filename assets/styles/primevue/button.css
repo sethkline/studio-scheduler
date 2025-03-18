@@ -1,12 +1,12 @@
 @import './badge';
 
 .p-button {
-    @apply inline-flex cursor-pointer select-none items-center justify-center overflow-hidden relative
-        bg-primary-600 enabled:hover:bg-primary-emphasis enabled:active:bg-primary-emphasis-alt text-primary-contrast
-        border border-primary-600 enabled:hover:border-primary-emphasis enabled:active:border-primary-emphasis-alt
-        focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-primary
-        px-3 py-2 transition-colors duration-200 gap-2 rounded-md
-        disabled:cursor-default
+  @apply inline-flex cursor-pointer select-none items-center justify-center overflow-hidden relative
+      bg-primary-600 enabled:hover:bg-primary-700 enabled:active:bg-primary-800 text-white
+      border border-primary-600 enabled:hover:border-primary-700 enabled:active:border-primary-800
+      focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-primary
+      px-3 py-2 transition-colors duration-200 gap-2 rounded-md
+      disabled:cursor-default
 }
 
 .p-button-icon-right {
