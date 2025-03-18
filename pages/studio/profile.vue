@@ -1,0 +1,3 @@
+<template>
+  <StudioProfileManagementPage />
+</template>

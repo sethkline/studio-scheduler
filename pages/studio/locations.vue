@@ -1,0 +1,3 @@
+<template>
+  <StudioRoomsManagementPage />
+</template>
