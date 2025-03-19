@@ -71,7 +71,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 const user = useSupabaseUser()
 const loading = ref(true)
 const upcomingClasses = ref([])

@@ -1,0 +1,3 @@
+<template>
+  <DanceStylesPage />
+</template>

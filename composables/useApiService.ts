@@ -117,6 +117,142 @@ export function useApiService() {
       method: 'DELETE'
     })
   }
+
+   // Dance Styles
+   const fetchDanceStyles = async () => {
+    return await useFetch('/api/dance-styles')
+  }
+  
+  const fetchDanceStyle = async (id) => {
+    return await useFetch(`/api/dance-styles/${id}`)
+  }
+  
+  const createDanceStyle = async (styleData) => {
+    return await useFetch('/api/dance-styles/add', {
+      method: 'POST',
+      body: styleData
+    })
+  }
+  
+  const updateDanceStyle = async (id, styleData) => {
+    return await useFetch(`/api/dance-styles/${id}`, {
+      method: 'PUT',
+      body: styleData
+    })
+  }
+  
+  const deleteDanceStyle = async (id) => {
+    return await useFetch(`/api/dance-styles/${id}`, {
+      method: 'DELETE'
+    })
+  }
+  
+  // Class Levels
+  const fetchClassLevels = async () => {
+    return await useFetch('/api/class-levels')
+  }
+  
+  const fetchClassLevel = async (id) => {
+    return await useFetch(`/api/class-levels/${id}`)
+  }
+  
+  const createClassLevel = async (levelData) => {
+    return await useFetch('/api/class-levels/add', {
+      method: 'POST',
+      body: levelData
+    })
+  }
+  
+  const updateClassLevel = async (id, levelData) => {
+    return await useFetch(`/api/class-levels/${id}`, {
+      method: 'PUT',
+      body: levelData
+    })
+  }
+  
+  const deleteClassLevel = async (id) => {
+    return await useFetch(`/api/class-levels/${id}`, {
+      method: 'DELETE'
+    })
+  }
+
+  // Teachers
+  const fetchTeachers = async (params = {}) => {
+    return await useFetch('/api/teachers', { params })
+  }
+  
+  const fetchTeacher = async (teacherId) => {
+    return await useFetch(`/api/teachers/${teacherId}`)
+  }
+  
+  const createTeacher = async (teacherData) => {
+    return await useFetch('/api/teachers/add', {
+      method: 'POST',
+      body: teacherData
+    })
+  }
+  
+  const updateTeacher = async (id, teacherData) => {
+    return await useFetch(`/api/teachers/${id}`, {
+      method: 'PUT',
+      body: teacherData
+    })
+  }
+  
+  const deleteTeacher = async (id) => {
+    return await useFetch(`/api/teachers/${id}`, {
+      method: 'DELETE'
+    })
+  }
+
+  const fetchTeacherAvailability = async (teacherId, params = {}) => {
+    return await useFetch(`/api/teachers/${teacherId}/availability-list`, { params })
+  }
+  
+  const createTeacherAvailability = async (teacherId, availabilityData) => {
+    return await useFetch(`/api/teachers/${teacherId}/availability-list`, {
+      method: 'POST',
+      body: availabilityData
+    })
+  }
+  
+  const updateTeacherAvailability = async (teacherId, id, availabilityData) => {
+    return await useFetch(`/api/teachers/${teacherId}/availability/${id}`, {
+      method: 'PUT',
+      body: availabilityData
+    })
+  }
+  
+  const deleteTeacherAvailability = async (teacherId, id) => {
+    return await useFetch(`/api/teachers/${teacherId}/availability/${id}`, {
+      method: 'DELETE'
+    })
+  }
+  
+  const createTeacherException = async (teacherId, exceptionData) => {
+    return await useFetch(`/api/teachers/${teacherId}/exceptions`, {
+      method: 'POST',
+      body: exceptionData
+    })
+  }
+  
+  const updateTeacherException = async (teacherId, id, exceptionData) => {
+    return await useFetch(`/api/teachers/${teacherId}/exceptions/${id}`, {
+      method: 'PUT',
+      body: exceptionData
+    })
+  }
+  
+  const deleteTeacherException = async (teacherId: string, id: string) => {
+    return await useFetch(`/api/teachers/${teacherId}/exceptions/delete`, {
+      method: 'POST',
+      body: { id: id } 
+    })
+  }
+
+  const fetchTeacherWorkload = async (teacherId, params = {}) => {
+  return await useFetch(`/api/teachers/${teacherId}/workload`, { params })
+}
   
   return {
     fetchDashboard,
@@ -139,6 +275,29 @@ export function useApiService() {
     deleteSpecialHours,
     createRoom,
     updateRoom,
-    deleteRoom
+    deleteRoom,
+    fetchDanceStyles,
+    fetchDanceStyle,
+    createDanceStyle,
+    updateDanceStyle,
+    deleteDanceStyle,
+    fetchClassLevels,
+    fetchClassLevel,
+    createClassLevel,
+    updateClassLevel,
+    deleteClassLevel,
+    fetchTeachers,
+    fetchTeacher,
+    createTeacher,
+    updateTeacher,
+    deleteTeacher,
+    fetchTeacherAvailability,
+    createTeacherAvailability,
+    updateTeacherAvailability,
+    deleteTeacherAvailability,
+    createTeacherException,
+    updateTeacherException,
+    deleteTeacherException,
+    fetchTeacherWorkload
   }
 }

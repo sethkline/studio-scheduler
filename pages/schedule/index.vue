@@ -42,7 +42,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 const loading = ref(true)
 const selectedDate = ref(new Date())
 const selectedView = ref('week')

@@ -21,8 +21,33 @@ export interface Teacher {
   email?: string
   phone?: string
   bio?: string
+  specialties?: any[]
   profile_image_url?: string
   status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
+export interface TeacherAvailability {
+  id: string
+  teacher_id: string
+  day_of_week: number
+  start_time: string
+  end_time: string
+  recurring: boolean
+  is_available: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TeacherAvailabilityException {
+  id: string
+  teacher_id: string
+  exception_date: string
+  start_time?: string
+  end_time?: string
+  is_available: boolean
+  reason?: string
   created_at: string
   updated_at: string
 }

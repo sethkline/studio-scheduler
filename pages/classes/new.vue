@@ -1,0 +1,3 @@
+<template>
+  <ClassesAddClassesPage />
+</template>

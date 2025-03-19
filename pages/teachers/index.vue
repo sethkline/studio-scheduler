@@ -1,0 +1,3 @@
+<template>
+  <TeachersTeacherListPage />
+</template>
