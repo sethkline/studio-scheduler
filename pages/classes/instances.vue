@@ -1,0 +1,3 @@
+<template>
+  <ClassesInstanceManagementPage />
+</template>

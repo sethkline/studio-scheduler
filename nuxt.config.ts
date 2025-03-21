@@ -8,7 +8,8 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase',
     '@pinia/nuxt',
     '@vee-validate/nuxt',
-    'nuxt-security'
+    'nuxt-security',
+    '@vueuse/nuxt'
   ],
 
   primevue: {

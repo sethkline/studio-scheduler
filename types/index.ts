@@ -85,8 +85,8 @@ export interface ScheduleClass {
   teacherName: string
   danceStyle: string
   danceStyleColor: string
-  studioName: string
   studioId: string
+  studioName?: string
 }
 
 export interface Schedule {

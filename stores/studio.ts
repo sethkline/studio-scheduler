@@ -299,6 +299,23 @@ export const useStudioStore = defineStore('studio', {
         this.loading.operatingHours = false
       }
     },
+
+
+    async fetchRoomsByLocation(locationId: string) {
+      const { fetchRooms } = useApiService()
+      this.loading.rooms = true
+      this.error = null
+      
+      try {
+        const { data, error } = await fetchRooms(locationId)
+        
+        if (error.value) {
+          throw new Error(error.value.data?.statusMessage || 'Failed to fetch rooms')
+        }
+      } catch (err) {
+        
+      }
+    },
     
     async createRoom(roomData: Partial<StudioRoom>) {
       const { createRoom } = useApiService()
@@ -307,13 +324,13 @@ export const useStudioStore = defineStore('studio', {
       
       try {
         const { data, error } = await createRoom({
-          locationId: roomData.location_id,
+          locationId: roomData.locationId,
           name: roomData.name,
           description: roomData.description,
           capacity: roomData.capacity,
-          areaSqft: roomData.area_sqft,
+          areaSqft: roomData.areaSqft,
           features: roomData.features,
-          isActive: roomData.is_active
+          isActive: roomData.isActive
         })
         
         if (error.value) {

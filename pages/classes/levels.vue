@@ -88,8 +88,8 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ['auth', 'admin'],
-  layout: 'dashboard'
+  // middleware: ['auth', 'admin'],
+  // layout: 'dashboard'
 })
 
 const toast = useToast()

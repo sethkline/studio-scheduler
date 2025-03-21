@@ -97,6 +97,10 @@ export function useApiService() {
       method: 'DELETE'
     })
   }
+
+  const fetchRooms = async (params = {}) => {
+    return await useFetch('/api/studio/rooms', { params })
+  }
   
   const createRoom = async (roomData) => {
     return await useFetch('/api/studio/rooms/add', {
@@ -273,6 +277,7 @@ export function useApiService() {
     updateOperatingHours,
     createSpecialHours,
     deleteSpecialHours,
+    fetchRooms,
     createRoom,
     updateRoom,
     deleteRoom,
