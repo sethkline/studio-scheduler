@@ -18,7 +18,7 @@
       </div>
       
       <div>
-        <Button type="submit" label="Register" class="w-full" :loading="loading" />
+        <!-- <Button type="submit" label="Register" class="w-full" :loading="loading" /> -->
       </div>
       
       <div class="text-center mt-4">
