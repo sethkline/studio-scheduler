@@ -14,29 +14,29 @@ export function useScheduleManager() {
     const currentMonth = today.getMonth();
     const currentDate = today.getDate();
     const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  
+
     // Calculate the date for the given day of week
     // We want to display the current week, so we adjust based on the difference
     // between today's day and the event's day
     let dayOffset = item.dayOfWeek - currentDay;
-    
+
     // Adjust for Sunday (0) vs Monday (1) as week start
     // If item.dayOfWeek is 0 (Sunday) and today is not Sunday, we need to add days
     if (item.dayOfWeek === 0 && currentDay !== 0) {
       dayOffset = 7 - currentDay; // Move to next Sunday
     }
-    
+
     // Create date objects for start and end times
     const startDate = new Date(currentYear, currentMonth, currentDate + dayOffset);
     const endDate = new Date(currentYear, currentMonth, currentDate + dayOffset);
-    
+
     // Parse time strings and set hours and minutes
     const [startHours, startMinutes] = item.startTime.split(':').map(Number);
     const [endHours, endMinutes] = item.endTime.split(':').map(Number);
-    
+
     startDate.setHours(startHours, startMinutes, 0);
     endDate.setHours(endHours, endMinutes, 0);
-    
+
     return {
       id: item.id,
       title: item.className,
@@ -113,10 +113,27 @@ export function useScheduleManager() {
       isUpdating.value = false;
     }
   };
-
-  // Check for scheduling conflicts
-  const checkConflicts = (items, newItem) => {
+  const checkConflicts = (items, newItem, options = {}) => {
     const conflicts = [];
+
+    // Get teacher availability data from options or use empty array
+    const teacherAvailability = options.teacherAvailability || {
+      regularAvailability: [],
+      exceptions: []
+    };
+
+
+    // Helper function to format time for display
+    const formatTimeForDisplay = (timeString) => {
+      if (!timeString) return '';
+
+      try {
+        const date = new Date(`2000-01-01T${timeString}`);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return timeString;
+      }
+    };
 
     // Check for time conflicts in the same studio
     const studioConflicts = items.filter(
@@ -138,25 +155,21 @@ export function useScheduleManager() {
         conflicts.push({
           type: 'studio',
           item,
-          message: `Studio conflict with ${item.className || 'another class'} (${formatTime(
+          message: `Studio conflict with ${item.className || 'another class'} (${formatTimeForDisplay(
             item.startTime
-          )} - ${formatTime(item.endTime)})`
+          )} - ${formatTimeForDisplay(item.endTime)})`
         });
       }
     }
-    console.log(newItem, 'New Item')
 
-    // Add teacher conflict checks
+    // Add teacher conflict checks - check both existing classes and availability
     if (newItem.teacher_id) {
-      const teacherConflicts = items.filter((item) => {
-        // Find the class instance to get the teacher
-        const classInstance = getClassInstance(item.classInstanceId);
-        return (
-          item.dayOfWeek === newItem.day_of_week &&
-          classInstance?.teacher_id === newItem.teacher_id &&
-          item.id !== newItem.id
-        );
-      });
+      // 1. Check conflicts with other classes (same teacher, same day, different class)
+      const teacherConflicts = items.filter(
+        (item) =>
+          // Same day, same teacher, different item
+          item.dayOfWeek === newItem.day_of_week && item.teacherId === newItem.teacher_id && item.id !== newItem.id
+      );
 
       for (const item of teacherConflicts) {
         const itemStart = new Date(`2000-01-01T${item.startTime}`);
@@ -173,12 +186,57 @@ export function useScheduleManager() {
           conflicts.push({
             type: 'teacher',
             item,
-            message: `Teacher conflict with ${item.className || 'another class'} (${formatTime(
-              item.startTime
-            )} - ${formatTime(item.endTime)})`
+            message: `Teacher conflict: This teacher is already teaching ${
+              item.className || 'another class'
+            } (${formatTimeForDisplay(item.startTime)} - ${formatTimeForDisplay(item.endTime)})`
           });
         }
       }
+
+
+      const regularAvailForDay = teacherAvailability.regularAvailability.filter((avail) => {
+        return (
+          avail.teacher_id === newItem.teacher_id &&
+          parseInt(avail.day_of_week) === parseInt(newItem.day_of_week) &&
+          avail.is_available === true
+        );
+      });
+
+
+      // Convert class time to dates for comparison
+      const classStart = new Date(`2000-01-01T${newItem.start_time}`);
+      const classEnd = new Date(`2000-01-01T${newItem.end_time}`);
+
+
+      // Check if the class time falls within any availability periods
+      const isWithinRegularAvailability = regularAvailForDay.some((avail) => {
+        const availStart = new Date(`2000-01-01T${avail.start_time}`);
+        const availEnd = new Date(`2000-01-01T${avail.end_time}`);
+
+
+        // Check if class is completely within this availability window
+        return classStart >= availStart && classEnd <= availEnd;
+      });
+
+      // Add conflict if teacher is not available at this time
+      if (regularAvailForDay.length > 0 && !isWithinRegularAvailability) {
+        conflicts.push({
+          type: 'teacher_availability',
+          message: 'Teacher is not available during this time slot'
+        });
+      }
+
+      // Also handle the case where there is no availability data for this day
+      if (regularAvailForDay.length === 0) {
+        // No availability data for this day - teacher is not scheduled to work
+        conflicts.push({
+          type: 'teacher_availability',
+          message: 'Teacher does not have any availability scheduled for this day'
+        });
+      }
+
+      // Note: You could also check exceptions here if needed
+      // This would be important for specific dates rather than recurring days
     }
 
     return conflicts;

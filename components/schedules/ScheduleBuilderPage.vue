@@ -9,13 +9,13 @@
         </div>
         <div class="flex flex-col items-end gap-4">
           <!-- Publication controls -->
-          <SchedulePublishButton 
-            :scheduleId="scheduleId" 
+          <SchedulePublishButton
+            :scheduleId="scheduleId"
             :hasPermission="hasPermission"
             @published="handleSchedulePublished"
             @unpublished="handleScheduleUnpublished"
           />
-          
+
           <div class="flex space-x-3">
             <div class="flex items-center">
               <Dropdown
@@ -42,7 +42,7 @@
               @click="saveSchedule"
               :disabled="!hasPermission || !schedule || !hasChanges"
             />
-            
+
             <Button
               label="Export PDF"
               icon="pi pi-file-pdf"
@@ -53,11 +53,11 @@
           </div>
         </div>
       </div>
-      </div>
+    </div>
 
-      <div v-if="loading" class="flex justify-center p-6">
-        <i class="pi pi-spin pi-spinner text-3xl"></i>
-      </div>
+    <div v-if="loading" class="flex justify-center p-6">
+      <i class="pi pi-spin pi-spinner text-3xl"></i>
+    </div>
 
     <!-- Calendar grid -->
     <div v-if="!loading && schedule" class="flex-grow">
@@ -206,16 +206,18 @@
 
       <template #footer>
         <div class="flex justify-between w-full">
-          <Button v-if="classDialog.isEdit" 
-            label="Delete" 
-            icon="pi pi-trash" 
-            class="p-button-danger" 
-            @click="confirmDeleteFromDialog" />
-          </div>
-          <div class="flex justify-end w-full">
+          <Button
+            v-if="classDialog.isEdit"
+            label="Delete"
+            icon="pi pi-trash"
+            class="p-button-danger"
+            @click="confirmDeleteFromDialog"
+          />
+        </div>
+        <div class="flex justify-end w-full">
           <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="closeClassDialog" />
           <Button label="Save" icon="pi pi-check" class="p-button-primary" @click="saveClassSchedule" />
-          </div>
+        </div>
       </template>
     </Dialog>
 
@@ -237,48 +239,32 @@
             placeholder="Schedule title in the exported document"
           />
         </div>
-        
+
         <div class="field">
           <label class="font-medium">Export Options</label>
           <div class="flex flex-col gap-2 mt-2">
             <div class="field-checkbox">
-              <Checkbox
-                v-model="exportDialog.includeHeader"
-                :binary="true"
-                id="includeHeader"
-              />
+              <Checkbox v-model="exportDialog.includeHeader" :binary="true" id="includeHeader" />
               <label for="includeHeader" class="ml-2">Include studio header/logo</label>
             </div>
-            
+
             <div class="field-checkbox">
-              <Checkbox
-                v-model="exportDialog.includeLegend"
-                :binary="true"
-                id="includeLegend"
-              />
+              <Checkbox v-model="exportDialog.includeLegend" :binary="true" id="includeLegend" />
               <label for="includeLegend" class="ml-2">Include class style legend</label>
             </div>
-            
+
             <div class="field-checkbox">
-              <Checkbox
-                v-model="exportDialog.includeTeachers"
-                :binary="true"
-                id="includeTeachers"
-              />
+              <Checkbox v-model="exportDialog.includeTeachers" :binary="true" id="includeTeachers" />
               <label for="includeTeachers" class="ml-2">Include teacher names</label>
             </div>
-            
+
             <div class="field-checkbox">
-              <Checkbox
-                v-model="exportDialog.landscape"
-                :binary="true"
-                id="landscape"
-              />
+              <Checkbox v-model="exportDialog.landscape" :binary="true" id="landscape" />
               <label for="landscape" class="ml-2">Landscape orientation</label>
             </div>
           </div>
         </div>
-        
+
         <div class="field">
           <label class="font-medium">Filter Export</label>
           <div class="grid grid-cols-2 gap-4 mt-2">
@@ -294,7 +280,7 @@
                 class="w-full mt-1"
               />
             </div>
-            
+
             <div class="field">
               <label for="exportStyle" class="text-sm">Dance Style</label>
               <MultiSelect
@@ -310,14 +296,9 @@
           </div>
         </div>
       </div>
-      
+
       <template #footer>
-        <Button
-          label="Cancel"
-          icon="pi pi-times"
-          class="p-button-text"
-          @click="exportDialog.visible = false"
-        />
+        <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="exportDialog.visible = false" />
         <Button
           label="Generate PDF"
           icon="pi pi-file-pdf"
@@ -348,6 +329,7 @@ import FullCalendar from '@fullcalendar/vue3';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useScheduleManager } from '~/composables/useScheduleManager';
+import { useTeacherAvailabilityCache } from '~/composables/useTeacherAvailabilityCache';
 import type { ScheduleClass } from '~/types';
 
 const route = useRoute();
@@ -358,6 +340,11 @@ const authStore = useAuthStore();
 const scheduleTermStore = useScheduleTermStore();
 const scheduleStore = useScheduleStore();
 const { createDraggableItem, handleItemDrop, checkConflicts } = useScheduleManager();
+const { 
+  prefetchForScheduleItems, 
+  getTeacherAvailability, 
+  clearCache 
+} = useTeacherAvailabilityCache();
 
 // Permissions check
 const hasPermission = computed(() => {
@@ -448,7 +435,7 @@ const teacherOptions = computed(() => {
   const teacherList = teachers.value.map((teacher) => ({
     id: teacher.id,
     name: `${teacher.first_name} ${teacher.last_name}`
-  }))
+  }));
   return [noTeacher, ...teacherList];
 });
 
@@ -479,11 +466,11 @@ const locationOptions = computed(() => {
 
 const danceStyles = computed(() => {
   if (!classInstances.value || classInstances.value.length === 0) return [];
-  
+
   // Extract unique dance styles from class instances
   const uniqueStyles = new Map();
-  
-  classInstances.value.forEach(cls => {
+
+  classInstances.value.forEach((cls) => {
     const danceStyle = cls.class_definition?.dance_style;
     if (danceStyle && danceStyle.id) {
       uniqueStyles.set(danceStyle.id, {
@@ -493,7 +480,7 @@ const danceStyles = computed(() => {
       });
     }
   });
-  
+
   // Convert Map to array
   return Array.from(uniqueStyles.values());
 });
@@ -620,6 +607,9 @@ onMounted(async () => {
 
     // Fetch reference data (class instances, teachers, studios)
     await fetchReferenceData();
+
+    // Prefetch teacher availability
+    await prefetchForScheduleItems(scheduleStore.scheduleItems, scheduleId);
 
     // Create calendar events from schedule classes
 
@@ -778,21 +768,98 @@ function filterEventsByLocation() {
 }
 
 // Handle event resize on calendar
+// Modified onEventResize function with conflict checking
 async function onEventResize(info) {
   if (!hasPermission.value) {
     info.revert();
     return;
   }
 
-  hasChanges.value = true;
   const event = info.event;
   const id = event.id;
   const newEndTime = formatTime(event.end);
 
-  // Update the local event data only - will be saved on Save Schedule button click
-  const index = scheduleStore.scheduleItems.findIndex((item) => item.id === id);
-  if (index !== -1) {
-    scheduleStore.scheduleItems[index].endTime = newEndTime;
+  // Get the original item
+  const item = scheduleStore.scheduleItems.find(item => item.id === id);
+  if (!item) {
+    console.error('Item not found:', id);
+    info.revert();
+    return;
+  }
+
+  // Create data for conflict check - only end time is changing
+  const scheduleClassData = {
+    id: id,
+    schedule_id: schedule.value.id,
+    class_instance_id: item.classInstanceId,
+    day_of_week: item.dayOfWeek,
+    start_time: item.startTime,
+    end_time: newEndTime,
+    studio_id: item.studioId,
+    teacher_id: item.teacherId
+  };
+
+  try {
+    // Get teacher availability if needed
+    let teacherAvailability = null;
+    if (item.teacherId) {
+      teacherAvailability = await getTeacherAvailability(
+        item.teacherId, 
+        schedule.value.id
+      );
+    }
+
+    // Check for conflicts
+    const resizeConflicts = checkConflicts(
+      scheduleStore.scheduleItems,
+      scheduleClassData,
+      { teacherAvailability }
+    );
+
+    if (resizeConflicts.length > 0) {
+      // Show conflict warning
+      const conflictMessages = resizeConflicts.map(conflict => conflict.message).join(', ');
+      
+      toast.add({
+        severity: 'warn',
+        summary: 'Scheduling Conflicts',
+        detail: `Conflicts detected: ${conflictMessages}`,
+        life: 5000
+      });
+      
+      // Optionally revert the resize if conflicts are found
+      // Uncomment this line if you want to prevent the resize on conflicts:
+      // info.revert();
+      
+      // Or continue but mark as having changes to save
+      hasChanges.value = true;
+    } else {
+      // No conflicts, update as normal
+      hasChanges.value = true;
+      
+      // Update the local event data
+      const index = scheduleStore.scheduleItems.findIndex((item) => item.id === id);
+      if (index !== -1) {
+        scheduleStore.scheduleItems[index].endTime = newEndTime;
+      }
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Class Duration Changed',
+        detail: 'Class duration has been updated. Click Save Schedule to apply changes.',
+        life: 3000
+      });
+    }
+  } catch (error) {
+    console.error('Error checking conflicts during resize:', error);
+    info.revert();
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to check conflicts',
+      life: 3000
+    });
   }
 }
 
@@ -803,7 +870,6 @@ async function onEventDrop(info) {
     return;
   }
 
-  hasChanges.value = true;
   const event = info.event;
   const id = event.id;
 
@@ -812,12 +878,89 @@ async function onEventDrop(info) {
   const newStartTime = formatTime(event.start);
   const newEndTime = formatTime(event.end);
 
-  // Update the local event data only - will be saved on Save Schedule button click
-  const index = scheduleStore.scheduleItems.findIndex((item) => item.id === id);
-  if (index !== -1) {
-    scheduleStore.scheduleItems[index].dayOfWeek = newDayOfWeek;
-    scheduleStore.scheduleItems[index].startTime = newStartTime;
-    scheduleStore.scheduleItems[index].endTime = newEndTime;
+  // Get the original item
+  const item = scheduleStore.scheduleItems.find(item => item.id === id);
+  if (!item) {
+    console.error('Item not found:', id);
+    info.revert();
+    return;
+  }
+
+  // Create data for conflict check
+  const scheduleClassData = {
+    id: id,
+    schedule_id: schedule.value.id,
+    class_instance_id: item.classInstanceId,
+    day_of_week: newDayOfWeek,
+    start_time: newStartTime,
+    end_time: newEndTime,
+    studio_id: item.studioId,
+    teacher_id: item.teacherId
+  };
+
+  try {
+    // Get teacher availability if needed
+    let teacherAvailability = null;
+    if (item.teacherId) {
+      teacherAvailability = await getTeacherAvailability(
+        item.teacherId, 
+        schedule.value.id
+      );
+    }
+
+    // Check for conflicts
+    const dropConflicts = checkConflicts(
+      scheduleStore.scheduleItems,
+      scheduleClassData,
+      { teacherAvailability }
+    );
+
+    if (dropConflicts.length > 0) {
+      // Show conflict warning
+      const conflictMessages = dropConflicts.map(conflict => conflict.message).join(', ');
+      
+      toast.add({
+        severity: 'warn',
+        summary: 'Scheduling Conflicts',
+        detail: `Conflicts detected: ${conflictMessages}`,
+        life: 5000
+      });
+      
+      // Optionally revert the drop if conflicts are found
+      // Uncomment this line if you want to prevent the drop on conflicts:
+      // info.revert();
+      
+      // Or continue but mark as having changes to save
+      hasChanges.value = true;
+    } else {
+      // No conflicts, update as normal
+      hasChanges.value = true;
+      
+      // Update the local event data
+      const index = scheduleStore.scheduleItems.findIndex((item) => item.id === id);
+      if (index !== -1) {
+        scheduleStore.scheduleItems[index].dayOfWeek = newDayOfWeek;
+        scheduleStore.scheduleItems[index].startTime = newStartTime;
+        scheduleStore.scheduleItems[index].endTime = newEndTime;
+      }
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Class Moved',
+        detail: 'Class has been rescheduled. Click Save Schedule to apply changes.',
+        life: 3000
+      });
+    }
+  } catch (error) {
+    console.error('Error checking conflicts during drag/drop:', error);
+    info.revert();
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to check conflicts',
+      life: 3000
+    });
   }
 }
 
@@ -894,7 +1037,7 @@ function editScheduledClass(scheduleItem) {
 // Delete a scheduled class
 function confirmDeleteFromDialog() {
   if (!classDialog.formData.id) return;
-  
+
   confirm.require({
     message: 'Are you sure you want to remove this class from the schedule?',
     header: 'Confirm Removal',
@@ -963,28 +1106,42 @@ async function saveClassSchedule() {
     teacher_id: classDialog.formData.teacher_id
   };
 
-  // Check for conflicts
-  conflicts.value = checkConflicts(scheduleStore.scheduleItems, {
-    ...scheduleClassData,
-    id: classDialog.formData.id // Include ID for conflict checking to exclude the current item
-  });
-
-  if (conflicts.value.length > 0) {
-    // Show conflicts but don't prevent saving
-    toast.add({
-      severity: 'warn',
-      summary: 'Scheduling Conflicts',
-      detail: 'There are scheduling conflicts. Review them before saving.',
-      life: 5000
-    });
-    return;
-  }
-
   try {
-    if (classDialog.isEdit) {
-      // Update existing schedule class
-      await scheduleStore.updateScheduleItem(classDialog.formData.id, scheduleClassData);
+    // Get teacher availability for the selected teacher
+    let teacherAvailability = null;
+    if (scheduleClassData.teacher_id) {
+      teacherAvailability = await getTeacherAvailability(
+        scheduleClassData.teacher_id, 
+        schedule.value.id
+      );
+    }
 
+    // Check for conflicts with availability data
+    conflicts.value = checkConflicts(
+      scheduleStore.scheduleItems, 
+      {
+        ...scheduleClassData,
+        id: classDialog.formData.id
+      },
+      {
+        teacherAvailability
+      }
+    );
+
+    if (conflicts.value.length > 0) {
+      // Show conflicts but don't prevent saving
+      toast.add({
+        severity: 'warn',
+        summary: 'Scheduling Conflicts',
+        detail: 'There are scheduling conflicts. Review them before saving.',
+        life: 5000
+      });
+      return;
+    }
+
+    // Save class schedule
+    if (classDialog.isEdit) {
+      await scheduleStore.updateScheduleItem(classDialog.formData.id, scheduleClassData);
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -992,9 +1149,7 @@ async function saveClassSchedule() {
         life: 3000
       });
     } else {
-      // Create new schedule class
       await scheduleStore.createScheduleItem(scheduleClassData);
-
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -1165,10 +1320,8 @@ const findTeacherName = (teacherId: number) => {
   const teacher = teachers.value.find((t) => t.id === teacherId);
   if (!teacher) return 'No teacher';
   const teacherName = teacher ? `${teacher.first_name} ${teacher.last_name}` : 'No teacher';
-  return teacherName
-}
-
-
+  return teacherName;
+};
 
 // Create calendar events from schedule classes
 function createCalendarEvents() {
@@ -1192,7 +1345,7 @@ function createCalendarEvents() {
   events.value = itemsToShow.map((item) => {
     // Find the teacher name - this is the critical part that needs fixing
     const teacherName = findTeacherName(item.teacherId);
-    
+
     // Update the item with the current teacher name before creating the calendar event
     const updatedItem = {
       ...item,
@@ -1241,7 +1394,7 @@ function handleSchedulePublished() {
   if (scheduleId.value) {
     scheduleTermStore.fetchSchedule(scheduleId.value);
   }
-  
+
   // You might want to show a notification or update UI elements
   toast.add({
     severity: 'info',
@@ -1275,43 +1428,43 @@ import { generateSchedulePdf } from '~/services/pdfService';
 async function generatePdf() {
   try {
     exportDialog.loading = true;
-    
+
     // Create a filtered dataset for the PDF based on selected options
-    const filteredClasses = scheduleStore.scheduleItems.filter(item => {
+    const filteredClasses = scheduleStore.scheduleItems.filter((item) => {
       // Filter by location if selected
       if (exportDialog.locationId) {
-        const studio = studios.value.find(s => s.id === item.studioId);
+        const studio = studios.value.find((s) => s.id === item.studioId);
         if (!studio || studio.location_id !== exportDialog.locationId) {
           return false;
         }
       }
-      
+
       // Filter by dance style if selected
       if (exportDialog.danceStyles && exportDialog.danceStyles.length > 0) {
-        const styleNames = exportDialog.danceStyles.map(s => s.name);
+        const styleNames = exportDialog.danceStyles.map((s) => s.name);
         if (!styleNames.includes(item.danceStyle)) {
           return false;
         }
       }
-      
+
       return true;
     });
-    
+
     // Get location name if filtering by location
     let locationName = 'All Locations';
     if (exportDialog.locationId) {
-      const location = locations.value.find(l => l.id === exportDialog.locationId);
+      const location = locations.value.find((l) => l.id === exportDialog.locationId);
       if (location) {
         locationName = location.name;
       }
     }
-    
+
     // Create schedule range string
     let scheduleRange = '';
     if (schedule.value) {
       scheduleRange = `${formatDate(schedule.value.start_date)} - ${formatDate(schedule.value.end_date)}`;
     }
-    
+
     // Prepare PDF options
     const pdfOptions = {
       title: exportDialog.title || `${schedule.value.name} Schedule`,
@@ -1325,24 +1478,23 @@ async function generatePdf() {
       scheduleRange: scheduleRange
     };
     // getTeacher name from teacherId
-    pdfOptions.classes.forEach(item => {
-      item.teacherName = findTeacherName(item.teacherId)
-    })
+    pdfOptions.classes.forEach((item) => {
+      item.teacherName = findTeacherName(item.teacherId);
+    });
 
-    
     // Generate the PDF using our service
     const pdfBlob = await generateSchedulePdf(pdfOptions);
-    
+
     // Download the PDF
     downloadPdf(pdfBlob, exportDialog.title);
-    
+
     toast.add({
       severity: 'success',
       summary: 'PDF Generated',
       detail: `Schedule exported with ${filteredClasses.length} classes.`,
       life: 3000
     });
-    
+
     // Close the dialog
     exportDialog.visible = false;
   } catch (error) {
@@ -1362,7 +1514,7 @@ async function generatePdf() {
 function downloadPdf(blob: Blob, title: string) {
   const filename = `${title.replace(/\s+/g, '-').toLowerCase()}.pdf`;
   const url = URL.createObjectURL(blob);
-  
+
   // Create a link element and trigger a download
   const link = document.createElement('a');
   link.href = url;
@@ -1370,13 +1522,10 @@ function downloadPdf(blob: Blob, title: string) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   // Clean up the blob URL
   setTimeout(() => URL.revokeObjectURL(url), 100);
 }
-
-
-
 </script>
 <style>
 .fc-event {
