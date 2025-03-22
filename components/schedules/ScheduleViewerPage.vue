@@ -20,6 +20,15 @@
           placeholder="Select View" 
           class="w-full sm:w-48" 
         />
+
+        <Dropdown
+          v-model="selectedLocationId"
+          :options="locationOptions"
+          optionLabel="name"
+          optionValue="id"
+          placeholder="All Locations"
+          class="w-full sm:w-48"
+        />
         
         <Button 
           v-if="authStore.hasRole(['admin', 'staff'])"
@@ -29,6 +38,16 @@
           @click="navigateTo('/schedules')" 
         />
       </div>
+    </div>
+
+    <div v-if="!activeSchedule && !loading" class="card p-6 text-center">
+      <div class="text-gray-500 mb-4">No published schedule is currently available.</div>
+      <Button 
+        v-if="authStore.hasRole(['admin', 'staff'])"
+        label="Go to Schedule Management" 
+        icon="pi pi-calendar" 
+        @click="navigateTo('/schedules')" 
+      />
     </div>
     
     <div class="card">
@@ -76,6 +95,16 @@
               </div>
             </template>
           </MultiSelect>
+        </div>
+
+        <!-- PDF Export Button -->
+        <div>
+          <Button
+            label="Export PDF"
+            icon="pi pi-file-pdf"
+            class="p-button-outlined"
+            @click="openExportDialog"
+          />
         </div>
       </div>
       
@@ -170,6 +199,82 @@
         <Button label="Close" icon="pi pi-times" @click="closeClassDetails" />
       </template>
     </Dialog>
+    <Dialog
+      v-model:visible="exportDialog.visible"
+      :style="{ width: '500px' }"
+      header="Export Schedule to PDF"
+      :modal="true"
+      :closable="true"
+    >
+      <div class="space-y-4">
+        <div class="field">
+          <label for="exportTitle" class="font-medium">Title</label>
+          <InputText
+            id="exportTitle"
+            v-model="exportDialog.title"
+            class="w-full"
+            placeholder="Schedule title in the exported document"
+          />
+        </div>
+        
+        <div class="field">
+          <label class="font-medium">Export Options</label>
+          <div class="flex flex-col gap-2 mt-2">
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.includeHeader"
+                :binary="true"
+                id="includeHeader"
+              />
+              <label for="includeHeader" class="ml-2">Include studio header/logo</label>
+            </div>
+            
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.includeLegend"
+                :binary="true"
+                id="includeLegend"
+              />
+              <label for="includeLegend" class="ml-2">Include class style legend</label>
+            </div>
+            
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.includeTeachers"
+                :binary="true"
+                id="includeTeachers"
+              />
+              <label for="includeTeachers" class="ml-2">Include teacher names</label>
+            </div>
+            
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.landscape"
+                :binary="true"
+                id="landscape"
+              />
+              <label for="landscape" class="ml-2">Landscape orientation</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="exportDialog.visible = false"
+        />
+        <Button
+          label="Generate PDF"
+          icon="pi pi-file-pdf"
+          class="p-button-primary"
+          @click="generatePdf"
+          :loading="exportDialog.loading"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -179,7 +284,9 @@ import { useRouter } from 'vue-router'
 import { useScheduleTermStore } from '~/stores/useScheduleTermStore'
 import { useScheduleStore } from '~/stores/schedule'
 import { useAuthStore } from '~/stores/auth'
+import { useToast } from 'primevue/usetoast'
 import type { Schedule, ScheduleClass } from '~/types'
+import { generateSchedulePdf } from '~/services/pdfService'
 
 // State
 const loading = ref(true)
@@ -193,6 +300,20 @@ const activeSchedule = ref<Schedule | null>(null)
 const scheduleClasses = ref<ScheduleClass[]>([])
 const selectedDanceStyles = ref<any[]>([])
 const danceStyles = ref<any[]>([])
+const selectedLocationId = ref<string | null>(null)
+const locations = ref<any[]>([])
+const studios = ref<any[]>([])
+
+// Export dialog state
+const exportDialog = reactive({
+  visible: false,
+  loading: false,
+  title: '',
+  includeHeader: true,
+  includeLegend: true,
+  includeTeachers: true,
+  landscape: true
+})
 
 // Dialog state
 const classDetailsDialog = ref({
@@ -207,8 +328,42 @@ const hoursOfDay = Array.from({ length: 14 }, (_, i) => i + 8) // 8 AM to 9 PM
 // Computed props
 const showingWeek = computed(() => selectedView.value === 'week')
 
+// Location options for dropdown
+const locationOptions = computed(() => {
+  return [
+    { id: null, name: 'All Locations' },
+    ...locations.value
+  ]
+})
+
+// Filtered classes based on location and dance style
+const filteredClasses = computed(() => {
+  if (!scheduleClasses.value) return []
+  
+  return scheduleClasses.value.filter(classItem => {
+    // Filter by location if selected
+    if (selectedLocationId.value) {
+      const studio = studios.value.find(s => s.id === classItem.studioId)
+      if (!studio || studio.location_id !== selectedLocationId.value) {
+        return false
+      }
+    }
+    
+    // Filter by dance style if selected
+    if (selectedDanceStyles.value && selectedDanceStyles.value.length > 0) {
+      const styleNames = selectedDanceStyles.value.map(s => s.name)
+      if (!styleNames.includes(classItem.danceStyle)) {
+        return false
+      }
+    }
+    
+    return true
+  })
+})
+
 // Composables
 const router = useRouter()
+const toast = useToast()
 const scheduleTermStore = useScheduleTermStore()
 const scheduleStore = useScheduleStore()
 const authStore = useAuthStore()
@@ -267,6 +422,73 @@ async function loadActiveSchedule() {
     }
   } catch (error) {
     console.error('Error fetching active schedule:', error)
+  }
+}
+
+// Load published schedule
+async function loadPublishedSchedule() {
+  try {
+    const client = useSupabaseClient()
+    
+    // Query for active and published schedules
+    const { data, error } = await client
+      .from('schedules')
+      .select('*')
+      .eq('is_active', true)
+      .eq('publication_status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(1)
+    
+    if (error) throw error
+    
+    if (data && data.length > 0) {
+      activeSchedule.value = data[0]
+      
+      // Now load classes for this schedule
+      await loadScheduleClasses(activeSchedule.value.id)
+    }
+  } catch (error) {
+    console.error('Error fetching published schedule:', error)
+    throw error
+  }
+}
+
+// Watch for date changes to reload filtered data
+watch(selectedDate, () => {
+  // We don't need to reload data, just refresh the UI
+})
+
+// Watch for location filter changes
+watch(selectedLocationId, () => {
+  // Location filtering is handled by computed property
+})
+
+// Load locations
+async function loadLocations() {
+  try {
+    const client = useSupabaseClient()
+    
+    // Fetch locations
+    const { data: locationData, error: locationError } = await client
+      .from('studio_locations')
+      .select('id, name, is_active')
+      .eq('is_active', true)
+    
+    if (locationError) throw locationError
+    locations.value = locationData || []
+    
+    // Fetch studios with locations
+    const { data: studioData, error: studioError } = await client
+      .from('studio_rooms')
+      .select('id, name, location_id, is_active')
+      .eq('is_active', true)
+    
+    if (studioError) throw studioError
+    studios.value = studioData || []
+    
+  } catch (error) {
+    console.error('Error loading locations:', error)
+    throw error
   }
 }
 
@@ -525,6 +747,88 @@ function showClassDetails(classItem: ScheduleClass) {
 function closeClassDetails() {
   classDetailsDialog.value.visible = false
 }
+
+// Open export dialog
+function openExportDialog() {
+  if (!activeSchedule.value) return
+  
+  exportDialog.title = `${activeSchedule.value.name} Schedule`
+  exportDialog.visible = true
+  exportDialog.loading = false
+}
+
+// Generate and download PDF
+async function generatePdf() {
+  if (!activeSchedule.value) return
+  
+  try {
+    exportDialog.loading = true
+    
+    // Get location name if filtering by location
+    let locationName = 'All Locations'
+    if (selectedLocationId.value) {
+      const location = locations.value.find(l => l.id === selectedLocationId.value)
+      if (location) {
+        locationName = location.name
+      }
+    }
+    
+    // Create schedule range string
+    const scheduleRange = `${formatDate(new Date(activeSchedule.value.start_date))} - ${formatDate(new Date(activeSchedule.value.end_date))}`
+    
+    // Prepare PDF options
+    const pdfOptions = {
+      title: exportDialog.title,
+      includeHeader: exportDialog.includeHeader,
+      includeLegend: exportDialog.includeLegend,
+      includeTeachers: exportDialog.includeTeachers,
+      landscape: exportDialog.landscape,
+      classes: filteredClasses.value,
+      danceStyles: danceStyles.value,
+      studioName: `Dance Studio - ${locationName}`,
+      scheduleRange: scheduleRange
+    }
+    
+    // Generate the PDF using our service
+    const pdfBlob = await generateSchedulePdf(pdfOptions)
+    
+    // Download the PDF
+    const filename = `${exportDialog.title.replace(/\s+/g, '-').toLowerCase()}.pdf`
+    const url = URL.createObjectURL(pdfBlob)
+    
+    // Create a link element and trigger a download
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // Clean up the blob URL
+    setTimeout(() => URL.revokeObjectURL(url), 100)
+    
+    toast.add({
+      severity: 'success',
+      summary: 'PDF Generated',
+      detail: `Schedule exported with ${filteredClasses.value.length} classes.`,
+      life: 3000
+    })
+    
+    // Close the dialog
+    exportDialog.visible = false
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Export Failed',
+      detail: error.message || 'Failed to generate PDF',
+      life: 5000
+    })
+  } finally {
+    exportDialog.loading = false
+  }
+}
+
 </script>
 
 <style scoped>

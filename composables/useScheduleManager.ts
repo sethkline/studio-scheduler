@@ -144,6 +144,7 @@ export function useScheduleManager() {
         });
       }
     }
+    console.log(newItem, 'New Item')
 
     // Add teacher conflict checks
     if (newItem.teacher_id) {

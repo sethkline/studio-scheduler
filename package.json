@@ -23,6 +23,8 @@
     "@primevue/nuxt-module": "^4.3.2",
     "@vee-validate/nuxt": "^4.15.0",
     "chart.js": "^4.4.8",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "nuxt": "^3.16.0",
     "nuxt-security": "^2.2.0",
     "pinia": "^3.0.1",

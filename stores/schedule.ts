@@ -109,6 +109,8 @@ export const useScheduleStore = defineStore('schedule', {
       this.error = null
       
       try {
+        console.log('Updating schedule item with data:', updates)
+        
         const { data: result, error } = await useFetch(`/api/schedule-classes/${id}`, {
           method: 'PUT',
           body: updates
@@ -116,16 +118,44 @@ export const useScheduleStore = defineStore('schedule', {
         
         if (error.value) throw error.value
         
+        // Log the API response
+        console.log('API response for update:', result.value)
+        
         // Update local state
         const index = this.scheduleItems.findIndex(item => item.id === id)
         if (index !== -1) {
-          this.scheduleItems[index] = { 
-            ...this.scheduleItems[index],
-            dayOfWeek: updates.day_of_week !== undefined ? updates.day_of_week : this.scheduleItems[index].dayOfWeek,
-            startTime: updates.start_time || this.scheduleItems[index].startTime,
-            endTime: updates.end_time || this.scheduleItems[index].endTime,
-            studioId: updates.studio_id || this.scheduleItems[index].studioId
+          // Extract the relevant data from the API response
+          const apiData = result.value.scheduleClass
+          
+          // Create a new updated item with all the data from the API
+          const updatedItem = {
+            id: apiData.id,
+            dayOfWeek: apiData.day_of_week,
+            startTime: apiData.start_time,
+            endTime: apiData.end_time,
+            classInstanceId: apiData.class_instance_id,
+            className: apiData.class_instance?.name || 
+                       apiData.class_instance?.class_definition?.name || 
+                       'Unnamed Class',
+            teacherId: apiData.teacher_id,
+            teacherName: apiData.class_instance?.teacher ? 
+                        `${apiData.class_instance.teacher.first_name} ${apiData.class_instance.teacher.last_name}` : 
+                        'No Teacher',
+            danceStyle: apiData.class_instance?.class_definition?.dance_style?.name || 'Unknown',
+            danceStyleColor: apiData.class_instance?.class_definition?.dance_style?.color || '#cccccc',
+            studioId: apiData.studio_room_id,
+            studioName: apiData.studio?.name || 'No Studio'
           }
+          
+          console.log('Constructed updated item from API response:', updatedItem)
+          
+          // Update the item in the array
+          this.scheduleItems[index] = updatedItem
+          
+          // Log the updated item for debugging
+          console.log('Updated local schedule item:', this.scheduleItems[index])
+        } else {
+          console.warn(`Item with id ${id} not found in local state`)
         }
         
         return result.value.scheduleClass

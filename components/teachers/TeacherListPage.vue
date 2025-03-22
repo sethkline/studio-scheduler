@@ -335,7 +335,6 @@ const editFromViewModal = () => {
 };
 
 function viewAvailability(teacher) {
-  console.log(`/teachers/${teacher.id}/availability`)
   navigateTo(`/teachers/${teacher.id}/availability`)
 }
 

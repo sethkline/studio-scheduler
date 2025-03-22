@@ -49,11 +49,11 @@ const handleRegister = async () => {
     const { error } = await client.auth.signUp({
       email: email.value,
       password: password.value,
-      options: {
-        data: {
-          user_role: 'admin' // Default first user as admin for setup
-        }
-      }
+      // options: {
+      //   data: {
+      //     user_role: 'admin' // Default first user as admin for setup
+      //   }
+      // }
     })
     
     if (error) {

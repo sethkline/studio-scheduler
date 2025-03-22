@@ -122,8 +122,7 @@ export const useTeacherAvailabilityStore = defineStore('teacherAvailability', {
       try {
         const { data, error } = await updateTeacherAvailability(
           this.currentTeacherId,
-          id,
-          availabilityData
+          {...availabilityData, id}
         )
         
         if (error.value) throw new Error(error.value.statusMessage)

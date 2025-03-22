@@ -220,16 +220,17 @@ export function useApiService() {
     })
   }
   
-  const updateTeacherAvailability = async (teacherId, id, availabilityData) => {
-    return await useFetch(`/api/teachers/${teacherId}/availability/${id}`, {
+  const updateTeacherAvailability = async (teacherId, availabilityData) => {
+    return await useFetch(`/api/teachers/${teacherId}/availability-list`, {
       method: 'PUT',
       body: availabilityData
     })
   }
   
-  const deleteTeacherAvailability = async (teacherId, id) => {
-    return await useFetch(`/api/teachers/${teacherId}/availability/${id}`, {
-      method: 'DELETE'
+  const deleteTeacherAvailability = async (teacherId, availabilityId) => {
+    return await useFetch(`/api/teachers/${teacherId}/availability-list`, {
+      method: 'DELETE',
+      body: { id: availabilityId }
     })
   }
   

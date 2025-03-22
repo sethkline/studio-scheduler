@@ -1,10 +1,10 @@
 <template>
   <div>
-    <h1 class="text-2xl font-bold mb-6">Schedule Terms</h1>
+    <h1 class="text-2xl font-bold mb-6">Schedule Seasons</h1>
 
     <div class="flex justify-between mb-6">
       <div>
-        <Button label="Add New Term" icon="pi pi-plus" @click="openNewTermModal" :disabled="!hasPermission" />
+        <Button label="Add New Season" icon="pi pi-plus" @click="openNewTermModal" :disabled="!hasPermission" />
       </div>
 
       <div class="flex space-x-2">
@@ -17,7 +17,7 @@
           class="w-40"
         />
 
-        <InputText v-model="searchQuery" placeholder="Search terms..." class="w-64" />
+        <InputText v-model="searchQuery" placeholder="Search seasons..." class="w-64" />
       </div>
     </div>
 
@@ -28,7 +28,7 @@
       stripedRows
       class="p-datatable-sm"
     >
-      <Column field="name" header="Term Name">
+      <Column field="name" header="Season Name">
         <template #body="{ data }">
           <div class="flex items-center">
             <span
@@ -109,13 +109,13 @@
     <Dialog
       v-model:visible="termDialog.visible"
       :style="{ width: '500px' }"
-      :header="termDialog.isEdit ? 'Edit Schedule Term' : 'New Schedule Term'"
+      :header="termDialog.isEdit ? 'Edit Schedule Season' : 'New Schedule Season'"
       :modal="true"
       :closable="true"
     >
       <div class="space-y-4">
         <div class="field">
-          <label for="name" class="font-medium">Term Name*</label>
+          <label for="name" class="font-medium">Season Name*</label>
           <InputText
             id="name"
             v-model="scheduleStore.formData.name"
@@ -125,7 +125,7 @@
             :class="{ 'p-invalid': termDialog.submitted && !scheduleStore.formData.name }"
           />
           <small v-if="termDialog.submitted && !scheduleStore.formData.name" class="p-error">
-            Term name is required.
+            Season name is required.
           </small>
         </div>
 
@@ -181,13 +181,13 @@
     <Dialog
       v-model:visible="duplicateDialog.visible"
       :style="{ width: '500px' }"
-      header="Duplicate Schedule Term"
+      header="Duplicate Schedule Season"
       :modal="true"
       :closable="true"
     >
       <div class="space-y-4">
         <div class="field">
-          <label for="newName" class="font-medium">New Term Name*</label>
+          <label for="newName" class="font-medium">New Season Name*</label>
           <InputText
             id="newName"
             v-model="duplicateDialog.formData.newName"
@@ -197,7 +197,7 @@
             :class="{ 'p-invalid': duplicateDialog.submitted && !duplicateDialog.formData.newName }"
           />
           <small v-if="duplicateDialog.submitted && !duplicateDialog.formData.newName" class="p-error">
-            Term name is required.
+            Season name is required.
           </small>
         </div>
 
@@ -241,12 +241,12 @@
 
         <div class="field-checkbox">
           <Checkbox id="duplicateClasses" v-model="duplicateDialog.formData.cloneClasses" :binary="true" />
-          <label for="duplicateClasses" class="ml-2">Clone all classes from original term</label>
+          <label for="duplicateClasses" class="ml-2">Clone all classes from original season</label>
         </div>
 
         <div class="field-checkbox">
           <Checkbox id="duplicateIsActive" v-model="duplicateDialog.formData.isActive" :binary="true" />
-          <label for="duplicateIsActive" class="ml-2">Set as active term</label>
+          <label for="duplicateIsActive" class="ml-2">Set as active season</label>
         </div>
       </div>
 

@@ -7,39 +7,57 @@
           <h1 class="text-2xl font-bold">{{ schedule.name }} Schedule Builder</h1>
           <p class="text-gray-600">{{ formatDate(schedule.start_date) }} - {{ formatDate(schedule.end_date) }}</p>
         </div>
-        <div class="flex space-x-3">
-          <div class="flex items-center">
-            <Dropdown
-              v-model="selectedLocationId"
-              :options="locationOptions"
-              optionLabel="name"
-              optionValue="id"
-              placeholder="All Locations"
-              class="w-40"
+        <div class="flex flex-col items-end gap-4">
+          <!-- Publication controls -->
+          <SchedulePublishButton 
+            :scheduleId="scheduleId" 
+            :hasPermission="hasPermission"
+            @published="handleSchedulePublished"
+            @unpublished="handleScheduleUnpublished"
+          />
+          
+          <div class="flex space-x-3">
+            <div class="flex items-center">
+              <Dropdown
+                v-model="selectedLocationId"
+                :options="locationOptions"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="All Locations"
+                class="w-40"
+              />
+            </div>
+
+            <Button
+              label="Add Class"
+              icon="pi pi-plus"
+              @click="openAddClassDialog"
+              :disabled="!hasPermission || !schedule"
+            />
+
+            <Button
+              label="Save Schedule"
+              icon="pi pi-save"
+              :loading="isSaving"
+              @click="saveSchedule"
+              :disabled="!hasPermission || !schedule || !hasChanges"
+            />
+            
+            <Button
+              label="Export PDF"
+              icon="pi pi-file-pdf"
+              class="p-button-outlined"
+              @click="openExportDialog"
+              :disabled="!schedule"
             />
           </div>
-
-          <Button
-            label="Add Class"
-            icon="pi pi-plus"
-            @click="openAddClassDialog"
-            :disabled="!hasPermission || !schedule"
-          />
-
-          <Button
-            label="Save Schedule"
-            icon="pi pi-save"
-            :loading="isSaving"
-            @click="saveSchedule"
-            :disabled="!hasPermission || !schedule || !hasChanges"
-          />
         </div>
+      </div>
       </div>
 
       <div v-if="loading" class="flex justify-center p-6">
         <i class="pi pi-spin pi-spinner text-3xl"></i>
       </div>
-    </div>
 
     <!-- Calendar grid -->
     <div v-if="!loading && schedule" class="flex-grow">
@@ -201,6 +219,115 @@
       </template>
     </Dialog>
 
+    <!-- Export PDF Dialog -->
+    <Dialog
+      v-model:visible="exportDialog.visible"
+      :style="{ width: '500px' }"
+      header="Export Schedule to PDF"
+      :modal="true"
+      :closable="true"
+    >
+      <div class="space-y-4">
+        <div class="field">
+          <label for="exportTitle" class="font-medium">Title</label>
+          <InputText
+            id="exportTitle"
+            v-model="exportDialog.title"
+            class="w-full"
+            placeholder="Schedule title in the exported document"
+          />
+        </div>
+        
+        <div class="field">
+          <label class="font-medium">Export Options</label>
+          <div class="flex flex-col gap-2 mt-2">
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.includeHeader"
+                :binary="true"
+                id="includeHeader"
+              />
+              <label for="includeHeader" class="ml-2">Include studio header/logo</label>
+            </div>
+            
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.includeLegend"
+                :binary="true"
+                id="includeLegend"
+              />
+              <label for="includeLegend" class="ml-2">Include class style legend</label>
+            </div>
+            
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.includeTeachers"
+                :binary="true"
+                id="includeTeachers"
+              />
+              <label for="includeTeachers" class="ml-2">Include teacher names</label>
+            </div>
+            
+            <div class="field-checkbox">
+              <Checkbox
+                v-model="exportDialog.landscape"
+                :binary="true"
+                id="landscape"
+              />
+              <label for="landscape" class="ml-2">Landscape orientation</label>
+            </div>
+          </div>
+        </div>
+        
+        <div class="field">
+          <label class="font-medium">Filter Export</label>
+          <div class="grid grid-cols-2 gap-4 mt-2">
+            <div class="field">
+              <label for="exportLocation" class="text-sm">Location</label>
+              <Dropdown
+                id="exportLocation"
+                v-model="exportDialog.locationId"
+                :options="locationOptions"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="All Locations"
+                class="w-full mt-1"
+              />
+            </div>
+            
+            <div class="field">
+              <label for="exportStyle" class="text-sm">Dance Style</label>
+              <MultiSelect
+                id="exportStyle"
+                v-model="exportDialog.danceStyles"
+                :options="danceStyles"
+                optionLabel="name"
+                placeholder="All Styles"
+                class="w-full mt-1"
+                display="chip"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="exportDialog.visible = false"
+        />
+        <Button
+          label="Generate PDF"
+          icon="pi pi-file-pdf"
+          class="p-button-primary"
+          @click="generatePdf"
+          :loading="exportDialog.loading"
+        />
+      </template>
+    </Dialog>
+
     <!-- Delete Confirmation Dialog -->
     <ConfirmDialog></ConfirmDialog>
 
@@ -316,10 +443,13 @@ const classInstanceOptions = computed(() => {
 });
 
 const teacherOptions = computed(() => {
-  return teachers.value.map((teacher) => ({
+  const noTeacher = { id: null, name: 'No Teacher' };
+
+  const teacherList = teachers.value.map((teacher) => ({
     id: teacher.id,
     name: `${teacher.first_name} ${teacher.last_name}`
-  }));
+  }))
+  return [noTeacher, ...teacherList];
 });
 
 const studioOptions = computed(() => {
@@ -345,6 +475,27 @@ const locationOptions = computed(() => {
       name: location.name
     }))
   ];
+});
+
+const danceStyles = computed(() => {
+  if (!classInstances.value || classInstances.value.length === 0) return [];
+  
+  // Extract unique dance styles from class instances
+  const uniqueStyles = new Map();
+  
+  classInstances.value.forEach(cls => {
+    const danceStyle = cls.class_definition?.dance_style;
+    if (danceStyle && danceStyle.id) {
+      uniqueStyles.set(danceStyle.id, {
+        id: danceStyle.id,
+        name: danceStyle.name,
+        color: danceStyle.color
+      });
+    }
+  });
+  
+  // Convert Map to array
+  return Array.from(uniqueStyles.values());
 });
 
 // Function to generate tooltip content for an event
@@ -472,9 +623,7 @@ onMounted(async () => {
 
     // Create calendar events from schedule classes
 
-    // events.value = testEvents;
     createCalendarEvents();
-    console.log('Events:', events.value);
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -498,7 +647,6 @@ function handleClassInstanceChange(event) {
   // Set the teacher if available from class instance
   if (classInstance.teacher_id) {
     classDialog.formData.teacher_id = classInstance.teacher_id;
-    console.log('Set teacher to:', classInstance.teacher_id);
   }
 
   // Update the end time based on class duration
@@ -1013,6 +1161,15 @@ function onContextMenu(event: any) {
   }
 }
 
+const findTeacherName = (teacherId: number) => {
+  const teacher = teachers.value.find((t) => t.id === teacherId);
+  if (!teacher) return 'No teacher';
+  const teacherName = teacher ? `${teacher.first_name} ${teacher.last_name}` : 'No teacher';
+  return teacherName
+}
+
+
+
 // Create calendar events from schedule classes
 function createCalendarEvents() {
   // If no schedule items or FullCalendar isn't ready, return empty events
@@ -1033,28 +1190,26 @@ function createCalendarEvents() {
 
   // Map schedule items to calendar events
   events.value = itemsToShow.map((item) => {
-    // Look up relevant information
-    const classInstance = classInstances.value.find((cls) => cls.id === item.classInstanceId);
+    // Find the teacher name - this is the critical part that needs fixing
+    const teacherName = findTeacherName(item.teacherId);
+    
+    // Update the item with the current teacher name before creating the calendar event
+    const updatedItem = {
+      ...item,
+      teacherName: teacherName
+    };
 
-    // Find teacher name if we have teacher_id
-    let teacherName = 'No teacher';
-    if (item.teacherId) {
-      const teacher = teachers.value.find((t) => t.id === item.teacherId);
-      if (teacher) {
-        teacherName = `${teacher.first_name} ${teacher.last_name}`;
-      }
-    }
-
-    // Create a draggable calendar event using the schedule manager
-    const calendarEvent = createDraggableItem({...item, teacherName: teacherName});
+    // Create a draggable calendar event using the schedule manager with updated teacher info
+    const calendarEvent = createDraggableItem(updatedItem);
 
     // Add any additional properties needed
     return {
       ...calendarEvent,
-      // Add any extra properties here if needed
+      // Make sure teacher name is in both places it might be referenced
+      teacherName: teacherName,
       extendedProps: {
         ...calendarEvent.extendedProps,
-        teacherName: teacherName,
+        teacherName: teacherName
       }
     };
   });
@@ -1066,6 +1221,162 @@ function createCalendarEvents() {
     calendarApi.addEventSource(events.value);
   }
 }
+
+// publish
+const exportDialog = reactive({
+  visible: false,
+  loading: false,
+  title: '',
+  includeHeader: true,
+  includeLegend: true,
+  includeTeachers: true,
+  landscape: true,
+  locationId: null,
+  danceStyles: []
+});
+
+// Handle schedule publication
+function handleSchedulePublished() {
+  // Refresh the schedule data
+  if (scheduleId.value) {
+    scheduleTermStore.fetchSchedule(scheduleId.value);
+  }
+  
+  // You might want to show a notification or update UI elements
+  toast.add({
+    severity: 'info',
+    summary: 'Schedule Published',
+    detail: 'The schedule is now available for viewing',
+    life: 3000
+  });
+}
+
+// Handle schedule unpublication
+function handleScheduleUnpublished() {
+  // Refresh the schedule data
+  if (scheduleId.value) {
+    scheduleTermStore.fetchSchedule(scheduleId.value);
+  }
+}
+
+// Open the export dialog
+function openExportDialog() {
+  // Set default title based on current schedule
+  exportDialog.title = schedule.value ? `${schedule.value.name} Schedule` : 'Dance Studio Schedule';
+  exportDialog.locationId = selectedLocationId.value;
+  exportDialog.danceStyles = [];
+  exportDialog.visible = true;
+}
+
+// Import the PDF service
+import { generateSchedulePdf } from '~/services/pdfService';
+
+// Generate PDF function
+async function generatePdf() {
+  try {
+    exportDialog.loading = true;
+    
+    // Create a filtered dataset for the PDF based on selected options
+    const filteredClasses = scheduleStore.scheduleItems.filter(item => {
+      // Filter by location if selected
+      if (exportDialog.locationId) {
+        const studio = studios.value.find(s => s.id === item.studioId);
+        if (!studio || studio.location_id !== exportDialog.locationId) {
+          return false;
+        }
+      }
+      
+      // Filter by dance style if selected
+      if (exportDialog.danceStyles && exportDialog.danceStyles.length > 0) {
+        const styleNames = exportDialog.danceStyles.map(s => s.name);
+        if (!styleNames.includes(item.danceStyle)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    // Get location name if filtering by location
+    let locationName = 'All Locations';
+    if (exportDialog.locationId) {
+      const location = locations.value.find(l => l.id === exportDialog.locationId);
+      if (location) {
+        locationName = location.name;
+      }
+    }
+    
+    // Create schedule range string
+    let scheduleRange = '';
+    if (schedule.value) {
+      scheduleRange = `${formatDate(schedule.value.start_date)} - ${formatDate(schedule.value.end_date)}`;
+    }
+    
+    // Prepare PDF options
+    const pdfOptions = {
+      title: exportDialog.title || `${schedule.value.name} Schedule`,
+      includeHeader: exportDialog.includeHeader,
+      includeLegend: exportDialog.includeLegend,
+      includeTeachers: exportDialog.includeTeachers,
+      landscape: exportDialog.landscape,
+      classes: filteredClasses,
+      danceStyles: danceStyles.value,
+      studioName: `Dance Studio - ${locationName}`,
+      scheduleRange: scheduleRange
+    };
+    // getTeacher name from teacherId
+    pdfOptions.classes.forEach(item => {
+      item.teacherName = findTeacherName(item.teacherId)
+    })
+
+    
+    // Generate the PDF using our service
+    const pdfBlob = await generateSchedulePdf(pdfOptions);
+    
+    // Download the PDF
+    downloadPdf(pdfBlob, exportDialog.title);
+    
+    toast.add({
+      severity: 'success',
+      summary: 'PDF Generated',
+      detail: `Schedule exported with ${filteredClasses.length} classes.`,
+      life: 3000
+    });
+    
+    // Close the dialog
+    exportDialog.visible = false;
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Export Failed',
+      detail: error.message || 'Failed to generate PDF',
+      life: 5000
+    });
+  } finally {
+    exportDialog.loading = false;
+  }
+}
+
+// Download a PDF blob
+function downloadPdf(blob: Blob, title: string) {
+  const filename = `${title.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+  const url = URL.createObjectURL(blob);
+  
+  // Create a link element and trigger a download
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  // Clean up the blob URL
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+
+
 </script>
 <style>
 .fc-event {

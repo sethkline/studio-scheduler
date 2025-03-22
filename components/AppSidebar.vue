@@ -84,6 +84,15 @@
               <i class="pi pi-chart-line mr-3"></i>
               <span>Class Levels</span>
             </NuxtLink>
+
+            <NuxtLink
+              to="/classes/definitions"
+              class="sidebar-link"
+              :class="{ 'sidebar-link-active': isActive('/classes/levels') }"
+            >
+              <i class="pi pi-briefcase mr-3"></i>
+              <span>Class Definitions</span>
+            </NuxtLink>
           </template>
         </div>
 

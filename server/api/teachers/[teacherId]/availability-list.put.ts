@@ -1,10 +1,18 @@
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { getSupabaseClient } from '../../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   try {
     const client = getSupabaseClient()
     const teacherId = getRouterParam(event, 'teacherId')
-    const id = getRouterParam(event, 'id')
+    const body = await readBody(event)
+    const id = body.id
+    
+    if (!id) {
+      return createError({
+        statusCode: 400,
+        statusMessage: 'Missing availability ID'
+      })
+    }
     
     // Validate teacher_id matches
     const { data: existingAvailability, error: fetchError } = await client
@@ -22,21 +30,27 @@ export default defineEventHandler(async (event) => {
       })
     }
     
-    const { error } = await client
+    // Remove the id from body before updating
+    const updateData = { ...body }
+    delete updateData.id
+    
+    const { data, error } = await client
       .from('teacher_availability')
-      .delete()
+      .update(updateData)
       .eq('id', id)
+      .select()
     
     if (error) throw error
     
     return {
-      message: 'Availability deleted successfully'
+      message: 'Availability updated successfully',
+      availability: data[0]
     }
   } catch (error) {
-    console.error('Delete availability API error:', error)
+    console.error('Update availability API error:', error)
     return createError({
       statusCode: 500,
-      statusMessage: 'Failed to delete availability'
+      statusMessage: 'Failed to update availability'
     })
   }
 })
