@@ -42,14 +42,15 @@
               @click="saveSchedule"
               :disabled="!hasPermission || !schedule || !hasChanges"
             />
-
-            <Button
-              label="Export PDF"
-              icon="pi pi-file-pdf"
-              class="p-button-outlined"
-              @click="openExportDialog"
-              :disabled="!schedule"
-            />
+            <ClientOnly>
+              <Button
+                label="Export PDF"
+                icon="pi pi-file-pdf"
+                class="p-button-outlined"
+                @click="openExportDialog"
+                :disabled="!schedule"
+              />
+            </ClientOnly>
           </div>
         </div>
       </div>
@@ -340,11 +341,7 @@ const authStore = useAuthStore();
 const scheduleTermStore = useScheduleTermStore();
 const scheduleStore = useScheduleStore();
 const { createDraggableItem, handleItemDrop, checkConflicts } = useScheduleManager();
-const { 
-  prefetchForScheduleItems, 
-  getTeacherAvailability, 
-  clearCache 
-} = useTeacherAvailabilityCache();
+const { prefetchForScheduleItems, getTeacherAvailability, clearCache } = useTeacherAvailabilityCache();
 
 // Permissions check
 const hasPermission = computed(() => {
@@ -583,6 +580,15 @@ watch(selectedLocationId, () => {
 
 // Load data on component mount
 onMounted(async () => {
+  try {
+    if (route.params.id) {
+      const result = await scheduleTermStore.fetchSchedule(route.params.id);
+    } else {
+      console.warn('No schedule ID in route');
+    }
+  } catch (error) {
+    console.error('Error fetching schedule:', error);
+  }
   const scheduleId = route.params.id;
 
   try {
@@ -780,7 +786,7 @@ async function onEventResize(info) {
   const newEndTime = formatTime(event.end);
 
   // Get the original item
-  const item = scheduleStore.scheduleItems.find(item => item.id === id);
+  const item = scheduleStore.scheduleItems.find((item) => item.id === id);
   if (!item) {
     console.error('Item not found:', id);
     info.revert();
@@ -803,46 +809,39 @@ async function onEventResize(info) {
     // Get teacher availability if needed
     let teacherAvailability = null;
     if (item.teacherId) {
-      teacherAvailability = await getTeacherAvailability(
-        item.teacherId, 
-        schedule.value.id
-      );
+      teacherAvailability = await getTeacherAvailability(item.teacherId, schedule.value.id);
     }
 
     // Check for conflicts
-    const resizeConflicts = checkConflicts(
-      scheduleStore.scheduleItems,
-      scheduleClassData,
-      { teacherAvailability }
-    );
+    const resizeConflicts = checkConflicts(scheduleStore.scheduleItems, scheduleClassData, { teacherAvailability });
 
     if (resizeConflicts.length > 0) {
       // Show conflict warning
-      const conflictMessages = resizeConflicts.map(conflict => conflict.message).join(', ');
-      
+      const conflictMessages = resizeConflicts.map((conflict) => conflict.message).join(', ');
+
       toast.add({
         severity: 'warn',
         summary: 'Scheduling Conflicts',
         detail: `Conflicts detected: ${conflictMessages}`,
         life: 5000
       });
-      
+
       // Optionally revert the resize if conflicts are found
       // Uncomment this line if you want to prevent the resize on conflicts:
       // info.revert();
-      
+
       // Or continue but mark as having changes to save
       hasChanges.value = true;
     } else {
       // No conflicts, update as normal
       hasChanges.value = true;
-      
+
       // Update the local event data
       const index = scheduleStore.scheduleItems.findIndex((item) => item.id === id);
       if (index !== -1) {
         scheduleStore.scheduleItems[index].endTime = newEndTime;
       }
-      
+
       toast.add({
         severity: 'success',
         summary: 'Class Duration Changed',
@@ -853,7 +852,7 @@ async function onEventResize(info) {
   } catch (error) {
     console.error('Error checking conflicts during resize:', error);
     info.revert();
-    
+
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -879,7 +878,7 @@ async function onEventDrop(info) {
   const newEndTime = formatTime(event.end);
 
   // Get the original item
-  const item = scheduleStore.scheduleItems.find(item => item.id === id);
+  const item = scheduleStore.scheduleItems.find((item) => item.id === id);
   if (!item) {
     console.error('Item not found:', id);
     info.revert();
@@ -902,40 +901,33 @@ async function onEventDrop(info) {
     // Get teacher availability if needed
     let teacherAvailability = null;
     if (item.teacherId) {
-      teacherAvailability = await getTeacherAvailability(
-        item.teacherId, 
-        schedule.value.id
-      );
+      teacherAvailability = await getTeacherAvailability(item.teacherId, schedule.value.id);
     }
 
     // Check for conflicts
-    const dropConflicts = checkConflicts(
-      scheduleStore.scheduleItems,
-      scheduleClassData,
-      { teacherAvailability }
-    );
+    const dropConflicts = checkConflicts(scheduleStore.scheduleItems, scheduleClassData, { teacherAvailability });
 
     if (dropConflicts.length > 0) {
       // Show conflict warning
-      const conflictMessages = dropConflicts.map(conflict => conflict.message).join(', ');
-      
+      const conflictMessages = dropConflicts.map((conflict) => conflict.message).join(', ');
+
       toast.add({
         severity: 'warn',
         summary: 'Scheduling Conflicts',
         detail: `Conflicts detected: ${conflictMessages}`,
         life: 5000
       });
-      
+
       // Optionally revert the drop if conflicts are found
       // Uncomment this line if you want to prevent the drop on conflicts:
       // info.revert();
-      
+
       // Or continue but mark as having changes to save
       hasChanges.value = true;
     } else {
       // No conflicts, update as normal
       hasChanges.value = true;
-      
+
       // Update the local event data
       const index = scheduleStore.scheduleItems.findIndex((item) => item.id === id);
       if (index !== -1) {
@@ -943,7 +935,7 @@ async function onEventDrop(info) {
         scheduleStore.scheduleItems[index].startTime = newStartTime;
         scheduleStore.scheduleItems[index].endTime = newEndTime;
       }
-      
+
       toast.add({
         severity: 'success',
         summary: 'Class Moved',
@@ -954,7 +946,7 @@ async function onEventDrop(info) {
   } catch (error) {
     console.error('Error checking conflicts during drag/drop:', error);
     info.revert();
-    
+
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -1110,15 +1102,12 @@ async function saveClassSchedule() {
     // Get teacher availability for the selected teacher
     let teacherAvailability = null;
     if (scheduleClassData.teacher_id) {
-      teacherAvailability = await getTeacherAvailability(
-        scheduleClassData.teacher_id, 
-        schedule.value.id
-      );
+      teacherAvailability = await getTeacherAvailability(scheduleClassData.teacher_id, schedule.value.id);
     }
 
     // Check for conflicts with availability data
     conflicts.value = checkConflicts(
-      scheduleStore.scheduleItems, 
+      scheduleStore.scheduleItems,
       {
         ...scheduleClassData,
         id: classDialog.formData.id

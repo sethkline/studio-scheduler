@@ -1,5 +1,3 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { ScheduleClass } from '~/types';
 
 // Define the options interface
@@ -20,7 +18,21 @@ interface SchedulePdfOptions {
  * Generate a PDF schedule
  */
 export async function generateSchedulePdf(options: SchedulePdfOptions): Promise<Blob> {
+  // Check if we're running in browser environment
+  if (typeof window === 'undefined') {
+    throw new Error('PDF generation can only run in browser environment');
+  }
+
   console.log('Classes for PDF:', options.classes);
+  
+  // Dynamically import jsPDF and autoTable only in browser environment
+  const jsPDFModule = await import('jspdf');
+  const jsPDF = jsPDFModule.jsPDF;
+  
+  // Import autoTable as a side effect for jsPDF
+  const autoTableModule = await import('jspdf-autotable');
+  const autoTable = autoTableModule.default;
+  
   // Create a new PDF document
   const pdf = new jsPDF({
     orientation: options.landscape ? 'landscape' : 'portrait',
