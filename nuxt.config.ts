@@ -9,7 +9,8 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@vee-validate/nuxt',
     'nuxt-security',
-    '@vueuse/nuxt'
+    '@vueuse/nuxt',
+    '@nuxt/test-utils/module'
   ],
 
   primevue: {
@@ -41,6 +42,7 @@ export default defineNuxtConfig({
     // Private keys (server-side only)
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
+    marketingSiteUrl: process.env.MARKETING_SITE_URL,
     // Public keys (can be exposed to client)
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
@@ -55,14 +57,17 @@ export default defineNuxtConfig({
         'base-uri': ["'self'"],
         'font-src': ["'self'", 'https:', 'data:'],
         'form-action': ["'self'"],
-        'frame-ancestors': ["'self'"],
+        'frame-ancestors': ["'self'", "https://localhost:3000"],
         'img-src': ["'self'", 'data:', 'https:'],
         'object-src': ["'none'"],
         'script-src-attr': ["'none'"],
         'style-src': ["'self'", 'https:', "'unsafe-inline'"],
         'upgrade-insecure-requests': true
-      }
-    }
+      },
+      // Add CORS headers
+      crossOriginResourcePolicy: false
+    },
+    rateLimiter: false
   },
 
   app: {

@@ -1,3 +1,14 @@
+import { ref } from 'vue';
+import { createDraggableItem, formatTime, formatDateToTimeString } from '~/utils/calendar-utils';
+import { checkConflicts } from '~/utils/conflict-checker';
+import { 
+  generateNextSeasonName, 
+  getSeasonStartDate, 
+  getSeasonEndDate, 
+  isDateInTransitionPeriod,
+  mapClassesToNewSeason
+} from '~/utils/season-manager';
+
 export function useScheduleManager() {
   const client = useSupabaseClient();
   const toast = useToast();
@@ -5,59 +16,6 @@ export function useScheduleManager() {
   const isCreating = ref(false);
   const isUpdating = ref(false);
   const isDeleting = ref(false);
-
-  // Function to create a draggable schedule item
-  const createDraggableItem = (item) => {
-    // Get current date information
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-
-    // Calculate the date for the given day of week
-    // We want to display the current week, so we adjust based on the difference
-    // between today's day and the event's day
-    let dayOffset = item.dayOfWeek - currentDay;
-
-    // Adjust for Sunday (0) vs Monday (1) as week start
-    // If item.dayOfWeek is 0 (Sunday) and today is not Sunday, we need to add days
-    if (item.dayOfWeek === 0 && currentDay !== 0) {
-      dayOffset = 7 - currentDay; // Move to next Sunday
-    }
-
-    // Create date objects for start and end times
-    const startDate = new Date(currentYear, currentMonth, currentDate + dayOffset);
-    const endDate = new Date(currentYear, currentMonth, currentDate + dayOffset);
-
-    // Parse time strings and set hours and minutes
-    const [startHours, startMinutes] = item.startTime.split(':').map(Number);
-    const [endHours, endMinutes] = item.endTime.split(':').map(Number);
-
-    startDate.setHours(startHours, startMinutes, 0);
-    endDate.setHours(endHours, endMinutes, 0);
-
-    return {
-      id: item.id,
-      title: item.className,
-      start: startDate,
-      end: endDate,
-      backgroundColor: item.danceStyleColor,
-      classInstanceId: item.classInstanceId,
-      teacherId: item.teacherId,
-      teacherName: item.teacherName,
-      studioId: item.studioId,
-      studioName: item.studioName,
-      danceStyle: item.danceStyle,
-      extendedProps: {
-        teacherName: item.teacherName || 'No teacher',
-        studioName: item.studioName || 'No studio',
-        dayOfWeek: item.dayOfWeek,
-        startTime: item.startTime,
-        endTime: item.endTime
-      }
-    };
-  };
 
   // Function to handle a schedule item drop (when dragged & dropped)
   const handleItemDrop = async (dropInfo) => {
@@ -68,14 +26,8 @@ export function useScheduleManager() {
 
       // Calculate new day and time
       const newDayOfWeek = event.start.getDay();
-      const newStartTime = `${event.start.getHours().toString().padStart(2, '0')}:${event.start
-        .getMinutes()
-        .toString()
-        .padStart(2, '0')}:00`;
-      const newEndTime = `${event.end.getHours().toString().padStart(2, '0')}:${event.end
-        .getMinutes()
-        .toString()
-        .padStart(2, '0')}:00`;
+      const newStartTime = formatDateToTimeString(event.start);
+      const newEndTime = formatDateToTimeString(event.end);
 
       // Update in database
       const { data, error } = await client
@@ -113,134 +65,6 @@ export function useScheduleManager() {
       isUpdating.value = false;
     }
   };
-  const checkConflicts = (items, newItem, options = {}) => {
-    const conflicts = [];
-
-    // Get teacher availability data from options or use empty array
-    const teacherAvailability = options.teacherAvailability || {
-      regularAvailability: [],
-      exceptions: []
-    };
-
-
-    // Helper function to format time for display
-    const formatTimeForDisplay = (timeString) => {
-      if (!timeString) return '';
-
-      try {
-        const date = new Date(`2000-01-01T${timeString}`);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      } catch (e) {
-        return timeString;
-      }
-    };
-
-    // Check for time conflicts in the same studio
-    const studioConflicts = items.filter(
-      (item) => item.dayOfWeek === newItem.day_of_week && item.studioId === newItem.studio_id && item.id !== newItem.id
-    );
-
-    for (const item of studioConflicts) {
-      const itemStart = new Date(`2000-01-01T${item.startTime}`);
-      const itemEnd = new Date(`2000-01-01T${item.endTime}`);
-      const newStart = new Date(`2000-01-01T${newItem.start_time}`);
-      const newEnd = new Date(`2000-01-01T${newItem.end_time}`);
-
-      // Check for overlap
-      if (
-        (newStart >= itemStart && newStart < itemEnd) || // New class starts during existing class
-        (newEnd > itemStart && newEnd <= itemEnd) || // New class ends during existing class
-        (newStart <= itemStart && newEnd >= itemEnd) // New class completely overlaps existing class
-      ) {
-        conflicts.push({
-          type: 'studio',
-          item,
-          message: `Studio conflict with ${item.className || 'another class'} (${formatTimeForDisplay(
-            item.startTime
-          )} - ${formatTimeForDisplay(item.endTime)})`
-        });
-      }
-    }
-
-    // Add teacher conflict checks - check both existing classes and availability
-    if (newItem.teacher_id) {
-      // 1. Check conflicts with other classes (same teacher, same day, different class)
-      const teacherConflicts = items.filter(
-        (item) =>
-          // Same day, same teacher, different item
-          item.dayOfWeek === newItem.day_of_week && item.teacherId === newItem.teacher_id && item.id !== newItem.id
-      );
-
-      for (const item of teacherConflicts) {
-        const itemStart = new Date(`2000-01-01T${item.startTime}`);
-        const itemEnd = new Date(`2000-01-01T${item.endTime}`);
-        const newStart = new Date(`2000-01-01T${newItem.start_time}`);
-        const newEnd = new Date(`2000-01-01T${newItem.end_time}`);
-
-        // Check for overlap
-        if (
-          (newStart >= itemStart && newStart < itemEnd) ||
-          (newEnd > itemStart && newEnd <= itemEnd) ||
-          (newStart <= itemStart && newEnd >= itemEnd)
-        ) {
-          conflicts.push({
-            type: 'teacher',
-            item,
-            message: `Teacher conflict: This teacher is already teaching ${
-              item.className || 'another class'
-            } (${formatTimeForDisplay(item.startTime)} - ${formatTimeForDisplay(item.endTime)})`
-          });
-        }
-      }
-
-
-      const regularAvailForDay = teacherAvailability.regularAvailability.filter((avail) => {
-        return (
-          avail.teacher_id === newItem.teacher_id &&
-          parseInt(avail.day_of_week) === parseInt(newItem.day_of_week) &&
-          avail.is_available === true
-        );
-      });
-
-
-      // Convert class time to dates for comparison
-      const classStart = new Date(`2000-01-01T${newItem.start_time}`);
-      const classEnd = new Date(`2000-01-01T${newItem.end_time}`);
-
-
-      // Check if the class time falls within any availability periods
-      const isWithinRegularAvailability = regularAvailForDay.some((avail) => {
-        const availStart = new Date(`2000-01-01T${avail.start_time}`);
-        const availEnd = new Date(`2000-01-01T${avail.end_time}`);
-
-
-        // Check if class is completely within this availability window
-        return classStart >= availStart && classEnd <= availEnd;
-      });
-
-      // Add conflict if teacher is not available at this time
-      if (regularAvailForDay.length > 0 && !isWithinRegularAvailability) {
-        conflicts.push({
-          type: 'teacher_availability',
-          message: 'Teacher is not available during this time slot'
-        });
-      }
-
-      // Also handle the case where there is no availability data for this day
-      if (regularAvailForDay.length === 0) {
-        // No availability data for this day - teacher is not scheduled to work
-        conflicts.push({
-          type: 'teacher_availability',
-          message: 'Teacher does not have any availability scheduled for this day'
-        });
-      }
-
-      // Note: You could also check exceptions here if needed
-      // This would be important for specific dates rather than recurring days
-    }
-
-    return conflicts;
-  };
 
   // Helper function to get class instance information
   const getClassInstance = async (id) => {
@@ -252,119 +76,6 @@ export function useScheduleManager() {
     }
 
     return data;
-  };
-
-  // Format time for display
-  const formatTime = (timeString) => {
-    if (!timeString) return '';
-
-    try {
-      const date = new Date(`2000-01-01T${timeString}`);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-      return timeString;
-    }
-  };
-
-  // Generate a new season name based on the current date
-  const generateNextSeasonName = () => {
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
-
-    let season;
-    let year = currentYear;
-
-    // Determine season based on current month
-    if (currentMonth >= 0 && currentMonth < 3) {
-      // If in Jan-Mar, we're planning for Spring
-      season = 'Spring';
-    } else if (currentMonth >= 3 && currentMonth < 6) {
-      // If in Apr-Jun, we're planning for Summer
-      season = 'Summer';
-    } else if (currentMonth >= 6 && currentMonth < 9) {
-      // If in Jul-Sep, we're planning for Fall
-      season = 'Fall';
-    } else {
-      // If in Oct-Dec, we're planning for next year's Spring
-      season = 'Spring';
-      year = currentYear + 1;
-    }
-
-    // If we're close to the end of the current season, suggest the next one
-    if (currentMonth === 2 || currentMonth === 5 || currentMonth === 8 || currentMonth === 11) {
-      // Near end of season, suggest next one
-      if (season === 'Spring') season = 'Summer';
-      else if (season === 'Summer') season = 'Fall';
-      else if (season === 'Fall') season = 'Winter';
-      else if (season === 'Winter') {
-        season = 'Spring';
-        year++;
-      }
-    }
-
-    return {
-      name: `${season} ${year}`,
-      season,
-      year,
-      suggestedStartDate: getSeasonStartDate(season, year),
-      suggestedEndDate: getSeasonEndDate(season, year)
-    };
-  };
-
-  // Get a suggested start date for a season
-  const getSeasonStartDate = (season, year) => {
-    const date = new Date();
-    date.setFullYear(year);
-
-    switch (season) {
-      case 'Spring':
-        date.setMonth(2); // March
-        date.setDate(1);
-        break;
-      case 'Summer':
-        date.setMonth(5); // June
-        date.setDate(1);
-        break;
-      case 'Fall':
-        date.setMonth(8); // September
-        date.setDate(1);
-        break;
-      case 'Winter':
-        date.setMonth(11); // December
-        date.setDate(1);
-        break;
-    }
-
-    return date.toISOString().split('T')[0];
-  };
-
-  // Get a suggested end date for a season
-  const getSeasonEndDate = (season, year) => {
-    const date = new Date();
-    date.setFullYear(year);
-
-    switch (season) {
-      case 'Spring':
-        date.setMonth(4); // May
-        date.setDate(31);
-        break;
-      case 'Summer':
-        date.setMonth(7); // August
-        date.setDate(31);
-        break;
-      case 'Fall':
-        date.setMonth(10); // November
-        date.setDate(30);
-        break;
-      case 'Winter':
-        date.setMonth(1); // February of next year
-        date.setFullYear(year + 1);
-        date.setDate(28); // Simplification - not handling leap years
-        break;
-    }
-
-    return date.toISOString().split('T')[0];
   };
 
   // Function to help transition classes from one season to the next
@@ -394,16 +105,8 @@ export function useScheduleManager() {
         return { success: true, message: 'No classes to transition', count: 0 };
       }
 
-      // 2. For each class in the source, create a corresponding class in the target
-      const newClasses = sourceClasses.map((sourceClass) => ({
-        schedule_id: targetScheduleId,
-        class_instance_id: sourceClass.class_instance_id,
-        day_of_week: sourceClass.day_of_week,
-        start_time: sourceClass.start_time,
-        end_time: sourceClass.end_time,
-        studio_id: sourceClass.studio_id,
-        teacher_id: sourceClass.teacher_id
-      }));
+      // 2. Map source classes to target classes
+      const newClasses = mapClassesToNewSeason(sourceClasses, targetScheduleId);
 
       // 3. Insert all new classes
       const { data: inserted, error: insertError } = await client.from('schedule_classes').insert(newClasses).select();
@@ -486,7 +189,8 @@ export function useScheduleManager() {
       // We're in a transition period if either:
       // 1. The current schedule ends within 30 days
       // 2. We have upcoming recitals
-      const isTransition = daysUntilEnd <= 30 || hasRecitals;
+      const isInTransitionPeriod = isDateInTransitionPeriod(activeSchedule.end_date);
+      const isTransition = isInTransitionPeriod || hasRecitals;
 
       return {
         isTransitionPeriod: isTransition,
