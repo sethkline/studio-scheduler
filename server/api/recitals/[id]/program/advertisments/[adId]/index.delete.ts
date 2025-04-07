@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '../../../../../utils/supabase'
+import { getSupabaseClient } from '../../../../../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   try {
