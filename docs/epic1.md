@@ -44,17 +44,17 @@ This feature set will enable studio administrators to create, manage, and genera
 - [x] `PUT /api/recitals/:id/program/acknowledgments` - Save acknowledgments section
 
 ### Performance Management
-- [ x] `PUT /api/recitals/:id/performances/reorder` - Update performance order
-- [ x] `PUT /api/recitals/:id/performances/:performanceId` - Update performance details
-- [ x] `GET /api/recitals/:id/performances/export` - Generate program PDF
+- [x] `PUT /api/recitals/:id/performances/reorder` - Update performance order
+- [x] `PUT /api/recitals/:id/performances/:performanceId` - Update performance details
+- [x] `GET /api/recitals/:id/performances/export` - Generate program PDF
 
 ## User Interface Components
 
 ### 1. Recital Program Dashboard
 - [ ] Overview of program status
-- [ ] Quick links to different sections (performances, notes, ads)
-- [ ] PDF generation button
-- [ ] Program preview
+- [x] Quick links to different sections (performances, notes, ads)
+- [x] PDF generation button
+- [x] Program preview
 
 ### 2. Performance Order Manager
 - [ ] Drag and drop interface for performance ordering

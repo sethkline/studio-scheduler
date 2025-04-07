@@ -1,19 +1,29 @@
-# Recital Program Component Guide
+# Recital Program Management Components Documentation
 
-This guide provides details on the Vue.js components used to implement the Recital Program Management feature. These components work together to provide a complete solution for creating and managing professional recital programs.
+## Overview
 
-## Main Components
+This documentation provides a comprehensive guide to the components that implement the Recital Program Management feature. These components enable studio administrators to create, manage, and generate professional recital programs that include performance details, participant lists, artistic notes, acknowledgments, and promotional content.
+
+## Component Architecture
+
+The feature follows a hierarchical component structure:
+
+```
+RecitalProgramManager (Container)
+├── PerformanceOrderManager
+├── ProgramContentEditor
+├── CoverImageUploader
+├── AdvertisementManager
+└── ProgramPreview (Modal)
+```
+
+## Core Components
 
 ### 1. RecitalProgramManager
 
-The primary container component that orchestrates the entire program management experience.
-
 **File Location:** `components/recital/RecitalProgramManager.vue`
 
-**Dependencies:**
-- Vue.js 3 with Composition API
-- PrimeVue UI components (TabView, OrderList, Dialog, etc.)
-- Supabase client for database operations
+**Purpose:** Main container component that orchestrates the entire program management experience, including tab navigation and common actions.
 
 **Props:**
 - `recitalId` (String, required): UUID of the recital
@@ -24,392 +34,451 @@ The primary container component that orchestrates the entire program management 
 - PDF generation initiation
 - Program preview functionality
 
+**Dependencies:**
+- PrimeVue TabView component
+- Recital Program Store
+- Child components for each program section
+
 **Usage Example:**
 ```html
-<RecitalProgramManager :recitalId="recitalId" />
+<RecitalProgramManager recitalId="123e4567-e89b-12d3-a456-426614174000" />
 ```
 
 ### 2. PerformanceOrderManager
 
-Handles the ordering and editing of performances within the recital program.
-
 **File Location:** `components/recital/PerformanceOrderManager.vue`
 
-**Dependencies:**
-- PrimeVue OrderList component
-- Supabase client
+**Purpose:** Handles the ordering and editing of performances within the recital program.
 
 **Props:**
 - `performances` (Array, required): List of performances
-- `classInstances` (Array, required): Available class instances
+- `loading` (Boolean): Loading state indicator
 
-**Emits:**
-- `update:performances`: When performances are reordered or edited
-- `save`: When changes should be persisted
+**Events:**
+- `save`: Emitted when performance order is updated
+- `update-performance`: Emitted when a performance's details are updated
 
 **Key Features:**
 - Drag-and-drop reordering interface
 - Performance details display
-- Edit and view dancer modals
-- Order persistence
+- Edit performance dialog
+- View dancers dialog
+- Automatic performance numbering
 
-**Usage Example:**
-```html
-<PerformanceOrderManager 
-  v-model:performances="performances"
-  :classInstances="classInstances"
-  @save="savePerformanceOrder"
-/>
-```
+**Dependencies:**
+- PrimeVue OrderList, Dialog, and DataTable components
+- Supabase client for fetching dancers
+
+**Technical Notes:**
+- Uses OrderList component for drag-and-drop functionality
+- Manages local state for editing to prevent premature API calls
+- Tracks original order to detect changes
 
 ### 3. ProgramContentEditor
 
-Provides rich text editing for artistic director's note and acknowledgments.
+**File Location:** `components/recital/ProgramContentEditor.vue`
+
+**Purpose:** Provides rich text editing for artistic director's note and acknowledgments.
+
+**Props:**
+- `programContent` (Object, required): Program content data
+  - `artisticDirectorNote` (String): HTML content for director's note
+  - `acknowledgments` (String): HTML content for acknowledgments
+- `loading` (Boolean): Loading state indicator
+
+**Events:**
+- `save`: Emitted when content is updated, with an object containing the updated content
+
+**Key Features:**
+- Rich text editing with formatting options
+- Auto-save functionality with 2-second debounce
+- Side-by-side editors for director's note and acknowledgments
+- Responsive grid layout that stacks on mobile devices
+
+**Dependencies:**
+- TipTapEditor component for rich text editing
+- PrimeVue Button component for save action
+
+**Technical Notes:**
+- Implements debounced auto-save for better user experience
+- Tracks changes to prevent unnecessary API calls
+- Rich text content is stored as HTML
+- Uses TipTap editor extensions for text formatting and alignment
+
+**Sub-Components:**
+
+#### TipTapEditor
+
+**File Location:** `components/TipTapEditor.vue`
+
+**Purpose:** Reusable rich text editor component based on TipTap.
+
+**Props:**
+- `modelValue` (String): Editor content in HTML format
+- `editable` (Boolean, default: true): Whether the editor is editable
+- `height` (String, default: '200px'): Editor height
+- `minHeight` (String, default: '100px'): Editor minimum height
+- `maxHeight` (String, default: 'none'): Editor maximum height
+
+**Events:**
+- `update:modelValue`: Emitted when editor content changes
+
+**Key Features:**
+- Toolbar with formatting options (bold, italic, underline)
+- Heading options (H1, H2)
+- Text alignment controls
+- List formatting (bulleted and ordered)
+- Undo/redo functionality
+
+**Dependencies:**
+- TipTap Vue 3 packages (@tiptap/vue-3, @tiptap/starter-kit)
+- TipTap extensions (@tiptap/extension-underline, @tiptap/extension-text-align, @tiptap/extension-highlight)
+- PrimeVue Button, Toolbar components
+
+**Technical Notes:**
+- Implements v-model compatible interface
+- Watches for external content changes
+- Properly cleans up editor instance on component unmount
+- Custom styling for editor and toolbar
 
 **File Location:** `components/recital/ProgramContentEditor.vue`
 
-**Dependencies:**
-- PrimeVue Editor component
-- Supabase client
+**Purpose:** Provides rich text editing for artistic director's note and acknowledgments.
 
 **Props:**
-- `programContent` (Object, required): Content data object
-- `recitalId` (String, required): UUID of the recital
+- `programContent` (Object, required): Program content data
+- `loading` (Boolean): Loading state indicator
 
-**Emits:**
-- `update:programContent`: When content is updated
-- `save`: When changes should be persisted
+**Events:**
+- `save`: Emitted when content is updated
 
 **Key Features:**
 - Rich text editing with formatting options
 - Auto-save functionality
-- Separate editors for director's note and acknowledgments
+- Side-by-side editors for director's note and acknowledgments
 
-**Usage Example:**
-```html
-<ProgramContentEditor
-  v-model:programContent="programContent"
-  :recitalId="recitalId"
-  @save="saveProgramContent"
-/>
-```
+**Dependencies:**
+- PrimeVue Editor component for rich text editing
+
+**Technical Notes:**
+- Implements debounced auto-save for better user experience
+- Tracks changes to prevent unnecessary API calls
+- Rich text content is stored as HTML
 
 ### 4. CoverImageUploader
 
-Handles the upload, preview, and management of the program cover image.
-
 **File Location:** `components/recital/CoverImageUploader.vue`
 
-**Dependencies:**
-- PrimeVue FileUpload component
-- Supabase Storage
+**Purpose:** Handles the upload, preview, and management of the program cover image.
 
 **Props:**
 - `coverImage` (String): Current cover image URL
-- `recitalId` (String, required): UUID of the recital
+- `loading` (Boolean): Loading state indicator
 
-**Emits:**
-- `update:coverImage`: When cover image is updated or removed
+**Events:**
+- `upload`: Emitted when a new image is uploaded
+- `remove`: Emitted when the current image is removed
 
 **Key Features:**
 - Image file upload with validation
 - Image preview
 - Remove option
-- Direct integration with Supabase Storage
+- File type and size validation
 
-**Usage Example:**
-```html
-<CoverImageUploader
-  v-model:coverImage="coverImage"
-  :recitalId="recitalId"
-/>
-```
+**Dependencies:**
+- PrimeVue FileUpload component
+
+**Technical Notes:**
+- Validates file types (JPG, PNG, WEBP)
+- Enforces 5MB file size limit
+- Creates local previews before actual upload
 
 ### 5. AdvertisementManager
 
-Manages the program advertisements including creation, editing, and ordering.
-
 **File Location:** `components/recital/AdvertisementManager.vue`
 
-**Dependencies:**
-- PrimeVue Dialog, Card, and Form components
-- Supabase client and Storage
+**Purpose:** Manages the program advertisements including creation, editing, and ordering.
 
 **Props:**
 - `advertisements` (Array): Current advertisements
-- `recitalId` (String, required): UUID of the recital
-- `programId` (String): UUID of the program if it exists
+- `loading` (Boolean): Loading state indicator
 
-**Emits:**
-- `update:advertisements`: When advertisements are updated
+**Events:**
+- `add`: Emitted when adding a new advertisement
+- `update`: Emitted when updating an existing advertisement
+- `delete`: Emitted when deleting an advertisement
+
+**Key Features:**
+- Grid display of current advertisements with proper sorting
+- Add/edit advertisement dialog with form validation
+- Reordering capabilities with up/down buttons
+- Image upload handling with preview
+- Delete confirmation before removing advertisements
+- Responsive grid layout that adapts to screen size
+
+**Dependencies:**
+- PrimeVue UI components (Button, Dialog, InputText, Textarea, InputNumber, FileUpload, Message, ConfirmDialog)
+- PrimeVue Forms library for form validation
+- Zod for schema validation
+- ConfirmDialog service for deletion confirmation
+
+**Technical Notes:**
+- Uses PrimeVue Forms with Zod schema validation for form handling
+- Implements validation for required fields and input constraints
+- Manages advertisement ordering with explicit position numbers
+- Handles image upload with preview and client-side validation
+- Supports FormData for multipart uploads
+- Uses computed properties for sorted advertisement display
+
+**Form Validation Implementation:**
+```javascript
+// Create a zod schema for form validation
+const adSchema = z.object({
+  title: z.string().min(1, "Advertisement title is required").max(100, "Title must be less than 100 characters"),
+  description: z.string().optional(),
+  order_position: z.number().min(1, "Position must be at least 1")
+});
+
+// Create a resolver using the zod schema
+const formResolver = zodResolver(adSchema);
+```
+
+**Form Structure:**
+- The form is implemented using PrimeVue's Form component
+- Form fields are connected to the validation schema via the 'name' attribute
+- Error messages are displayed conditionally using the form state
+- Submit handler processes the validated form data for API submission
+
+**File Location:** `components/recital/AdvertisementManager.vue`
+
+**Purpose:** Manages the program advertisements including creation, editing, and ordering.
+
+**Props:**
+- `advertisements` (Array): Current advertisements
+- `loading` (Boolean): Loading state indicator
+
+**Events:**
+- `add`: Emitted when adding a new advertisement
+- `update`: Emitted when updating an existing advertisement
+- `delete`: Emitted when deleting an advertisement
 
 **Key Features:**
 - Grid display of current advertisements
-- Add/edit/delete functionality
+- Add/edit advertisement dialog
+- Reordering capabilities
 - Image upload handling
-- Order management
+- Delete confirmation
 
-**Usage Example:**
-```html
-<AdvertisementManager
-  v-model:advertisements="advertisements"
-  :recitalId="recitalId"
-  :programId="program?.id"
-/>
-```
+**Dependencies:**
+- PrimeVue Dialog, FileUpload, and ConfirmDialog components
+- Vuelidate for form validation
+
+**Technical Notes:**
+- Implements form validation for required fields
+- Manages ordering with explicit position numbers
+- Handles image preview and validation
+- Supports FormData for multipart uploads
 
 ### 6. ProgramPreview
 
-Provides a preview of how the final program will appear when generated as a PDF.
-
 **File Location:** `components/recital/ProgramPreview.vue`
 
-**Dependencies:**
-- PrimeVue Dialog component
+**Purpose:** Provides a preview of how the final program will appear when generated as a PDF.
 
 **Props:**
-- `recital` (Object, required): Recital data
-- `programContent` (Object, required): Content data
-- `performances` (Array, required): Performance data
-- `coverImage` (String): Cover image URL
+- `recital` (Object): Recital data
+- `program` (Object): Program metadata and content
+- `performances` (Array): Performance data
 - `advertisements` (Array): Advertisement data
+
+**Events:**
+- `generate-pdf`: Emitted when user requests PDF generation
 
 **Key Features:**
 - Page-by-page preview
 - Visual representation matching final PDF
-- Scrollable content
-- PDF generation trigger
+- Navigation between program sections
+- Renders rich text content
 
-**Usage Example:**
-```html
-<ProgramPreview
-  :recital="recital"
-  :programContent="programContent"
-  :performances="performances"
-  :coverImage="coverImage"
-  :advertisements="advertisements"
-  @generatePdf="generatePdf"
-/>
-```
+**Dependencies:**
+- Custom styling to simulate PDF pages
+- PrimeVue Button components for navigation
 
-## Supporting Components
-
-### 1. PerformanceEditDialog
-
-Dialog for editing performance details.
-
-**File Location:** `components/recital/dialogs/PerformanceEditDialog.vue`
-
-**Key Features:**
-- Form for editing performance metadata
-- Song title, artist, choreographer inputs
-- Duration setting
-- Notes field
-
-### 2. ViewDancersDialog
-
-Dialog for viewing dancers assigned to a performance.
-
-**File Location:** `components/recital/dialogs/ViewDancersDialog.vue`
-
-**Key Features:**
-- Table of dancers with status
-- Link to class roster management
-- Search and filter functionality
-
-### 3. AddAdvertisementDialog
-
-Dialog for adding or editing program advertisements.
-
-**File Location:** `components/recital/dialogs/AddAdvertisementDialog.vue`
-
-**Key Features:**
-- Advertisement title and description inputs
-- Image upload interface
-- Image preview
-
-## Composables
-
-### 1. useRecitalProgramService
-
-Custom composable for interfacing with the recital program API endpoints.
-
-**File Location:** `composables/useRecitalProgramService.js`
-
-**Methods:**
-- `fetchRecitalProgram(recitalId)`: Get program data
-- `updateProgramDetails(recitalId, programData)`: Update program content
-- `uploadCoverImage(recitalId, imageFile)`: Upload cover image
-- `addAdvertisement(recitalId, advertisementData)`: Add advertisement
-- `updateAdvertisement(recitalId, adId, advertisementData)`: Update advertisement
-- `deleteAdvertisement(recitalId, adId)`: Delete advertisement
-- `reorderPerformances(recitalId, performanceOrder)`: Update performance order
-- `generateProgramPDF(recitalId)`: Generate and download PDF
-
-**Usage Example:**
-```javascript
-const { 
-  fetchRecitalProgram, 
-  updateProgramDetails, 
-  generateProgramPDF 
-} = useRecitalProgramService();
-
-// In a setup() or async method
-const { data } = await fetchRecitalProgram(recitalId);
-```
-
-### 2. useStorageUpload
-
-Handles file uploads to Supabase Storage with progress tracking.
-
-**File Location:** `composables/useStorageUpload.js`
-
-**Methods:**
-- `uploadFile(bucket, path, file)`: Upload file to storage
-- `getPublicUrl(bucket, path)`: Get public URL for file
-- `deleteFile(bucket, path)`: Delete file from storage
-
-**Usage Example:**
-```javascript
-const { uploadFile, getPublicUrl } = useStorageUpload();
-
-// In a method
-const { data } = await uploadFile('program-assets', `recital-covers/${recitalId}-cover.jpg`, file);
-const publicUrl = getPublicUrl('program-assets', data.path);
-```
+**Technical Notes:**
+- Uses fixed aspect ratio to simulate letter-sized pages
+- Renders HTML content from rich text editors
+- Organizes content into logical program sections
 
 ## State Management
 
 ### Recital Program Store
 
-A Pinia store for managing recital program state across components.
-
 **File Location:** `stores/recitalProgramStore.js`
 
-**State:**
+**Purpose:** Centralizes state management for the recital program feature, handling API calls and local state updates.
+
+**Key State:**
 - `recital`: Current recital data
-- `program`: Program metadata
+- `program`: Program metadata and content
 - `performances`: Array of performances
 - `advertisements`: Array of advertisements
-- `loading`: Loading status flags
+- `loading`: Loading states for different operations
 - `error`: Error messages
 
-**Actions:**
+**Key Actions:**
 - `fetchProgram(recitalId)`: Load all program data
 - `savePerformanceOrder(recitalId, performances)`: Save new performance order
+- `updatePerformance(recitalId, performanceId, performanceData)`: Update a performance
 - `saveProgramContent(recitalId, content)`: Save program content
-- `generatePdf(recitalId)`: Generate PDF file
+- `uploadCoverImage(recitalId, imageFile)`: Upload cover image
+- `addAdvertisement(recitalId, advertisementData)`: Add advertisement
+- `updateAdvertisement(recitalId, adId, advertisementData)`: Update advertisement
+- `deleteAdvertisement(recitalId, adId)`: Delete advertisement
+- `generatePdf(recitalId)`: Generate and download PDF
 
-**Usage Example:**
-```javascript
-const programStore = useRecitalProgramStore();
+**Technical Notes:**
+- Uses Pinia for state management
+- Integrates with the API service composable
+- Handles error states and loading indicators
+- Maintains sorted lists for performances and advertisements
 
-// In a setup() or method
-await programStore.fetchProgram(recitalId);
-```
+## Service Layer
 
-## Component Interaction Flow
+### Recital Program Service
 
-1. **Initial Loading:**
-   - RecitalProgramManager loads and passes recitalId to the store
-   - Store fetches all program data from the API
-   - Components receive data through props or store access
+**File Location:** `composables/useRecitalProgramService.js`
 
-2. **Program Content Editing:**
-   - User edits content in ProgramContentEditor
-   - Changes are emitted back to parent
-   - Save action dispatches API call through service
+**Purpose:** Provides a clean API for interacting with recital program endpoints.
 
-3. **Performance Ordering:**
-   - User drags performances in PerformanceOrderManager
-   - OrderList emits updated array
-   - Save action triggers API update
+**Key Methods:**
+- `fetchRecitalProgram(recitalId)`: Get program data
+- `updateProgramDetails(recitalId, programData)`: Update program details
+- `uploadCoverImage(recitalId, imageFile)`: Upload cover image
+- `addAdvertisement(recitalId, advertisementData)`: Add advertisement
+- `updateAdvertisement(recitalId, adId, advertisementData)`: Update advertisement
+- `deleteAdvertisement(recitalId, adId)`: Delete advertisement
+- `reorderPerformances(recitalId, performanceOrder)`: Update performance order
+- `updatePerformance(recitalId, performanceId, performanceData)`: Update performance details
+- `updateArtisticNote(recitalId, note)`: Update artistic director's note
+- `updateAcknowledgments(recitalId, acknowledgments)`: Update acknowledgments
+- `generateProgramPDF(recitalId)`: Generate and download PDF
 
-4. **Advertisement Management:**
-   - User adds/edits ads via AdvertisementManager
-   - Changes update local state
-   - CRUD operations performed via API service
+**Technical Notes:**
+- Uses Nuxt's `useFetch` for API calls
+- Handles form data for file uploads
+- Returns consistent response format
 
-5. **Preview & PDF Generation:**
-   - User clicks Preview to open ProgramPreview
-   - Dialog shows formatted program content
-   - Generate PDF triggers API call and file download
+## Testing Strategy
 
-## Data Flow Diagram
+### Unit Tests
 
-```
-┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
-│                     │     │                     │     │                     │
-│  Recital Program    │◄────┤  Recital Program    │◄────┤  API Endpoints      │
-│  Components         │     │  Store              │     │                     │
-│                     │     │                     │     │                     │
-└──────────▲──────────┘     └──────────▲──────────┘     └─────────────────────┘
-           │                           │
-           │                           │
-           │                           │
-┌──────────▼──────────┐     ┌──────────▼──────────┐
-│                     │     │                     │
-│  User Interactions  │     │  Recital Program    │
-│  (Edit/Save/etc.)   │────►│  Service            │
-│                     │     │                     │
-└─────────────────────┘     └─────────────────────┘
-```
+Unit tests should verify the correct behavior of individual components, focusing on their business logic and state management.
 
-## Styling Guidelines
+**Key Areas to Test:**
+- State transitions
+- Component methods
+- Store actions and mutations
+- Event handling
+- Validation logic
 
-Components use a combination of:
-- PrimeVue's built-in styling
-- Utility classes (Tailwind CSS)
-- Custom CSS where needed
+**Example Test Files:**
+- `RecitalProgramManager.spec.js`
+- `PerformanceOrderManager.spec.js` 
+- `recitalProgramStore.spec.js`
 
-Key style classes include:
-- Card containers: `card p-4`
-- Section headings: `text-xl font-semibold mb-4`
-- Form groups: `field mb-4`
-- Action buttons: Primary and secondary PrimeVue Button variants
+### Component Tests
 
-## Implementation Notes
+Component tests verify that components render and behave correctly, including interactions with child components.
 
-1. **Performance Considerations:**
-   - Lazy-load components for better initial loading
-   - Use pagination for large performance lists
-   - Optimize image loading with proper sizing
+**Key Areas to Test:**
+- Component rendering with different props
+- User interactions (clicks, drags, form submissions)
+- Dialog behavior
+- Loading and error states
+- Component integration
 
-2. **Error Handling:**
-   - Each component includes comprehensive error handling
-   - User-friendly error messages via toast notifications
-   - Detailed logging for debugging
+**Example Test Files:**
+- `AdvertisementManager.spec.js`
+- `ProgramContentEditor.spec.js`
+- `CoverImageUploader.spec.js`
 
-3. **Accessibility:**
-   - All interactive elements have proper ARIA attributes
-   - Color contrast meets WCAG requirements
-   - Keyboard navigation support
+### Integration Tests
 
-4. **Mobile Responsiveness:**
-   - Responsive grid layouts using Tailwind's grid system
-   - Stack layouts on smaller screens
-   - Touch-friendly drag and drop
+Integration tests verify that components work together correctly, with a focus on data flow and API interactions.
 
-## Testing
+**Key Areas to Test:**
+- End-to-end workflows (creating, editing, publishing)
+- API interactions
+- Store integration
+- Error handling
+- PDF generation
 
-Components should be tested using:
-- Unit tests for individual component logic
-- Integration tests for component interactions
-- End-to-end tests for complete workflows
+**Example Test Files:**
+- `recitalProgramWorkflow.spec.js`
+- `programGeneration.spec.js`
 
-## Next Steps & Future Improvements
+## Implementation Roadmap
 
-1. Component enhancements:
-   - Add template selection for program layouts
-   - Implement drag-and-drop for cover image positioning
-   - Add student quick-change detection
+1. **Database schema implementation**
+   - Add recital_programs table
+   - Add recital_program_advertisements table
+   - Update recital_performances table
 
-2. UX improvements:
-   - Add undo/redo functionality
-   - Implement auto-save for all content
-   - Add keyboard shortcuts for common actions
+2. **API endpoints implementation**
+   - Implement GET/POST/PUT endpoints for program data
+   - Add file upload endpoints for cover image and advertisements
+   - Implement PDF generation endpoint
 
-3. Performance optimizations:
-   - Implement virtual scrolling for long performance lists
-   - Add caching for program preview
-   - Optimize PDF generation process
+3. **Core components implementation**
+   - Develop RecitalProgramManager container component
+   - Implement PerformanceOrderManager and ProgramContentEditor
+   - Build CoverImageUploader and AdvertisementManager
+   - Create ProgramPreview component
+
+4. **Store and service implementation**
+   - Develop recitalProgramStore
+   - Implement useRecitalProgramService composable
+   - Connect components to store
+
+5. **Testing and quality assurance**
+   - Write unit tests for core functionality
+   - Create component tests for UI behavior
+   - Implement integration tests for workflows
+   - Perform manual testing and bug fixes
+
+6. **Documentation and deployment**
+   - Create component documentation
+   - Update API documentation
+   - Deploy to staging environment
+   - Release to production
+
+## Best Practices
+
+1. **State Management**
+   - Use the store for shared state across components
+   - Keep local state for UI-specific behavior
+   - Update store after successful API calls
+
+2. **Error Handling**
+   - Display user-friendly error messages
+   - Log detailed errors for debugging
+   - Handle API errors consistently
+   - Provide fallback UI for error states
+
+3. **Performance Optimization**
+   - Lazy load components when possible
+   - Optimize image loading and processing
+   - Implement pagination for large lists
+   - Debounce input handlers and auto-save functions
+
+4. **Accessibility**
+   - Use semantic HTML where appropriate
+   - Ensure keyboard navigation works properly
+   - Add appropriate ARIA attributes
+   - Maintain sufficient color contrast
+
+5. **Code Organization**
+   - Follow consistent naming conventions
+   - Group related functionality
+   - Document complex logic with comments
+   - Extract reusable logic into composables

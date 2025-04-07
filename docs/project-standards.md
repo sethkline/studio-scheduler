@@ -1,7 +1,7 @@
 # Project Standards and Guidelines
 
-## Testing Requirements
-- [ ] Each API endpoint must have unit tests covering:
+<!-- ## Testing Requirements -->
+<!-- - [ ] Each API endpoint must have unit tests covering:
   - [ ] Success cases
   - [ ] Authorization failures
   - [ ] Validation errors
@@ -10,7 +10,7 @@
   - [ ] Component rendering tests
   - [ ] User interaction tests
   - [ ] Integration tests for data flow
-- [ ] End-to-end tests for critical user journeys
+- [ ] End-to-end tests for critical user journeys -->
 
 ## Documentation Requirements
 - [ ] API endpoints documented with:
