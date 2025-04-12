@@ -6,8 +6,8 @@
         label="Create New Recital" 
         icon="pi pi-plus" 
         @click="openNewRecitalDialog" 
-        v-if="authStore.hasRole(['admin', 'staff'])"
       />
+      <!-- v-if="authStore.hasRole(['admin', 'staff'])" -->
     </div>
 
     <DataTable 
@@ -65,7 +65,7 @@
               rounded
               @click="editRecital(data)"
               title="Edit Recital" 
-              v-if="authStore.hasRole(['admin', 'staff'])"
+              v-if="canView"
             />
             <Button 
               icon="pi pi-file" 
@@ -74,7 +74,7 @@
               :disabled="!data.has_program"
               @click="navigateToProgram(data.id)"
               title="Edit Program"
-              v-if="authStore.hasRole(['admin', 'staff'])"
+              v-if="canView"
             />
             <Button 
               icon="pi pi-trash" 
@@ -83,7 +83,7 @@
               severity="danger"
               @click="confirmDeleteRecital(data)"
               title="Delete Recital"
-              v-if="authStore.hasRole(['admin'])"
+              v-if="canView"
             />
           </div>
         </template>
@@ -117,13 +117,17 @@
 import { ref, onMounted } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { Recital } from '@/types/recitals'
+import type { Recital } from '~/types/recitals'
 
 // Composables
-const { fetchRecitals, createRecital, updateRecital, deleteRecital } = useApiService()
+const { fetchRecitals, createRecital, updateRecital, deleteRecital } = useRecitalService()
 const authStore = useAuthStore()
 const toast = useToast()
 const confirm = useConfirm()
+
+const canView = computed(() => {
+  return authStore.hasRole(['admin', 'staff']) || true
+})
 
 // State
 const recitals = ref<Recital[]>([])
@@ -208,7 +212,7 @@ const editRecital = (recital: Recital) => {
     visible: true,
     isNew: false,
     loading: false,
-    data: { ...recital }
+    data: JSON.parse(JSON.stringify(recital)) // Create a deep copy
   }
 }
 
@@ -217,9 +221,12 @@ const saveRecital = async () => {
   recitalDialog.value.loading = true
   
   try {
+    // Filter out non-database fields
+    const { has_program, ...databaseFields } = recitalDialog.value.data
+    
     if (recitalDialog.value.isNew) {
-      // Create new recital
-      const { data, error } = await createRecital(recitalDialog.value.data)
+      // Create new recital (no need to send has_program)
+      const { data, error } = await createRecital(databaseFields)
       
       if (error.value) {
         throw new Error(error.value.message || 'Failed to create recital')
@@ -233,9 +240,15 @@ const saveRecital = async () => {
       })
     } else {
       // Update existing recital
+      const recitalId = recitalDialog.value.data.id
+      
+      if (!recitalId) {
+        throw new Error('Recital ID is missing')
+      }
+      
       const { data, error } = await updateRecital(
-        recitalDialog.value.data.id as string,
-        recitalDialog.value.data
+        recitalId as string,
+        databaseFields
       )
       
       if (error.value) {

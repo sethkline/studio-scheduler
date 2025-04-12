@@ -1,47 +1,57 @@
 <template>
-  <div class="program-content-editor">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- Artistic Director's Note -->
-      <div class="card p-4">
-        <h3 class="text-lg font-semibold mb-3">Artistic Director's Note</h3>
-        <p class="text-sm text-gray-600 mb-3">
-          Write a welcome message or artistic statement from the director that will appear in the program.
-        </p>
+ <div class="space-y-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-semibold">Program Content</h2>
+      <div class="flex items-center gap-2">
+        <span v-if="isSaving" class="text-sm text-gray-500">Saving...</span>
+        <span v-else-if="lastSaved" class="text-sm text-gray-500">Last saved: {{ formatLastSaved() }}</span>
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-medium">Artistic Director's Note</h3>
+          <Button 
+            v-if="needsSave && !autoSave" 
+            icon="pi pi-save" 
+            label="Save" 
+            @click="saveContent" 
+            :loading="isSaving"
+            size="small"
+          />
+        </div>
         
-        <div class="mb-3">
+        <div class="border rounded-lg overflow-hidden">
           <TipTapEditor
-            v-model="localContent.artisticDirectorNote"
-            :height="'320px'"
-            :editable="true"
+            v-model="artisticDirectorNote"
+            height="400px"
+            @update:modelValue="onContentChange"
           />
         </div>
       </div>
       
-      <!-- Acknowledgments -->
-      <div class="card p-4">
-        <h3 class="text-lg font-semibold mb-3">Acknowledgments</h3>
-        <p class="text-sm text-gray-600 mb-3">
-          Add acknowledgments, thank you notes, and special mentions for the recital.
-        </p>
+      <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-medium">Acknowledgments</h3>
+          <Button 
+            v-if="needsSave && !autoSave" 
+            icon="pi pi-save" 
+            label="Save" 
+            @click="saveContent" 
+            :loading="isSaving"
+            size="small"
+          />
+        </div>
         
-        <div class="mb-3">
+        <div class="border rounded-lg overflow-hidden">
           <TipTapEditor
-            v-model="localContent.acknowledgments"
-            :height="'320px'"
-            :editable="true"
+            v-model="acknowledgments"
+            height="400px"
+            @update:modelValue="onContentChange"
           />
         </div>
       </div>
-    </div>
-    
-    <div class="flex justify-end mt-4">
-      <Button 
-        label="Save Content" 
-        icon="pi pi-save" 
-        @click="saveContent" 
-        :loading="loading"
-        :disabled="!hasChanges"
-      />
     </div>
   </div>
 </template>
@@ -59,57 +69,119 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
+  },
+  autoSave: {
+    type: Boolean,
+    default: true
   }
 });
 
 // Emits
 const emit = defineEmits(['save']);
 
-// Local state
-const localContent = ref({
-  artisticDirectorNote: props.programContent.artisticDirectorNote || '',
-  acknowledgments: props.programContent.acknowledgments || ''
-});
+const artisticDirectorNote = ref(props.programContent?.artistic_director_note || '');
+const acknowledgments = ref(props.programContent?.acknowledgments || '');
+const needsSave = ref(false);
+const isSaving = ref(false);
+const lastSaved = ref(null);
+const saveTimeout = ref(null);
 
-// Computed properties
-const hasChanges = computed(() => {
-  return localContent.value.artisticDirectorNote !== props.programContent.artisticDirectorNote ||
-         localContent.value.acknowledgments !== props.programContent.acknowledgments;
-});
+const toast = useToast();
 
-// Watch for prop changes
+// Initialize content when programContent changes externally
 watch(() => props.programContent, (newContent) => {
-  localContent.value = {
-    artisticDirectorNote: newContent.artisticDirectorNote || '',
-    acknowledgments: newContent.acknowledgments || ''
-  };
+  if (newContent) {
+    artisticDirectorNote.value = newContent.artistic_director_note || '';
+    acknowledgments.value = newContent.acknowledgments || '';
+    needsSave.value = false;
+  }
 }, { deep: true });
 
-// Auto-save timer
-let autoSaveTimer = null;
-
-// Watch for content changes
-watch(localContent, () => {
-  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+// Handle content changes
+const onContentChange = () => {
+  needsSave.value = true;
   
-  // Auto-save after 2 seconds of inactivity
-  autoSaveTimer = setTimeout(() => {
-    if (hasChanges.value) {
-      saveContent();
+  if (props.autoSave) {
+    if (saveTimeout.value) {
+      clearTimeout(saveTimeout.value);
     }
-  }, 2000);
-}, { deep: true });
+    
+    // Debounce save to avoid too many API calls
+    saveTimeout.value = setTimeout(() => {
+      saveContent();
+    }, 2000);
+  }
+};
 
-// Clean up when component is unmounted
+// Save content to parent
+const saveContent = async () => {
+  if (!needsSave.value) return;
+  
+  try {
+    isSaving.value = true;
+    
+    const content = {
+      artistic_director_note: artisticDirectorNote.value,
+      acknowledgments: acknowledgments.value
+    };
+    
+    // Let parent handle the actual API call
+    await emit('save', content);
+    
+    needsSave.value = false;
+    lastSaved.value = new Date();
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Saved',
+      detail: 'Program content updated successfully',
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error saving program content:', error);
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to save program content',
+      life: 3000
+    });
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// Format last saved time
+const formatLastSaved = () => {
+  if (!lastSaved.value) return '';
+  
+  const now = new Date();
+  const diff = now - lastSaved.value;
+  
+  // If less than a minute ago
+  if (diff < 60000) {
+    return 'Just now';
+  }
+  
+  // If less than an hour
+  if (diff < 3600000) {
+    const minutes = Math.floor(diff / 60000);
+    return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  }
+  
+  // Return formatted time
+  return lastSaved.value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// Clear the timeout when component is unmounted
 onBeforeUnmount(() => {
-  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  if (saveTimeout.value) {
+    clearTimeout(saveTimeout.value);
+  }
+  
+  // If there are unsaved changes, save them before unmounting
+  if (needsSave.value) {
+    saveContent();
+  }
 });
-
-// Methods
-function saveContent() {
-  emit('save', {
-    artisticDirectorNote: localContent.value.artisticDirectorNote,
-    acknowledgments: localContent.value.acknowledgments
-  });
-}
 </script>

@@ -26,7 +26,7 @@
 
     <div class="field">
       <label for="date" class="font-medium text-sm mb-1 block">Date*</label>
-      <Calendar 
+      <DatePicker 
         id="date" 
         name="date"
         dateFormat="yy-mm-dd"
@@ -180,12 +180,15 @@ function dateToString(date: Date | null | undefined): string {
 // Zod schema for form validation
 const recitalSchema = z.object({
   name: z.string().min(1, 'Recital name is required'),
-  date: z.string().min(1, 'Date is required'),
+  date: z.union([
+    z.string().min(1, 'Date is required'),
+    z.date()
+  ]),
   location: z.string().min(1, 'Location is required'),
   status: z.string().min(1, 'Status is required'),
-  theme: z.string().optional(),
-  description: z.string().optional(),
-  notes: z.string().optional()
+  theme: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  notes: z.string().optional().nullable()
 });
 
 // Create a resolver using the zod schema
@@ -196,8 +199,14 @@ function onSubmit(event: any) {
   const { values, valid } = event;
   
   if (valid) {
-    // Update the model value
-    emit('update:modelValue', values);
+    // Preserve the ID and other fields that might not be in the form
+    const updatedValues = {
+      ...props.modelValue, // Keep existing values
+      ...values, // Overwrite with new values
+    };
+    
+    // Update the model value with merged data
+    emit('update:modelValue', updatedValues);
     
     // Emit save event
     emit('save');

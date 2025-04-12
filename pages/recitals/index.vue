@@ -1,3 +1,3 @@
 <template>
-  <RecitalProgramManager />
+  <RecitalsRecitalSeriesList />
 </template>

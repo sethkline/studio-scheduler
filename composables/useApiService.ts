@@ -258,6 +258,113 @@ export function useApiService() {
   const fetchTeacherWorkload = async (teacherId, params = {}) => {
   return await useFetch(`/api/teachers/${teacherId}/workload`, { params })
 }
+
+  // Recital Series
+  const fetchRecitalSeries = async (params = {}) => {
+    return await useFetch('/api/recital-series', { params })
+  }
+  
+  const fetchRecitalSeriesById = async (id) => {
+    return await useFetch(`/api/recital-series/${id}`)
+  }
+  
+  const createRecitalSeries = async (seriesData) => {
+    return await useFetch('/api/recital-series/add', {
+      method: 'POST',
+      body: seriesData
+    })
+  }
+  
+  const updateRecitalSeries = async (id, seriesData) => {
+    return await useFetch(`/api/recital-series/${id}`, {
+      method: 'PUT',
+      body: seriesData
+    })
+  }
+  
+  const deleteRecitalSeries = async (id) => {
+    return await useFetch(`/api/recital-series/${id}`, {
+      method: 'DELETE'
+    })
+  }
+
+  // Recital Shows
+  const fetchRecitalShows = async (seriesId) => {
+    return await useFetch(`/api/recital-series/${seriesId}/shows`)
+  }
+  
+  const fetchRecitalShowById = async (id) => {
+    return await useFetch(`/api/recital-shows/${id}`)
+  }
+  
+  const createRecitalShow = async (showData) => {
+    return await useFetch('/api/recital-shows/add', {
+      method: 'POST',
+      body: showData
+    })
+  }
+  
+  const updateRecitalShow = async (id, showData) => {
+    return await useFetch(`/api/recital-shows/${id}`, {
+      method: 'PUT',
+      body: showData
+    })
+  }
+  
+  const deleteRecitalShow = async (id) => {
+    return await useFetch(`/api/recital-shows/${id}`, {
+      method: 'DELETE'
+    })
+  }
+  
+  // Recital Programs
+  const fetchRecitalProgram = async (showId) => {
+    return await useFetch(`/api/recital-shows/${showId}/program`)
+  }
+  
+  const updateProgramDetails = async (showId, programData) => {
+    return await useFetch(`/api/recital-shows/${showId}/program`, {
+      method: 'POST',
+      body: programData
+    })
+  }
+  
+  const uploadCoverImage = async (showId, imageFile) => {
+    const formData = new FormData()
+    formData.append('file', imageFile)
+    
+    return await useFetch(`/api/recital-shows/${showId}/program/cover`, {
+      method: 'PUT',
+      body: formData
+    })
+  }
+  
+  const updateProgramContentByType = async (showId, type, content) => {
+    return await useFetch(`/api/recital-shows/${showId}/program/${type}`, {
+      method: 'PUT',
+      body: { content }
+    })
+  }
+  
+  const updatePerformanceOrder = async (showId, performanceIds) => {
+    return await useFetch(`/api/recital-shows/${showId}/performances/reorder`, {
+      method: 'PUT',
+      body: { performanceOrder: performanceIds }
+    })
+  }
+  
+  const updatePerformance = async (showId, performanceId, performanceData) => {
+    return await useFetch(`/api/recital-shows/${showId}/performances/${performanceId}`, {
+      method: 'PUT',
+      body: performanceData
+    })
+  }
+  
+  const generateProgramPDF = async (showId) => {
+    return await useFetch(`/api/recital-shows/${showId}/program/export`, {
+      responseType: 'blob'
+    })
+  }
   
   return {
     fetchDashboard,
@@ -304,6 +411,25 @@ export function useApiService() {
     createTeacherException,
     updateTeacherException,
     deleteTeacherException,
-    fetchTeacherWorkload
+    fetchTeacherWorkload,
+    fetchRecitalSeries,
+    fetchRecitalSeriesById,
+    createRecitalSeries,
+    updateRecitalSeries,
+    deleteRecitalSeries,
+    
+    fetchRecitalShows,
+    fetchRecitalShowById,
+    createRecitalShow,
+    updateRecitalShow,
+    deleteRecitalShow,
+    
+    fetchRecitalProgram,
+    updateProgramDetails,
+    uploadCoverImage,
+    updateProgramContentByType,
+    updatePerformanceOrder,
+    updatePerformance,
+    generateProgramPDF
   }
 }

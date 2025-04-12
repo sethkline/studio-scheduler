@@ -98,6 +98,10 @@
 import { useRecitalProgramStore } from '~/stores/recitalProgramStore';
 import { useToast } from 'primevue/usetoast';
 
+const route = useRoute()
+const router = useRouter()
+const recitalId = route.params.id as string
+
 // Import the new Tab components
 import Tabs from 'primevue/tabs';
 import TabList from 'primevue/tablist';
@@ -105,13 +109,6 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 
-// Props
-const props = defineProps({
-  recitalId: {
-    type: String,
-    required: true
-  }
-});
 
 // Component refs
 const toast = useToast();
@@ -137,7 +134,7 @@ onMounted(async () => {
 
 // Methods
 async function loadProgramData() {
-  const result = await programStore.fetchProgram(props.recitalId);
+  const result = await programStore.fetchProgram(recitalId);
   
   if (!result) {
     toast.add({
@@ -150,7 +147,7 @@ async function loadProgramData() {
 }
 
 async function savePerformanceOrder(updatedPerformances) {
-  const result = await programStore.savePerformanceOrder(props.recitalId, updatedPerformances);
+  const result = await programStore.savePerformanceOrder(recitalId, updatedPerformances);
   
   if (result) {
     toast.add({
@@ -171,7 +168,7 @@ async function savePerformanceOrder(updatedPerformances) {
 
 async function updatePerformance(performanceId, performanceData) {
   const result = await programStore.updatePerformance(
-    props.recitalId, 
+    recitalId, 
     performanceId, 
     performanceData
   );
@@ -194,7 +191,7 @@ async function updatePerformance(performanceId, performanceData) {
 }
 
 async function saveProgramContent(content) {
-  const result = await programStore.saveProgramContent(props.recitalId, content);
+  const result = await programStore.saveProgramContent(recitalId, content);
   
   if (result) {
     toast.add({
@@ -214,7 +211,7 @@ async function saveProgramContent(content) {
 }
 
 async function uploadCoverImage(imageFile) {
-  const result = await programStore.uploadCoverImage(props.recitalId, imageFile);
+  const result = await programStore.uploadCoverImage(recitalId, imageFile);
   
   if (result) {
     toast.add({
@@ -234,7 +231,7 @@ async function uploadCoverImage(imageFile) {
 }
 
 async function addAdvertisement(advertisementData) {
-  const result = await programStore.addAdvertisement(props.recitalId, advertisementData);
+  const result = await programStore.addAdvertisement(recitalId, advertisementData);
   
   if (result) {
     toast.add({
@@ -255,7 +252,7 @@ async function addAdvertisement(advertisementData) {
 
 async function updateAdvertisement(adId, advertisementData) {
   const result = await programStore.updateAdvertisement(
-    props.recitalId, 
+    recitalId, 
     adId, 
     advertisementData
   );
@@ -278,7 +275,7 @@ async function updateAdvertisement(adId, advertisementData) {
 }
 
 async function deleteAdvertisement(adId) {
-  const result = await programStore.deleteAdvertisement(props.recitalId, adId);
+  const result = await programStore.deleteAdvertisement(recitalId, adId);
   
   if (result) {
     toast.add({
@@ -298,7 +295,7 @@ async function deleteAdvertisement(adId) {
 }
 
 async function generatePdf() {
-  const result = await programStore.generatePdf(props.recitalId);
+  const result = await programStore.generatePdf(recitalId);
   
   if (!result) {
     toast.add({
