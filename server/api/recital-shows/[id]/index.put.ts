@@ -5,7 +5,13 @@ export default defineEventHandler(async (event) => {
   try {
     const client = getSupabaseClient()
     const id = getRouterParam(event, 'id')
-    const body = await readBody(event)
+    const rawBody = await readBody(event)
+    
+    // Clean the body data - convert empty strings to null
+    const body = Object.entries(rawBody).reduce((acc, [key, value]) => {
+      acc[key] = value === '' ? null : value;
+      return acc;
+    }, {});
     
     const { data, error } = await client
       .from('recital_shows')

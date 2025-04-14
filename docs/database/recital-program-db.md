@@ -197,6 +197,25 @@ Defines individual recital performances/shows.
 | created_at | timestamp with timezone | default now() | Creation timestamp |
 | updated_at | timestamp with timezone | default now() | Last update timestamp |
 
+#### `show_seats`
+Stores individual seats for a recital show.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | uuid | PK, default uuid_generate_v4() | Unique identifier |
+| show_id | uuid | NOT NULL, FK → recital_shows(id) | Associated show |
+| section | varchar | NOT NULL | Section name (e.g., left-wing, center-main) |
+| section_type | varchar | NOT NULL | Type of section (wing, main, center) |
+| row_name | varchar | NOT NULL | Row identifier (e.g., A, B, C) |
+| seat_number | varchar | NOT NULL | Seat number |
+| seat_type | varchar | NOT NULL, default 'regular' | Type of seat (regular, handicap) |
+| handicap_access | boolean | NOT NULL, default false | Whether seat has handicap access |
+| status | varchar | NOT NULL, default 'available' | Seat status (available, reserved, sold) |
+| price_in_cents | integer | | Custom price for this seat (if different from show price) |
+| reserved_until | timestamp with timezone | | Reservation expiration |
+| created_at | timestamp with timezone | NOT NULL, default now() | Creation timestamp |
+| updated_at | timestamp with timezone | NOT NULL, default now() | Last update timestamp |
+
 #### `recitals` (Legacy Table)
 Defines recital events (older implementation).
 
@@ -283,6 +302,11 @@ Requirements for spacing performances.
 - A `recital_program` can have multiple `recital_program_advertisements` (one-to-many relationship)
 - A `recital_show` has multiple `recital_performances` (one-to-many relationship)
 
+### Seating Structure
+- A `recital_show` has multiple `show_seats` (one-to-many relationship)
+- Seats are organized by section, row, and seat number
+- The `show_seats` table tracks the availability and status of each seat
+
 ### Class Hierarchy
 - `dance_styles` and `class_levels` categorize `class_definitions`
 - `class_definitions` serve as templates for `class_instances`
@@ -305,6 +329,10 @@ The following indexes improve query performance:
 - `idx_recital_program_advertisements_program_id` on `recital_program_advertisements(recital_program_id)`
 - `idx_recital_shows_series_id` on `recital_shows(series_id)`
 - `idx_profiles_user_role` on `profiles(user_role)`
+- `idx_show_seats_show_id` on `show_seats(show_id)`
+- `idx_show_seats_status` on `show_seats(status)`
+- `idx_show_seats_section` on `show_seats(section)`
+- `idx_unique_seat` on `show_seats(show_id, section, row_name, seat_number)` (UNIQUE)
 
 ## Automatic Timestamps
 
@@ -315,6 +343,7 @@ Triggers are implemented to automatically update the `updated_at` timestamp when
 - `update_recital_series_updated_at` on `recital_series`
 - `update_recital_shows_updated_at` on `recital_shows`
 - `update_profiles_updated_at` on `profiles`
+- `update_show_seats_updated_at` on `show_seats`
 
 ## Database Diagrams
 
@@ -345,10 +374,12 @@ Triggers are implemented to automatically update the `updated_at` timestamp when
                                              +----------------+          |
                                              |recital_series  |<---------+
                                              +----------------+          |
-                                                                         v
-                                                                +------------------+
-                                                                | recital_programs |
-                                                                +------------------+
+                                                                         +-----------+
+                                                                         |           |
+                                                                         v           v
+                                                                +------------------+ +---------------+
+                                                                | recital_programs | |  show_seats   |
+                                                                +------------------+ +---------------+
                                                                          |
                                                                          v
                                                        +--------------------------------+
@@ -364,6 +395,7 @@ Triggers are implemented to automatically update the `updated_at` timestamp when
 - Soft deletion is implemented via status fields where appropriate
 - The `recital_programs` table has a unique constraint on `recital_id` to ensure only one program per recital
 - The system has both newer `recital_shows` and legacy `recitals` tables for backward compatibility
+- The `show_seats` table represents the seating chart for each recital show, with sections and rows matching the venue layout
 
 ## SQL Migration Scripts
 
@@ -432,6 +464,46 @@ CREATE TRIGGER update_recital_shows_updated_at
 BEFORE UPDATE ON public.recital_shows
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
+```
+
+### Create show_seats Table
+
+```sql
+CREATE TABLE IF NOT EXISTS public.show_seats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    show_id UUID NOT NULL REFERENCES public.recital_shows(id) ON DELETE CASCADE,
+    section VARCHAR(50) NOT NULL,
+    section_type VARCHAR(20) NOT NULL,
+    row_name VARCHAR(10) NOT NULL,
+    seat_number VARCHAR(20) NOT NULL,
+    seat_type VARCHAR(20) NOT NULL DEFAULT 'regular',
+    handicap_access BOOLEAN NOT NULL DEFAULT false,
+    status VARCHAR(20) NOT NULL DEFAULT 'available',
+    price_in_cents INTEGER,
+    reserved_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Add indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_show_seats_show_id ON public.show_seats(show_id);
+CREATE INDEX IF NOT EXISTS idx_show_seats_status ON public.show_seats(status);
+CREATE INDEX IF NOT EXISTS idx_show_seats_section ON public.show_seats(section);
+
+-- Add a composite unique constraint to prevent duplicate seats
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_seat 
+  ON public.show_seats(show_id, section, row_name, seat_number);
+
+-- Create a trigger to automatically update the updated_at column
+DROP TRIGGER IF EXISTS update_show_seats_updated_at ON public.show_seats;
+CREATE TRIGGER update_show_seats_updated_at
+BEFORE UPDATE ON public.show_seats
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+-- Grant appropriate permissions
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.show_seats TO authenticated;
+GRANT SELECT ON public.show_seats TO anon;
 ```
 
 ### Create profiles Table
@@ -530,3 +602,5 @@ Potential future enhancements to the database schema include:
 5. Adding a `program_feedback` table for collecting audience feedback
 6. Consolidating `recitals` and `recital_shows` tables for a more streamlined schema
 7. Adding ticket management and sales tracking capabilities
+8. Enhancing the `show_seats` table with more advanced seat assignment features like multi-seat selection and group reservations
+9. Adding a `seat_layouts` table to store reusable seating templates for different venues

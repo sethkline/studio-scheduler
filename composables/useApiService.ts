@@ -365,6 +365,122 @@ export function useApiService() {
       responseType: 'blob'
     })
   }
+    
+    // Recital Shows
+    const fetchShow = async (id) => {
+      return await useFetch(`/api/recital-shows/${id}`)
+    }
+    
+    const updateShow = async (id, showData) => {
+      return await useFetch(`/api/recital-shows/${id}`, {
+        method: 'PUT',
+        body: showData
+      })
+    }
+    
+    const deleteShow = async (id) => {
+      return await useFetch(`/api/recital-shows/${id}`, {
+        method: 'DELETE'
+      })
+    }
+    
+    // Ticket Configuration
+    const updateTicketConfig = async (showId, configData) => {
+      return await useFetch(`/api/recital-shows/${showId}/ticket-config`, {
+        method: 'PUT',
+        body: configData
+      })
+    }
+    
+    // Seat Management
+    // const fetchSeatLayouts = async () => {
+    //   return await useFetch('/api/seat-layouts')
+    // }
+    
+    // const fetchSeatLayoutDetails = async (layoutId) => {
+    //   return await useFetch(`/api/seat-layouts/${layoutId}`)
+    // }
+    
+    const generateSeatsForShow = async (showId) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/generate`, {
+        method: 'POST'
+      });
+    };
+    
+    const getSeatStatistics = async (showId) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/statistics`)
+    }
+    
+    const getAvailableSeats = async (showId, filters = {}) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/available`, {
+        params: filters
+      })
+    }
+    
+    const reserveSeats = async (showId, seatIds, email) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/reserve`, {
+        method: 'POST',
+        body: {
+          seat_ids: seatIds,
+          email
+        }
+      })
+    }
+    
+    // Program Management
+    const fetchProgram = async (showId) => {
+      return await useFetch(`/api/recital-shows/${showId}/program`)
+    }
+    
+    const updateProgram = async (showId, programData) => {
+      return await useFetch(`/api/recital-shows/${showId}/program`, {
+        method: 'POST',
+        body: programData
+      })
+    }
+
+    const fetchShowSeats = async (showId, params = {}) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats`, { params })
+    }
+    
+    const updateSeat = async (showId, seatId, seatData) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/${seatId}`, {
+        method: 'PUT',
+        body: seatData
+      })
+    }
+    
+    const reserveMultipleSeats = async (showId, reservationData) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/reserve-multiple`, {
+        method: 'POST',
+        body: reservationData
+      })
+    }
+    
+    const markHandicapSeats = async (showId, handicapData) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/mark-handicap`, {
+        method: 'POST',
+        body: handicapData
+      })
+    }
+    
+    const updateSectionStatus = async (showId, sectionData) => {
+      return await useFetch(`/api/recital-shows/${showId}/seats/update-section`, {
+        method: 'POST',
+        body: sectionData
+      })
+    }
+  
+    
+    const fetchSeatSections = async (showId) => {
+      const { data } = await fetchShowSeats(showId)
+      if (data.value && data.value.sectionStats) {
+        return data.value.sectionStats
+      }
+      return []
+    }
+    
+
   
   return {
     fetchDashboard,
@@ -430,6 +546,24 @@ export function useApiService() {
     updateProgramContentByType,
     updatePerformanceOrder,
     updatePerformance,
-    generateProgramPDF
+    generateProgramPDF,
+
+
+    fetchShow,
+    updateShow,
+    deleteShow,
+    updateTicketConfig,
+    generateSeatsForShow,
+    getSeatStatistics,
+    getAvailableSeats,
+    reserveSeats,
+    fetchProgram,
+    updateProgram,
+    fetchShowSeats,
+    updateSeat,
+    reserveMultipleSeats,
+    markHandicapSeats,
+    updateSectionStatus,
+    fetchSeatSections
   }
 }

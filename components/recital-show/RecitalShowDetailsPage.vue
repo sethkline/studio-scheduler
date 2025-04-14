@@ -88,49 +88,6 @@
               </div>
             </div>
           </div>
-          
-          <!-- NEW: Seating Information Card -->
-          <div class="card mt-6">
-            <h2 class="text-xl font-semibold mb-4">Seating Information</h2>
-            
-            <div v-if="seatStats.total > 0" class="grid grid-cols-2 gap-4">
-              <div class="bg-blue-50 p-4 rounded-lg">
-                <div class="text-lg font-bold text-blue-700">{{ seatStats.total }}</div>
-                <div class="text-sm text-blue-600">Total Seats</div>
-              </div>
-              <div class="bg-green-50 p-4 rounded-lg">
-                <div class="text-lg font-bold text-green-700">{{ seatStats.available }}</div>
-                <div class="text-sm text-green-600">Available</div>
-              </div>
-              <div class="bg-red-50 p-4 rounded-lg">
-                <div class="text-lg font-bold text-red-700">{{ seatStats.sold }}</div>
-                <div class="text-sm text-red-600">Sold</div>
-              </div>
-              <div class="bg-yellow-50 p-4 rounded-lg">
-                <div class="text-lg font-bold text-yellow-700">{{ seatStats.reserved }}</div>
-                <div class="text-sm text-yellow-600">Reserved</div>
-              </div>
-            </div>
-            
-            <div v-else class="p-4 text-center bg-gray-50 rounded">
-              <i class="pi pi-info-circle text-2xl text-gray-400 mb-2"></i>
-              <p class="text-gray-600">No seating has been configured for this show.</p>
-              <Button 
-                label="Configure Seating" 
-                icon="pi pi-cog"
-                class="mt-3"
-                @click="navigateToSeatingChart" 
-              />
-            </div>
-            
-            <div v-if="seatStats.total > 0" class="mt-4 flex justify-end">
-              <Button 
-                label="Manage Seating Chart" 
-                icon="pi pi-th-large"
-                @click="navigateToSeatingChart" 
-              />
-            </div>
-          </div>
         </div>
 
         <!-- Performances Section -->
@@ -343,14 +300,6 @@ const recitalShow = ref(null);
 const performances = ref([]);
 const classInstances = ref([]);
 
-// NEW: Seating Stats State
-const seatStats = ref({
-  total: 0,
-  available: 0,
-  sold: 0,
-  reserved: 0
-});
-
 // Performance Dialog
 const performanceDialog = reactive({
   visible: false,
@@ -385,8 +334,6 @@ const formResolver = zodResolver(performanceSchema);
 onMounted(async () => {
   await fetchRecitalShow();
   await fetchClassInstances();
-  // NEW: Add Seating Stats
-  await fetchSeatStats();
 });
 
 // Methods
@@ -444,58 +391,6 @@ async function fetchRecitalShow() {
     error.value = err.message || 'Failed to load show details';
   } finally {
     loading.value = false;
-  }
-}
-
-// NEW: Fetch Seat Stats
-async function fetchSeatStats() {
-  try {
-    const client = useSupabaseClient();
-    
-    // Get total count
-    const { count: totalCount, error: totalError } = await client
-      .from('show_seats')
-      .select('*', { count: 'exact', head: true })
-      .eq('show_id', showId);
-    
-    if (totalError) throw totalError;
-    
-    // Get available count
-    const { count: availableCount, error: availableError } = await client
-      .from('show_seats')
-      .select('*', { count: 'exact', head: true })
-      .eq('show_id', showId)
-      .eq('status', 'available');
-    
-    if (availableError) throw availableError;
-    
-    // Get sold count
-    const { count: soldCount, error: soldError } = await client
-      .from('show_seats')
-      .select('*', { count: 'exact', head: true })
-      .eq('show_id', showId)
-      .eq('status', 'sold');
-    
-    if (soldError) throw soldError;
-    
-    // Get reserved count
-    const { count: reservedCount, error: reservedError } = await client
-      .from('show_seats')
-      .select('*', { count: 'exact', head: true })
-      .eq('show_id', showId)
-      .eq('status', 'reserved');
-    
-    if (reservedError) throw reservedError;
-    
-    seatStats.value = {
-      total: totalCount || 0,
-      available: availableCount || 0,
-      sold: soldCount || 0,
-      reserved: reservedCount || 0
-    };
-    
-  } catch (err) {
-    console.error('Error fetching seat stats:', err);
   }
 }
 
@@ -595,11 +490,6 @@ function navigateToEdit() {
 
 function navigateToProgram() {
   router.push(`/recitals/shows/${showId}/program`);
-}
-
-// NEW: Navigate to Seating Chart
-function navigateToSeatingChart() {
-  router.push(`/recitals/shows/${showId}/seating-chart`);
 }
 
 function openAddPerformanceDialog() {

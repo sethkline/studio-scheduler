@@ -6,7 +6,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<object>} - Program data including performances, content, and metadata
    */
   const fetchRecitalProgram = async (recitalId) => {
-    return await useFetch(`/api/recitals/${recitalId}/program`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program`, {
       method: 'GET'
     });
   };
@@ -18,7 +18,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<object>} - Updated program data
    */
   const updateProgramDetails = async (recitalId, programData) => {
-    return await useFetch(`/api/recitals/${recitalId}/program`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program`, {
       method: 'POST',
       body: programData
     });
@@ -34,7 +34,7 @@ export function useRecitalProgramService() {
     const formData = new FormData();
     formData.append('coverImage', imageFile);
 
-    return await useFetch(`/api/recitals/${recitalId}/program/cover`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program/cover`, {
       method: 'PUT',
       body: formData
     });
@@ -58,7 +58,7 @@ export function useRecitalProgramService() {
       }
     });
 
-    return await useFetch(`/api/recitals/${recitalId}/program/advertisements`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program/advertisements`, {
       method: 'POST',
       body: formData
     });
@@ -83,7 +83,7 @@ export function useRecitalProgramService() {
       }
     });
 
-    return await useFetch(`/api/recitals/${recitalId}/program/advertisements/${adId}`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program/advertisements/${adId}`, {
       method: 'PUT',
       body: formData
     });
@@ -96,7 +96,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<object>} - Response with status
    */
   const deleteAdvertisement = async (recitalId, adId) => {
-    return await useFetch(`/api/recitals/${recitalId}/program/advertisements/${adId}`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program/advertisements/${adId}`, {
       method: 'DELETE'
     });
   };
@@ -108,7 +108,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<object>} - Response with updated performances
    */
   const reorderPerformances = async (recitalId, performanceOrder) => {
-    return await useFetch(`/api/recitals/${recitalId}/performances/reorder`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/performances/reorder`, {
       method: 'PUT',
       body: { performanceOrder }
     });
@@ -122,7 +122,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<object>} - Updated performance
    */
   const updatePerformance = async (recitalId, performanceId, performanceData) => {
-    return await useFetch(`/api/recitals/${recitalId}/performances/${performanceId}`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/performances/${performanceId}`, {
       method: 'PUT',
       body: performanceData
     });
@@ -135,7 +135,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<object>} - Response with status
    */
   const updateArtisticNote = async (recitalId, note) => {
-    return await useFetch(`/api/recitals/${recitalId}/program/artistic-note`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program/artistic-note`, {
       method: 'PUT',
       body: { note }
     });
@@ -148,7 +148,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<object>} - Response with status
    */
   const updateAcknowledgments = async (recitalId, acknowledgments) => {
-    return await useFetch(`/api/recitals/${recitalId}/program/acknowledgments`, {
+    return await useFetch(`/api/recital-shows/${recitalId}/program/acknowledgments`, {
       method: 'PUT',
       body: { acknowledgments }
     });
@@ -160,7 +160,7 @@ export function useRecitalProgramService() {
    * @returns {Promise<Blob>} - PDF file as blob
    */
   const generateProgramPDF = async (recitalId) => {
-    const response = await fetch(`/api/recitals/${recitalId}/performances/export`, {
+    const response = await fetch(`/api/recital-shows/${recitalId}/performances/export`, {
       method: 'GET',
       headers: {
         'Accept': 'application/pdf'

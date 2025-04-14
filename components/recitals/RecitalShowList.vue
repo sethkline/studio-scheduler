@@ -5,52 +5,39 @@
         <h1 class="text-2xl font-bold">{{ seriesData?.name || 'Recital Shows' }}</h1>
         <p v-if="seriesData?.theme" class="text-gray-600">Theme: {{ seriesData.theme }}</p>
       </div>
-      
+
       <div class="flex gap-2">
-        <Button 
-          label="Back to Series" 
-          icon="pi pi-arrow-left" 
-          outlined
-          @click="router.push('/recitals/series')"
-        />
-        <Button 
-          label="Add Show" 
-          icon="pi pi-plus" 
-          @click="showCreateDialog = true"
-        />
+        <Button label="Back to Series" icon="pi pi-arrow-left" outlined @click="router.push('/recitals/series')" />
+        <Button label="Add Show" icon="pi pi-plus" @click="showCreateDialog = true" />
       </div>
     </div>
-    
+
     <div v-if="loading" class="flex justify-center p-6">
       <i class="pi pi-spin pi-spinner text-2xl"></i>
     </div>
-    
+
     <div v-else-if="shows.length === 0" class="p-4 text-center bg-gray-50 rounded-lg">
       <i class="pi pi-calendar-times text-4xl text-gray-400 mb-2"></i>
       <p class="text-lg text-gray-600">No shows have been created for this recital series.</p>
-      <Button 
-        label="Create First Show" 
-        icon="pi pi-plus" 
-        class="mt-4"
-        @click="showCreateDialog = true" 
-      />
+      <Button label="Create First Show" icon="pi pi-plus" class="mt-4" @click="showCreateDialog = true" />
     </div>
-    
+
     <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      <div 
-        v-for="show in shows" 
-        :key="show.id" 
-        class="card p-0 overflow-hidden flex flex-col"
-      >
-        <div 
+      <div v-for="show in shows" :key="show.id" class="card p-0 overflow-hidden flex flex-col">
+        <div
           class="p-4 flex-1 flex flex-col"
-          :class="{'bg-green-50': show.status === 'ready', 'bg-yellow-50': show.status === 'rehearsal', 'bg-blue-50': show.status === 'planning', 'bg-gray-50': show.status === 'completed'}"
+          :class="{
+            'bg-green-50': show.status === 'ready',
+            'bg-yellow-50': show.status === 'rehearsal',
+            'bg-blue-50': show.status === 'planning',
+            'bg-gray-50': show.status === 'completed'
+          }"
         >
           <div class="flex justify-between items-start">
             <h2 class="text-xl font-semibold">{{ show.name }}</h2>
             <Tag :value="show.status" :severity="getStatusSeverity(show.status)" />
           </div>
-          
+
           <div class="mt-2 space-y-1">
             <div class="flex items-center gap-2">
               <i class="pi pi-calendar text-gray-500"></i>
@@ -65,19 +52,17 @@
               <span>{{ show.location }}</span>
             </div>
           </div>
-          
+
           <div class="mt-4 flex items-center gap-2">
             <i class="pi pi-ticket text-gray-500"></i>
             <div>
               <div v-if="show.general_tickets_start_at" class="text-sm">
                 <span class="font-medium">Ticket Sales:</span> {{ formatDate(show.general_tickets_start_at) }}
               </div>
-              <div v-else class="text-sm text-gray-500">
-                Ticket sales not configured
-              </div>
+              <div v-else class="text-sm text-gray-500">Ticket sales not configured</div>
             </div>
           </div>
-          
+
           <div class="mt-2">
             <div v-if="show.program" class="mt-2 flex items-center gap-1 text-green-600">
               <i class="pi pi-check-circle"></i>
@@ -87,80 +72,81 @@
               <i class="pi pi-file"></i>
               <span class="text-sm">No program yet</span>
             </div>
+
+            <div v-if="show.seats_count" class="mt-2 flex items-center gap-1 text-blue-600">
+              <i class="pi pi-ticket"></i>
+              <span class="text-sm">{{ show.seats_count }} seats ({{ show.available_seats }} available)</span>
+            </div>
+            <div v-else class="mt-2 flex items-center gap-1 text-gray-500">
+              <i class="pi pi-ticket"></i>
+              <span class="text-sm">No seats configured</span>
+            </div>
           </div>
         </div>
-        
+
         <div class="p-3 bg-gray-50 border-t flex justify-between">
-          <Button 
-            label="Manage Program" 
-            icon="pi pi-file" 
-            outlined
-            class="p-button-sm"
-            @click="navigateToProgramEditor(show.id)"
-          />
-          
           <div class="flex gap-2">
-            <Button 
-              icon="pi pi-pencil" 
-              severity="secondary" 
-              text 
-              rounded 
-              aria-label="Edit" 
-              @click="editShow(show)"
+            <Button
+              label="Manage Show"
+              icon="pi pi-file"
+              outlined
+              class="p-button-sm"
+              @click="navigateToShowDetails(show.id)"
             />
-            <Button 
-              icon="pi pi-trash" 
-              severity="danger" 
-              text 
-              rounded 
-              aria-label="Delete" 
+            <Button
+              label="Seating"
+              icon="pi pi-th-large"
+              outlined
+              severity="help"
+              class="p-button-sm"
+              @click="navigateToSeatingChart(show.id)"
+            />
+          </div>
+
+          <div class="flex gap-2">
+            <Button icon="pi pi-pencil" severity="secondary" text rounded aria-label="Edit" @click="editShow(show)" />
+            <Button
+              icon="pi pi-trash"
+              severity="danger"
+              text
+              rounded
+              aria-label="Delete"
               @click="confirmDeleteShow(show)"
             />
           </div>
         </div>
       </div>
     </div>
-    
+
     <!-- Create/Edit Show Dialog -->
-    <Dialog 
-      v-model:visible="showCreateDialog" 
-      :header="editMode ? 'Edit Recital Show' : 'Create Recital Show'" 
-      modal 
+    <Dialog
+      v-model:visible="showCreateDialog"
+      :header="editMode ? 'Edit Recital Show' : 'Create Recital Show'"
+      modal
       class="w-full max-w-2xl"
     >
-      <Form
-        v-slot="$form"
-        :initialValues="showForm"
-        :resolver="formResolver"
-        @submit="saveShow"
-        class="space-y-4"
-      >
+      <Form v-slot="$form" :initialValues="showForm" :resolver="formResolver" @submit="saveShow" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="field md:col-span-2">
             <label for="name" class="font-medium text-sm mb-1 block">Show Name*</label>
-            <InputText 
-              id="name" 
+            <InputText
+              id="name"
               name="name"
-              class="w-full" 
+              class="w-full"
               aria-describedby="name-error"
               placeholder="e.g., Morning Show, Afternoon Performance"
             />
-            <Message 
-              v-if="$form.name?.invalid && $form.name?.touched" 
-              severity="error" 
-              size="small"
-              variant="simple"
-            >
+            <Message v-if="$form.name?.invalid && $form.name?.touched" severity="error" size="small" variant="simple">
               {{ $form.name.error?.message }}
             </Message>
           </div>
-          
+
           <div class="field">
             <label for="date" class="font-medium text-sm mb-1 block">Date*</label>
-            <DatePicker 
-              id="date" 
+            <DatePicker
+              id="date"
               name="date"
-              class="w-full" 
+              class="w-full"
               dateFormat="mm/dd/yy"
               :minDate="new Date()"
               :formControl="{
@@ -171,16 +157,11 @@
               }"
               aria-describedby="date-error"
             />
-            <Message 
-              v-if="$form.date?.invalid && $form.date?.touched" 
-              severity="error" 
-              size="small"
-              variant="simple"
-            >
+            <Message v-if="$form.date?.invalid && $form.date?.touched" severity="error" size="small" variant="simple">
               {{ $form.date.error?.message }}
             </Message>
           </div>
-          
+
           <div class="field">
             <label for="status" class="font-medium text-sm mb-1 block">Status*</label>
             <Dropdown
@@ -193,23 +174,23 @@
               placeholder="Select status"
               aria-describedby="status-error"
             />
-            <Message 
-              v-if="$form.status?.invalid && $form.status?.touched" 
-              severity="error" 
+            <Message
+              v-if="$form.status?.invalid && $form.status?.touched"
+              severity="error"
               size="small"
               variant="simple"
             >
               {{ $form.status.error?.message }}
             </Message>
           </div>
-          
+
           <div class="field">
             <label for="start_time" class="font-medium text-sm mb-1 block">Start Time*</label>
-            <DatePicker 
-              id="start_time" 
+            <DatePicker
+              id="start_time"
               name="start_time"
-              class="w-full" 
-              timeOnly 
+              class="w-full"
+              timeOnly
               :showTime="true"
               hourFormat="12"
               :formControl="{
@@ -220,23 +201,23 @@
               }"
               aria-describedby="start_time-error"
             />
-            <Message 
-              v-if="$form.start_time?.invalid && $form.start_time?.touched" 
-              severity="error" 
+            <Message
+              v-if="$form.start_time?.invalid && $form.start_time?.touched"
+              severity="error"
               size="small"
               variant="simple"
             >
               {{ $form.start_time.error?.message }}
             </Message>
           </div>
-          
+
           <div class="field">
             <label for="end_time" class="font-medium text-sm mb-1 block">End Time</label>
-            <DatePicker 
-              id="end_time" 
+            <DatePicker
+              id="end_time"
               name="end_time"
-              class="w-full" 
-              timeOnly 
+              class="w-full"
+              timeOnly
               :showTime="true"
               hourFormat="12"
               :formControl="{
@@ -247,27 +228,24 @@
               }"
             />
           </div>
-          
+
           <div class="field md:col-span-2">
             <label for="location" class="font-medium text-sm mb-1 block">Location</label>
-            <InputText 
-              id="location" 
-              name="location"
-              class="w-full" 
-              placeholder="Venue name and address"
-            />
+            <InputText id="location" name="location" class="w-full" placeholder="Venue name and address" />
           </div>
-          
+
           <div class="field md:col-span-2">
             <h3 class="font-medium text-base mb-2">Ticket Sales Schedule</h3>
           </div>
-          
+
           <div class="field">
-            <label for="volunteer_tickets_start_at" class="font-medium text-sm mb-1 block">Volunteer Ticket Sales</label>
-            <DatePicker 
-              id="volunteer_tickets_start_at" 
+            <label for="volunteer_tickets_start_at" class="font-medium text-sm mb-1 block"
+              >Volunteer Ticket Sales</label
+            >
+            <DatePicker
+              id="volunteer_tickets_start_at"
               name="volunteer_tickets_start_at"
-              class="w-full" 
+              class="w-full"
               dateFormat="mm/dd/yy"
               :showTime="true"
               hourFormat="12"
@@ -279,13 +257,15 @@
               }"
             />
           </div>
-          
+
           <div class="field">
-            <label for="senior_tickets_start_at" class="font-medium text-sm mb-1 block">Senior Student Ticket Sales</label>
-            <DatePicker 
-              id="senior_tickets_start_at" 
+            <label for="senior_tickets_start_at" class="font-medium text-sm mb-1 block"
+              >Senior Student Ticket Sales</label
+            >
+            <DatePicker
+              id="senior_tickets_start_at"
               name="senior_tickets_start_at"
-              class="w-full" 
+              class="w-full"
               dateFormat="mm/dd/yy"
               :showTime="true"
               hourFormat="12"
@@ -297,13 +277,13 @@
               }"
             />
           </div>
-          
+
           <div class="field md:col-span-2">
             <label for="general_tickets_start_at" class="font-medium text-sm mb-1 block">General Ticket Sales</label>
-            <DatePicker 
-              id="general_tickets_start_at" 
+            <DatePicker
+              id="general_tickets_start_at"
               name="general_tickets_start_at"
-              class="w-full" 
+              class="w-full"
               dateFormat="mm/dd/yy"
               :showTime="true"
               hourFormat="12"
@@ -315,37 +295,26 @@
               }"
             />
           </div>
-          
+
           <div class="field md:col-span-2">
             <label for="description" class="font-medium text-sm mb-1 block">Description</label>
-            <Textarea 
-              id="description" 
+            <Textarea
+              id="description"
               name="description"
-              class="w-full" 
+              class="w-full"
               rows="3"
               placeholder="Additional details about this performance"
             />
           </div>
         </div>
-        
+
         <div class="flex justify-end gap-2 pt-4">
-          <Button 
-            type="button" 
-            label="Cancel" 
-            class="p-button-text" 
-            @click="closeDialog"
-            :disabled="saving"
-          />
-          <Button 
-            type="submit" 
-            label="Save" 
-            icon="pi pi-save"
-            :loading="saving"
-          />
+          <Button type="button" label="Cancel" class="p-button-text" @click="closeDialog" :disabled="saving" />
+          <Button type="submit" label="Save" icon="pi pi-save" :loading="saving" />
         </div>
       </Form>
     </Dialog>
-    
+
     <!-- Delete Confirmation -->
     <ConfirmDialog />
   </div>
@@ -388,32 +357,32 @@ const showForm = ref({
 // Services
 const toast = useToast();
 const confirm = useConfirm();
-const { 
-  fetchRecitalSeries,
-  fetchRecitalShows, 
-  createRecitalShow, 
-  updateRecitalShow, 
-  deleteRecitalShow 
-} = useApiService();
+const { fetchRecitalSeries, fetchRecitalShows, createRecitalShow, updateRecitalShow, deleteRecitalShow } =
+  useApiService();
 
 // Form validation
 const showSchema = z.object({
   name: z.string().min(1, 'Show name is required'),
   date: z.union([
     z.string().min(1, 'Date is required'),
-    z.date().transform(date => date.toISOString().split('T')[0])
+    z.date().transform((date) => date.toISOString().split('T')[0])
   ]),
   start_time: z.union([
-    z.string().min(1, 'Start time is required'), 
-    z.date().transform(date => 
-      `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:00`
-    )
+    z.string().min(1, 'Start time is required'),
+    z
+      .date()
+      .transform(
+        (date) => `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:00`
+      )
   ]),
   end_time: z.union([
     z.string().optional(),
-    z.date().transform(date => 
-      `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:00`
-    ).optional()
+    z
+      .date()
+      .transform(
+        (date) => `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:00`
+      )
+      .optional()
   ]),
   location: z.string().optional(),
   status: z.enum(['planning', 'rehearsal', 'ready', 'completed', 'cancelled'], {
@@ -496,12 +465,18 @@ function formatTime(timeStr) {
 
 function getStatusSeverity(status) {
   switch (status) {
-    case 'planning': return 'info';
-    case 'rehearsal': return 'warning';
-    case 'ready': return 'success';
-    case 'completed': return 'secondary';
-    case 'cancelled': return 'danger';
-    default: return 'info';
+    case 'planning':
+      return 'info';
+    case 'rehearsal':
+      return 'warning';
+    case 'ready':
+      return 'success';
+    case 'completed':
+      return 'secondary';
+    case 'cancelled':
+      return 'danger';
+    default:
+      return 'info';
   }
 }
 
@@ -511,20 +486,20 @@ const loadData = async () => {
   try {
     // Load series data
     const { data: seriesResponse, error: seriesError } = await fetchRecitalSeries(seriesId.value);
-    
+
     if (seriesError.value) {
       throw new Error(seriesError.value.message || 'Failed to load recital series');
     }
-    
+
     seriesData.value = seriesResponse.value.series;
-    
+
     // Load shows for this series
     const { data: showsResponse, error: showsError } = await fetchRecitalShows(seriesId.value);
-    
+
     if (showsError.value) {
       throw new Error(showsError.value.message || 'Failed to load recital shows');
     }
-    
+
     shows.value = showsResponse.value.shows;
   } catch (error) {
     console.error('Error loading data:', error);
@@ -572,13 +547,13 @@ const closeDialog = () => {
 
 const saveShow = async (event) => {
   console.log('Form submission event:', event);
-  
+
   // Check if the form is valid
   if (!event.valid) {
     console.error('Form validation errors:', event.errors);
     return;
   }
-  
+
   // Extract values from the states object
   const values = {
     name: event.states.name?.value || '',
@@ -593,29 +568,33 @@ const saveShow = async (event) => {
     general_tickets_start_at: event.states.general_tickets_start_at?.value || '',
     series_id: seriesId.value // Make sure to include this from your computed property
   };
-  
+
   console.log('Extracted form values:', values);
-  
+
   // Now process these values with your date/time conversion if needed
   const processedValues = {
     ...values,
     date: typeof values.date === 'object' ? dateToString(values.date) : values.date,
     start_time: typeof values.start_time === 'object' ? timeToString(values.start_time) : values.start_time,
-    end_time: values.end_time ? (typeof values.end_time === 'object' ? timeToString(values.end_time) : values.end_time) : undefined,
+    end_time: values.end_time
+      ? typeof values.end_time === 'object'
+        ? timeToString(values.end_time)
+        : values.end_time
+      : undefined
     // Process other datetime fields if needed
   };
-  
+
   console.log('Processed values for API:', processedValues);
-  
+
   saving.value = true;
   try {
     if (editMode.value) {
       const { data, error } = await updateRecitalShow(currentShowId.value, processedValues);
-      
+
       if (error.value) {
         throw new Error(error.value.message || 'Failed to update recital show');
       }
-      
+
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -624,11 +603,11 @@ const saveShow = async (event) => {
       });
     } else {
       const { data, error } = await createRecitalShow(processedValues);
-      
+
       if (error.value) {
         throw new Error(error.value.message || 'Failed to create recital show');
       }
-      
+
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -636,7 +615,7 @@ const saveShow = async (event) => {
         life: 3000
       });
     }
-    
+
     // Reload data and close dialog
     await loadData();
     closeDialog();
@@ -666,18 +645,18 @@ const confirmDeleteShow = (show) => {
 const deleteShow = async (id) => {
   try {
     const { error } = await deleteRecitalShow(id);
-    
+
     if (error.value) {
       throw new Error(error.value.message || 'Failed to delete recital show');
     }
-    
+
     toast.add({
       severity: 'success',
       summary: 'Success',
       detail: 'Recital show deleted successfully',
       life: 3000
     });
-    
+
     // Reload data
     await loadData();
   } catch (error) {
@@ -693,6 +672,14 @@ const deleteShow = async (id) => {
 
 const navigateToProgramEditor = (showId) => {
   router.push(`/recitals/shows/${showId}/program`);
+};
+
+const navigateToSeatingChart = (showId) => {
+  router.push(`/recitals/shows/${showId}/seating-chart`);
+};
+
+const navigateToShowDetails = (showId) => {
+  router.push(`/recitals/shows/${showId}`);
 };
 
 // Load data on component mount
