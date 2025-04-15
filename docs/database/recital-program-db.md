@@ -604,3 +604,168 @@ Potential future enhancements to the database schema include:
 7. Adding ticket management and sales tracking capabilities
 8. Enhancing the `show_seats` table with more advanced seat assignment features like multi-seat selection and group reservations
 9. Adding a `seat_layouts` table to store reusable seating templates for different venues
+
+# Public Ticket Purchasing System - Database Design
+
+## Overview
+
+This document outlines the database design for the Public Ticket Purchasing System. The schema supports the entire ticket purchasing lifecycle including browsing, seat selection, reservation, payment processing, and ticket management.
+
+## Entity Relationship Diagram
+
+```
++-------------------+       +------------------+       +------------------+
+| recital_shows     |------>| show_seats       |<------| tickets          |
++-------------------+       +------------------+       +------------------+
+        |                          ^                          |
+        |                          |                          |
+        v                          |                          v
++-------------------+       +------------------+       +------------------+
+| seat_reservations |------>| reservation_seats|       | ticket_orders    |
++-------------------+       +------------------+       +------------------+
+```
+
+## Tables
+
+### 1. ticket_orders
+
+Stores information about customer orders, including payment details and order status.
+
+**Key Fields:**
+- `id` - Primary key (UUID)
+- `recital_show_id` - Foreign key to recital_shows table
+- `customer_name` - Customer's full name
+- `email` - Customer's email address for ticket delivery
+- `phone` - Optional phone number
+- `total_amount_in_cents` - Total order amount in cents
+- `payment_method` - Payment method used (e.g., "stripe", "paypal")
+- `payment_intent_id` - Payment provider's reference ID
+- `payment_status` - Status of payment ("pending", "completed", "failed", "refunded")
+- `order_date` - When the order was placed
+- `notes` - Optional order notes
+
+**Relationships:**
+- Each ticket_order belongs to one recital_show
+- Each ticket_order can have multiple tickets
+
+### 2. tickets
+
+Represents individual tickets that are part of an order.
+
+**Key Fields:**
+- `id` - Primary key (UUID)
+- `order_id` - Foreign key to ticket_orders table
+- `seat_id` - Foreign key to show_seats table
+- `ticket_code` - Unique ticket identifier/barcode
+- `price_in_cents` - Price of this specific ticket
+- `is_valid` - Whether the ticket is still valid
+- `has_checked_in` - Whether the ticket has been used for entry
+- `check_in_time` - When the ticket was used for entry
+- `notes` - Optional ticket notes
+
+**Relationships:**
+- Each ticket belongs to one ticket_order
+- Each ticket is associated with one specific seat
+
+### 3. seat_reservations
+
+Tracks temporary seat reservations during the checkout process.
+
+**Key Fields:**
+- `id` - Primary key (UUID)
+- `recital_show_id` - Foreign key to recital_shows table
+- `email` - Customer's email for reservation identification
+- `phone` - Optional phone number
+- `reservation_token` - Unique token for accessing this reservation
+- `expires_at` - When this reservation expires
+- `is_active` - Whether this reservation is still active
+
+**Relationships:**
+- Each seat_reservation belongs to one recital_show
+- Each seat_reservation can include multiple seats through reservation_seats
+
+### 4. reservation_seats
+
+Junction table linking reservations to specific seats.
+
+**Key Fields:**
+- `id` - Primary key (UUID)
+- `reservation_id` - Foreign key to seat_reservations table
+- `seat_id` - Foreign key to show_seats table
+
+**Relationships:**
+- Links seats to reservations in a many-to-many relationship
+
+### 5. show_seats (Modified)
+
+Existing table that represents individual seats for a show, with added reservation tracking.
+
+**Added Fields:**
+- `reserved_until` - When the current reservation expires
+- `reserved_by` - Foreign key to seat_reservations table
+
+**Relationships:**
+- Each show_seat belongs to one recital_show
+- A show_seat can be temporarily reserved by one seat_reservation
+- A show_seat can be permanently assigned to one ticket
+
+### 6. ticket_audit_log (Optional)
+
+Tracks changes to ticket-related records for auditing purposes.
+
+**Key Fields:**
+- `id` - Primary key (UUID)
+- `action` - Type of action performed (create, update, delete)
+- `table_name` - Table that was modified
+- `record_id` - UUID of the modified record
+- `changed_by` - User who made the change
+- `old_values` - Previous values in JSON format
+- `new_values` - New values in JSON format
+- `created_at` - When the change occurred
+
+## Key Design Decisions
+
+1. **Separation of Reservations and Orders**
+   - Reservations are temporary and automatically expire
+   - Orders are permanent and represent completed purchases
+
+2. **Seat Status Tracking**
+   - Seats can be available, temporarily reserved, or sold
+   - Reserved seats have an expiration time and a link to the reservation
+
+3. **Unique Ticket Codes**
+   - Each ticket has a unique code for validation at entry
+   - Codes are indexed for quick lookup during check-in
+
+4. **Payment Tracking**
+   - Orders track payment details including method, status, and third-party references
+   - This allows for payment reconciliation and refund processing
+
+5. **Audit Trail**
+   - Optional audit logging helps track changes for troubleshooting and security
+
+## Database Indexes
+
+Indexes have been created on frequently queried fields:
+
+- Email addresses for retrieving customer orders and reservations
+- Payment status for filtering orders
+- Reservation tokens for quick lookup
+- Expiration times for expired reservation cleanup
+- Ticket codes for validation
+
+## Automation
+
+The database includes a trigger function to maintain `updated_at` timestamps automatically.
+
+A commented-out cron job is included that would:
+- Release expired seat reservations
+- Mark expired reservations as inactive
+
+This requires the pg_cron extension to be enabled.
+
+## Security Considerations
+
+- Permissions are granted to authenticated users only
+- Personal information (name, email, phone) should be handled according to privacy policies
+- Payment details are stored as references only, not actual payment information
