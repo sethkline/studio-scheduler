@@ -38,23 +38,17 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 class="text-2xl font-bold text-primary-800">{{ recitalShow.name }}</h1>
-            <p class="text-gray-600 mt-1">{{ formatDate(recitalShow.date) }} {{ formatTime(recitalShow.start_time) }}</p>
+            <p class="text-gray-600 mt-1">
+              {{ formatDate(recitalShow.date) }} {{ formatTime(recitalShow.start_time) }}
+            </p>
             <div class="mt-2">
-              <Tag :value="recitalShow.status" 
-                   :severity="getStatusSeverity(recitalShow.status)" 
-                   class="mr-2" />
-              <Tag v-if="recitalShow.can_sell_tickets" 
-                   value="Tickets Available" 
-                   severity="success" />
+              <Tag :value="recitalShow.status" :severity="getStatusSeverity(recitalShow.status)" class="mr-2" />
+              <Tag v-if="recitalShow.can_sell_tickets" value="Tickets Available" severity="success" />
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <Button icon="pi pi-pencil" label="Edit Show" 
-                    class="p-button-outlined" 
-                    @click="navigateToEdit" />
-            <Button icon="pi pi-file" label="Program" 
-                    class="p-button-primary" 
-                    @click="navigateToProgram" />
+            <Button icon="pi pi-pencil" label="Edit Show" class="p-button-outlined" @click="navigateToEdit" />
+            <Button icon="pi pi-file" label="Program" class="p-button-primary" @click="navigateToProgram" />
           </div>
         </div>
       </div>
@@ -84,7 +78,9 @@
               </div>
               <div v-if="recitalShow.can_sell_tickets">
                 <div class="text-sm text-gray-500">Ticket Sales Period</div>
-                <div>{{ formatDate(recitalShow.ticket_sale_start) }} - {{ formatDate(recitalShow.ticket_sale_end) }}</div>
+                <div>
+                  {{ formatDate(recitalShow.ticket_sale_start) }} - {{ formatDate(recitalShow.ticket_sale_end) }}
+                </div>
               </div>
             </div>
           </div>
@@ -95,20 +91,22 @@
           <div class="card">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-semibold">Performances</h2>
-              <Button icon="pi pi-plus" label="Add Performance" 
-                      @click="openAddPerformanceDialog" />
+              <div class="flex gap-2">
+                <!-- New Import Performance Button -->
+                <RecitalShowPerformanceImportDialog :recital-id="showId" @import-complete="onPerformancesImported" />
+                <Button icon="pi pi-plus" label="Add Performance" @click="openAddPerformanceDialog" />
+              </div>
             </div>
 
             <div v-if="performances.length === 0" class="p-4 text-center bg-gray-50 rounded-lg">
               <i class="pi pi-info-circle text-2xl text-gray-400 mb-2"></i>
               <p class="text-gray-500">No performances have been added to this show yet.</p>
               <p class="text-sm text-gray-400 mt-2">
-                Click "Add Performance" to add classes to this recital.
+                Click "Add Performance" to add classes to this recital, or use "Import Performances" to bulk import.
               </p>
             </div>
 
-            <DataTable v-else :value="performances" :rowHover="true" 
-                      responsiveLayout="scroll" class="mt-2">
+            <DataTable v-else :value="performances" :rowHover="true" responsiveLayout="scroll" class="mt-2">
               <Column field="performance_order" header="#" style="width: 3rem">
                 <template #body="{ data, index }">
                   <span class="font-bold">{{ data.performance_order || index + 1 }}</span>
@@ -118,10 +116,13 @@
                 <template #body="{ data }">
                   <div>
                     <div class="font-medium">{{ getClassDisplayName(data) }}</div>
-                    <div v-if="data.class_instance?.class_definition?.dance_style" 
-                          class="text-sm flex items-center">
-                      <div class="w-3 h-3 rounded-full mr-2" 
-                          :style="`background-color: ${data.class_instance?.class_definition?.dance_style?.color || '#cccccc'}`"></div>
+                    <div v-if="data.class_instance?.class_definition?.dance_style" class="text-sm flex items-center">
+                      <div
+                        class="w-3 h-3 rounded-full mr-2"
+                        :style="`background-color: ${
+                          data.class_instance?.class_definition?.dance_style?.color || '#cccccc'
+                        }`"
+                      ></div>
                       <span>{{ data.class_instance?.class_definition?.dance_style?.name }}</span>
                     </div>
                   </div>
@@ -140,17 +141,57 @@
                         <i class="pi pi-clock text-xs"></i>
                         {{ formatDuration(data.duration) }}
                       </span>
+                      <span v-if="data.choreographer" class="flex items-center gap-1">
+                        <i class="pi pi-user text-xs"></i>
+                        {{ data.choreographer }}
+                      </span>
                     </div>
                   </div>
+                </template>
+              </Column>
+              <Column header="Dancers">
+                <template #body="{ data }">
+                  <div v-if="!dancersLoaded[data.id]" class="text-sm text-gray-500">
+                    <i class="pi pi-spin pi-spinner mr-1"></i> Loading dancers...
+                  </div>
+                  <div
+                    v-else-if="performanceDancers[data.id] && performanceDancers[data.id].length > 0"
+                    class="text-sm"
+                  >
+                    <div class="line-clamp-2">
+                      {{ formatDancersArray(performanceDancers[data.id]) }}
+                    </div>
+                    <Button
+                      v-if="performanceDancers[data.id].length > 3"
+                      label="View All"
+                      class="p-button-text p-button-sm p-0 text-xs text-primary-600"
+                      @click="viewDancers(data, performanceDancers[data.id])"
+                    />
+                  </div>
+                  <div v-else-if="data.notes && data.notes.includes('Dancers:')" class="text-sm">
+                    <!-- Fallback to notes field if no dancers in table -->
+                    <div class="line-clamp-2">
+                      {{ data.notes.substring(data.notes.indexOf('Dancers:') + 8).trim() }}
+                    </div>
+                    <Button
+                      v-if="data.notes.length > 100"
+                      label="View All"
+                      class="p-button-text p-button-sm p-0 text-xs text-primary-600"
+                      @click="viewDancersFromNotes(data)"
+                    />
+                  </div>
+                  <div v-else class="text-sm text-gray-500">No dancers listed</div>
                 </template>
               </Column>
               <Column style="width: 8rem">
                 <template #body="{ data }">
                   <div class="flex gap-1">
-                    <Button icon="pi pi-pencil" class="p-button-sm p-button-outlined" 
-                            @click="editPerformance(data)" />
-                    <Button icon="pi pi-trash" class="p-button-sm p-button-outlined p-button-danger" 
-                            @click="confirmDeletePerformance(data)" />
+                    <Button icon="pi pi-pencil" class="p-button-sm p-button-outlined" @click="editPerformance(data)" />
+                    <Button
+                      icon="pi pi-trash"
+                      class="p-button-sm p-button-outlined p-button-danger"
+                      @click="confirmDeletePerformance(data)"
+                    />
                   </div>
                 </template>
               </Column>
@@ -161,16 +202,16 @@
     </div>
 
     <!-- Add/Edit Performance Dialog -->
-    <Dialog 
-      v-model:visible="performanceDialog.visible" 
+    <Dialog
+      v-model:visible="performanceDialog.visible"
       :header="performanceDialog.title"
-      :style="{width: '550px'}" 
+      :style="{ width: '550px' }"
       modal
       @hide="closePerformanceDialog"
     >
-      <Form 
+      <Form
         v-if="performanceDialog.visible"
-        v-slot="$form" 
+        v-slot="$form"
         :initialValues="performanceDialog.data"
         :resolver="formResolver"
         @submit="savePerformance"
@@ -179,88 +220,96 @@
       >
         <div class="field">
           <label for="class_instance_id" class="font-medium text-sm mb-1 block">Class Instance*</label>
-          <Dropdown id="class_instance_id" 
-                   name="class_instance_id"
-                   :options="classInstances" 
-                   optionLabel="display_name" 
-                   optionValue="id"
-                   placeholder="Select a class" 
-                   class="w-full" 
-                   aria-describedby="class_instance_id-error" />
-          <Message 
-            v-if="$form.class_instance_id?.invalid" 
-            severity="error" 
-            size="small" 
-            variant="simple"
-          >
+          <Dropdown
+            id="class_instance_id"
+            name="class_instance_id"
+            :options="classInstances"
+            optionLabel="display_name"
+            optionValue="id"
+            placeholder="Select a class"
+            class="w-full"
+            filter
+            aria-describedby="class_instance_id-error"
+          />
+          <Message v-if="$form.class_instance_id?.invalid" severity="error" size="small" variant="simple">
             {{ $form.class_instance_id.error?.message }}
           </Message>
         </div>
 
         <div class="field">
+          <label for="performance_order" class="font-medium text-sm mb-1 block">Performance Order*</label>
+          <InputNumber
+            id="performance_order"
+            name="performance_order"
+            class="w-full"
+            :min="1"
+            aria-describedby="performance_order-error"
+          />
+          <Message v-if="$form.performance_order?.invalid" severity="error" size="small" variant="simple">
+            {{ $form.performance_order.error?.message }}
+          </Message>
+        </div>
+
+        <div class="field">
           <label for="songTitle" class="font-medium text-sm mb-1 block">Song Title</label>
-          <InputText id="songTitle" 
-                    name="song_title"
-                    class="w-full" 
-                    aria-describedby="song_title-error" />
-          <Message 
-            v-if="$form.song_title?.invalid" 
-            severity="error" 
-            size="small" 
-            variant="simple"
-          >
+          <InputText id="songTitle" name="song_title" class="w-full" aria-describedby="song_title-error" />
+          <Message v-if="$form.song_title?.invalid" severity="error" size="small" variant="simple">
             {{ $form.song_title.error?.message }}
           </Message>
         </div>
 
         <div class="field">
           <label for="songArtist" class="font-medium text-sm mb-1 block">Artist</label>
-          <InputText id="songArtist" 
-                    name="song_artist"
-                    class="w-full" 
-                    aria-describedby="song_artist-error" />
+          <InputText id="songArtist" name="song_artist" class="w-full" aria-describedby="song_artist-error" />
         </div>
 
         <div class="field">
           <label for="choreographer" class="font-medium text-sm mb-1 block">Choreographer</label>
-          <InputText id="choreographer" 
-                    name="choreographer"
-                    class="w-full" />
+          <InputText id="choreographer" name="choreographer" class="w-full" />
         </div>
 
         <div class="field">
           <label for="duration" class="font-medium text-sm mb-1 block">Duration (seconds)</label>
-          <InputNumber id="duration" 
-                      name="duration"
-                      class="w-full" 
-                      :min="0" />
+          <InputNumber id="duration" name="duration" class="w-full" :min="0" />
         </div>
 
         <div class="field">
-          <label for="notes" class="font-medium text-sm mb-1 block">Performance Notes</label>
-          <Textarea id="notes" 
-                   name="notes"
-                   rows="3" 
-                   class="w-full" />
+          <label for="notes" class="font-medium text-sm mb-1 block">Dancers/Performance Notes</label>
+          <Textarea
+            id="notes"
+            name="notes"
+            rows="5"
+            class="w-full"
+            placeholder="Enter dancer names or other performance notes. For dancer lists, start with 'Dancers:'"
+          />
         </div>
-        
+
         <div class="flex justify-end gap-2 pt-4">
-          <Button 
-            type="button" 
-            label="Cancel" 
-            icon="pi pi-times" 
-            class="p-button-text" 
+          <Button
+            type="button"
+            label="Cancel"
+            icon="pi pi-times"
+            class="p-button-text"
             @click="closePerformanceDialog"
             :disabled="performanceDialog.saving"
           />
-          <Button 
-            type="submit" 
-            label="Save" 
-            icon="pi pi-check"
-            :loading="performanceDialog.saving"
-          />
+          <Button type="submit" label="Save" icon="pi pi-check" :loading="performanceDialog.saving" />
         </div>
       </Form>
+    </Dialog>
+
+    <!-- Dancers View Dialog -->
+    <Dialog v-model:visible="dancersDialog.visible" :header="dancersDialog.title" :style="{ width: '500px' }" modal>
+      <div class="p-2">
+        <h4 class="font-medium mb-2">{{ dancersDialog.songTitle }}</h4>
+        <div class="text-sm mb-4">
+          <span class="font-medium">Choreographer:</span> {{ dancersDialog.choreographer || 'Not specified' }}
+        </div>
+        <div class="dancers-list">
+          <div class="font-medium mb-1">Dancers:</div>
+          <div class="text-sm whitespace-pre-wrap">{{ formatDancersList(dancersDialog.dancers) }}</div>
+        </div>
+      </div>
     </Dialog>
 
     <!-- Delete Confirmation Dialog -->
@@ -268,12 +317,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useConfirm } from 'primevue/useconfirm';
 import { Form } from '@primevue/forms';
 import { z } from 'zod';
 import { zodResolver } from '@primevue/forms/resolvers/zod';
 import { useToast } from 'primevue/usetoast';
+// import PerformanceImportDialog from './PerformanceImportDialog.vue';
 
 // Route parameters
 const route = useRoute();
@@ -299,6 +349,8 @@ const error = ref(null);
 const recitalShow = ref(null);
 const performances = ref([]);
 const classInstances = ref([]);
+const performanceDancers = ref({});
+const dancersLoaded = ref({});
 
 // Performance Dialog
 const performanceDialog = reactive({
@@ -309,6 +361,7 @@ const performanceDialog = reactive({
   data: {
     id: null,
     class_instance_id: null,
+    performance_order: null,
     song_title: '',
     song_artist: '',
     choreographer: '',
@@ -317,13 +370,23 @@ const performanceDialog = reactive({
   }
 });
 
+// Dancers Dialog
+const dancersDialog = reactive({
+  visible: false,
+  title: 'Dancers',
+  songTitle: '',
+  choreographer: '',
+  dancers: ''
+});
+
 // Zod validation schema
 const performanceSchema = z.object({
-  class_instance_id: z.string().min(1, "Class is required"),
+  class_instance_id: z.string().min(1, 'Class is required'),
+  performance_order: z.number().min(1, 'Order number is required'),
   song_title: z.string().optional(),
   song_artist: z.string().optional(),
   choreographer: z.string().optional(),
-  duration: z.number().min(0, "Duration cannot be negative").optional(),
+  duration: z.number().min(0, 'Duration cannot be negative').optional(),
   notes: z.string().optional()
 });
 
@@ -337,6 +400,30 @@ onMounted(async () => {
 });
 
 // Methods
+
+async function fetchDancersForPerformances(performancesList) {
+  try {
+    const client = useSupabaseClient();
+
+    // For each performance, fetch its dancers
+    for (const performance of performancesList) {
+      const { data: dancerData, error: dancerError } = await client
+        .from('performance_dancers')
+        .select('id, dancer_name')
+        .eq('performance_id', performance.id);
+
+      if (dancerError) {
+        console.error(`Error fetching dancers for performance ${performance.id}:`, dancerError);
+        continue;
+      }
+
+      // Add dancers to the performance object
+      performance.dancers = dancerData || [];
+    }
+  } catch (err) {
+    console.error('Error fetching dancers:', err);
+  }
+}
 async function fetchRecitalShow() {
   loading.value = true;
   error.value = null;
@@ -344,7 +431,7 @@ async function fetchRecitalShow() {
   try {
     const client = useSupabaseClient();
     
-    // Fetch recital show details
+    // Fetch recital show details (your existing code)
     const { data: showData, error: showError } = await client
       .from('recital_shows')
       .select(`
@@ -361,7 +448,7 @@ async function fetchRecitalShow() {
     if (showError) throw showError;
     recitalShow.value = showData;
     
-    // Fetch performances for this show
+    // Fetch performances for this show (your existing code)
     const { data: performanceData, error: performanceError } = await client
       .from('recital_performances')
       .select(`
@@ -384,7 +471,17 @@ async function fetchRecitalShow() {
       .order('performance_order');
       
     if (performanceError) throw performanceError;
+    
+    // Store the performances
     performances.value = performanceData;
+    
+    // Initialize dancers loading state
+    performanceData.forEach(perf => {
+      dancersLoaded.value[perf.id] = false;
+    });
+    
+    // Load dancers for all performances
+    loadDancersForPerformances(performanceData);
     
   } catch (err) {
     console.error('Error fetching recital show details:', err);
@@ -394,13 +491,41 @@ async function fetchRecitalShow() {
   }
 }
 
-async function fetchClassInstances() {
+function loadDancersForPerformances(performancesList) {
+  performancesList.forEach(performance => {
+    loadDancersForPerformance(performance.id);
+  });
+}
+
+async function loadDancersForPerformance(performanceId) {
   try {
     const client = useSupabaseClient();
     
+    const { data: dancerData, error: dancerError } = await client
+      .from('performance_dancers')
+      .select('id, dancer_name')
+      .eq('performance_id', performanceId);
+      
+    if (dancerError) {
+      console.error(`Error fetching dancers for performance ${performanceId}:`, dancerError);
+    } else {
+      performanceDancers.value[performanceId] = dancerData || [];
+    }
+  } catch (err) {
+    console.error(`Error fetching dancers for performance ${performanceId}:`, err);
+  } finally {
+    dancersLoaded.value[performanceId] = true;
+  }
+}
+
+async function fetchClassInstances() {
+  try {
+    const client = useSupabaseClient();
+
     const { data, error: fetchError } = await client
       .from('class_instances')
-      .select(`
+      .select(
+        `
         id,
         name,
         class_definition:class_definition_id (
@@ -411,16 +536,18 @@ async function fetchClassInstances() {
             name
           )
         )
-      `)
+      `
+      )
       .eq('status', 'active');
-      
+
     if (fetchError) throw fetchError;
-    
-    classInstances.value = data.map(instance => ({
+
+    classInstances.value = data.map((instance) => ({
       ...instance,
-      display_name: `${instance.name || instance.class_definition?.name} (${instance.class_definition?.dance_style?.name || 'Unknown Style'})`
+      display_name: `${instance.name || instance.class_definition?.name} (${
+        instance.class_definition?.dance_style?.name || 'Unknown Style'
+      })`
     }));
-    
   } catch (err) {
     console.error('Error fetching class instances:', err);
     toast.add({
@@ -433,14 +560,12 @@ async function fetchClassInstances() {
 }
 
 function getClassDisplayName(performance) {
-  return performance.class_instance?.name || 
-         performance.class_instance?.class_definition?.name || 
-         'Unknown Class';
+  return performance.class_instance?.name || performance.class_instance?.class_definition?.name || 'Unknown Class';
 }
 
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
-  
+
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
@@ -452,12 +577,12 @@ function formatDate(dateString) {
 
 function formatTime(timeString) {
   if (!timeString) return '';
-  
+
   const [hours, minutes] = timeString.split(':');
   const date = new Date();
   date.setHours(parseInt(hours, 10));
   date.setMinutes(parseInt(minutes, 10));
-  
+
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
@@ -475,11 +600,11 @@ function formatPrice(priceInCents) {
 
 function getStatusSeverity(status) {
   const statusMap = {
-    'planning': 'warning',
-    'rehearsal': 'info',
-    'active': 'success',
-    'completed': 'success',
-    'cancelled': 'danger'
+    planning: 'warning',
+    rehearsal: 'info',
+    active: 'success',
+    completed: 'success',
+    cancelled: 'danger'
   };
   return statusMap[status] || 'info';
 }
@@ -493,11 +618,19 @@ function navigateToProgram() {
 }
 
 function openAddPerformanceDialog() {
+  // Get the next order number
+  let nextOrder = 1;
+  if (performances.value.length > 0) {
+    const maxOrder = Math.max(...performances.value.map((p) => p.performance_order || 0));
+    nextOrder = maxOrder + 1;
+  }
+
   performanceDialog.title = 'Add Performance';
   performanceDialog.isNew = true;
   performanceDialog.data = {
     id: null,
     class_instance_id: null,
+    performance_order: nextOrder,
     song_title: '',
     song_artist: '',
     choreographer: '',
@@ -513,6 +646,7 @@ function editPerformance(performance) {
   performanceDialog.data = {
     id: performance.id,
     class_instance_id: performance.class_instance_id,
+    performance_order: performance.performance_order || 0,
     song_title: performance.song_title || '',
     song_artist: performance.song_artist || '',
     choreographer: performance.choreographer || '',
@@ -520,6 +654,50 @@ function editPerformance(performance) {
     notes: performance.notes || ''
   };
   performanceDialog.visible = true;
+}
+
+function viewDancers(performance, dancers) {
+  dancersDialog.songTitle = performance.song_title || 'Untitled';
+  dancersDialog.choreographer = performance.choreographer || '';
+  dancersDialog.dancers = dancers.map(d => d.dancer_name).join(', ');
+  dancersDialog.visible = true;
+}
+
+function viewDancersFromNotes(performance) {
+  dancersDialog.songTitle = performance.song_title || 'Untitled';
+  dancersDialog.choreographer = performance.choreographer || '';
+  
+  if (performance.notes && performance.notes.includes('Dancers:')) {
+    dancersDialog.dancers = performance.notes.substring(performance.notes.indexOf('Dancers:') + 8).trim();
+  } else {
+    dancersDialog.dancers = '';
+  }
+  
+  dancersDialog.visible = true;
+}
+
+function formatDancersArray(dancers) {
+  if (!dancers || dancers.length === 0) return 'No dancers listed';
+  
+  // Take first 3 dancers to show in the preview
+  const previewDancers = dancers.slice(0, 3);
+  const dancerNames = previewDancers.map(d => d.dancer_name);
+  
+  if (dancers.length > 3) {
+    return dancerNames.join(', ') + ` and ${dancers.length - 3} more...`;
+  }
+  
+  return dancerNames.join(', ');
+}
+
+function formatDancersList(dancers) {
+  if (!dancers) return 'No dancers listed';
+
+  // Split by commas, trim each name, and join with newlines for better readability
+  return dancers
+    .split(',')
+    .map((name) => name.trim())
+    .join('\n');
 }
 
 function closePerformanceDialog() {
@@ -531,50 +709,55 @@ async function savePerformance(event) {
     // Extract form values from submit event
     const { values, valid } = event;
     if (!valid) return;
-    
+
     performanceDialog.saving = true;
-    const client = useSupabaseClient();
-    
+
+    // Check if notes field contains dancer information
+    let dancersFromNotes = [];
+    let cleanedNotes = values.notes || '';
+
+    if (cleanedNotes && cleanedNotes.includes('Dancers:')) {
+      // Extract dancers from notes
+      const dancerSection = cleanedNotes.substring(cleanedNotes.indexOf('Dancers:') + 8).trim();
+      dancersFromNotes = dancerSection
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name);
+
+      // Remove dancers section from notes to avoid duplication
+      cleanedNotes = cleanedNotes.replace(/Dancers:.*$/s, '').trim();
+    }
+
     const performanceData = {
       class_instance_id: values.class_instance_id,
+      performance_order: values.performance_order,
       song_title: values.song_title || '',
       song_artist: values.song_artist || '',
       choreographer: values.choreographer || '',
       duration: values.duration || 0,
-      notes: values.notes || ''
+      notes: cleanedNotes // Use cleaned notes without dancers section
     };
-    
+
+    let performanceId;
+
+    // Use the API service instead of direct Supabase calls
     if (performanceDialog.isNew) {
       // Create new performance
-      const { data, error: insertError } = await client
-        .from('recital_performances')
-        .insert([
-          {
-            recital_id: showId,
-            ...performanceData,
-            performance_order: performances.value.length + 1
-          }
-        ])
-        .select(`
-          *,
-          class_instance:class_instance_id (
-            id,
-            name,
-            class_definition:class_definition_id (
-              id,
-              name,
-              dance_style:dance_style_id (
-                id,
-                name,
-                color
-              )
-            )
-          )
-        `);
-      
-      if (insertError) throw insertError;
-      
-      performances.value.push(data[0]);
+      const { data, error } = await useFetch(`/api/recital-shows/${showId}/performances`, {
+        method: 'POST',
+        body: {
+          ...performanceData
+        }
+      });
+
+      if (error.value) throw new Error(error.value.statusMessage || 'Failed to create performance');
+
+      // Get performance ID for dancer linking
+      performanceId = data.value.performance.id;
+
+      // Add to local array
+      performances.value.push(data.value.performance);
+
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -583,35 +766,24 @@ async function savePerformance(event) {
       });
     } else {
       // Update existing performance
-      const { data, error: updateError } = await client
-        .from('recital_performances')
-        .update(performanceData)
-        .eq('id', performanceDialog.data.id)
-        .select(`
-          *,
-          class_instance:class_instance_id (
-            id,
-            name,
-            class_definition:class_definition_id (
-              id,
-              name,
-              dance_style:dance_style_id (
-                id,
-                name,
-                color
-              )
-            )
-          )
-        `);
-      
-      if (updateError) throw updateError;
-      
-      // Update the performance in the local array
-      const index = performances.value.findIndex(p => p.id === performanceDialog.data.id);
+      const { data, error } = await useFetch(`/api/recital-shows/${showId}/performances/${performanceDialog.data.id}`, {
+        method: 'PUT',
+        body: {
+          ...performanceData
+        }
+      });
+
+      if (error.value) throw new Error(error.value.statusMessage || 'Failed to update performance');
+
+      // Get performance ID for dancer linking
+      performanceId = performanceDialog.data.id;
+
+      // Update in local array
+      const index = performances.value.findIndex((p) => p.id === performanceDialog.data.id);
       if (index !== -1) {
-        performances.value[index] = data[0];
+        performances.value[index] = data.value.performance;
       }
-      
+
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -619,7 +791,33 @@ async function savePerformance(event) {
         life: 3000
       });
     }
-    
+
+    // Add dancers to performance_dancers table if we have any
+    if (dancersFromNotes.length > 0 && performanceId) {
+      const client = useSupabaseClient();
+
+      // First delete existing dancers for this performance to avoid duplicates
+      await client.from('performance_dancers').delete().eq('performance_id', performanceId);
+
+      // Now add each dancer
+      for (const dancerName of dancersFromNotes) {
+        const { error: dancerError } = await client.from('performance_dancers').insert({
+          performance_id: performanceId,
+          dancer_name: dancerName
+        });
+
+        if (dancerError) {
+          console.error('Error adding dancer:', dancerError);
+        }
+      }
+
+      // Refresh the performance data to include the new dancers
+      fetchRecitalShow();
+    }
+
+    // Sort performances by order
+    performances.value.sort((a, b) => (a.performance_order || 0) - (b.performance_order || 0));
+
     closePerformanceDialog();
   } catch (err) {
     console.error('Error saving performance:', err);
@@ -650,12 +848,12 @@ async function deletePerformance(performance) {
     const { data, error } = await useFetch(`/api/recital-shows/${showId}/performances/${performance.id}`, {
       method: 'DELETE'
     });
-    
+
     if (error.value) throw new Error(error.value.statusMessage || 'Failed to delete performance');
-    
+
     // Remove from local array
-    performances.value = performances.value.filter(p => p.id !== performance.id);
-    
+    performances.value = performances.value.filter((p) => p.id !== performance.id);
+
     toast.add({
       severity: 'success',
       summary: 'Success',
@@ -673,31 +871,28 @@ async function deletePerformance(performance) {
   }
 }
 
-async function reorderPerformances() {
-  if (performances.value.length === 0) return;
-  
-  try {
-    const client = useSupabaseClient();
-    
-    // Prepare updates
-    const updates = performances.value.map((perf, index) => ({
-      id: perf.id,
-      performance_order: index + 1
-    }));
-    
-    // Update all performance orders
-    const { error } = await client
-      .from('recital_performances')
-      .upsert(updates, { onConflict: 'id' });
-    
-    if (error) throw error;
-    
-    // Update local performance objects
-    performances.value.forEach((perf, index) => {
-      perf.performance_order = index + 1;
-    });
-  } catch (err) {
-    console.error('Error reordering performances:', err);
-  }
+// Handle imported performances
+function onPerformancesImported(importedPerformances) {
+  if (!importedPerformances || importedPerformances.length === 0) return;
+
+  // Refresh the performances list
+  fetchRecitalShow();
+
+  toast.add({
+    severity: 'success',
+    summary: 'Import Successful',
+    detail: `Imported ${importedPerformances.length} performances`,
+    life: 3000
+  });
 }
 </script>
+
+<style scoped>
+.dancers-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 0.375rem;
+}
+</style>

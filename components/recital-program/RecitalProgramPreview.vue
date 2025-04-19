@@ -95,6 +95,14 @@
                         {{ getClassDisplayName(perf) }}
                       </span>
                     </div>
+                    
+                    <!-- Dancers Display -->
+                    <div class="mt-2 text-sm text-gray-600">
+                      <div v-if="getDancers(perf).length > 0" class="dancers-list">
+                        <div class="font-medium">Dancers:</div>
+                        <div>{{ getDancers(perf).join(', ') }}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -146,13 +154,42 @@
               </div>
             </div>
           </div>
+          
+          <!-- Dancer Index -->
+          <div v-else-if="currentPage === 5" class="page-content p-8">
+            <h2 class="text-2xl font-bold mb-6 text-center text-primary-800">Dancer Index</h2>
+            
+            <div v-if="dancerPerformanceMap.size === 0" class="text-center text-gray-500 p-12">
+              <i class="pi pi-info-circle text-2xl mb-2"></i>
+              <p>No dancers have been added to any performances yet.</p>
+            </div>
+            
+            <div v-else class="dancers-index space-y-4">
+              <div class="text-sm text-right text-gray-500 mb-2">
+                * Numbers indicate performance order
+              </div>
+              
+              <div v-for="[dancer, perfIndices] in sortedDancerEntries" :key="dancer" class="dancer-entry border-b pb-2">
+                <div class="flex justify-between">
+                  <div class="font-medium">{{ dancer }}</div>
+                  <div class="text-sm text-gray-600">
+                    <span v-for="(perfIndex, i) in perfIndices" :key="i" class="performance-ref">
+                      <span v-if="i > 0">, </span>{{ perfIndex }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+
 // Props
 const props = defineProps({
   recital: {
@@ -185,11 +222,34 @@ const pages = computed(() => [
   { label: "Director's Note", value: 'director-note' },
   { label: 'Performance Lineup', value: 'performances' },
   { label: 'Acknowledgments', value: 'acknowledgments' },
-  { label: 'Advertisements', value: 'advertisements' }
+  { label: 'Advertisements', value: 'advertisements' },
+  { label: 'Dancer Index', value: 'dancer-index' }
 ]);
 
 const sortedAdvertisements = computed(() => {
   return [...props.advertisements].sort((a, b) => a.order_position - b.order_position);
+});
+
+// Dancer index mapping
+const dancerPerformanceMap = computed(() => {
+  const map = new Map();
+  
+  props.performances.forEach((perf, index) => {
+    const dancers = getDancers(perf);
+    dancers.forEach(dancer => {
+      if (!map.has(dancer)) {
+        map.set(dancer, []);
+      }
+      map.get(dancer).push(index + 1); // Add 1 to get the display number
+    });
+  });
+  
+  return map;
+});
+
+// Sort dancer entries alphabetically
+const sortedDancerEntries = computed(() => {
+  return [...dancerPerformanceMap.value.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 });
 
 // Methods
@@ -211,6 +271,20 @@ function getClassDisplayName(performance) {
                performance.class_instance?.class_definition?.name || 
                'Unknown Class';
   return name;
+}
+
+function getDancers(performance) {
+  // Extract dancers from different sources with priority
+  if (performance.dancers && performance.dancers.length > 0) {
+    return performance.dancers.map(dancer => dancer.student_name || dancer.dancer_name);
+  }
+  
+  if (performance.notes && performance.notes.includes('Dancers:')) {
+    const dancerText = performance.notes.substring(performance.notes.indexOf('Dancers:') + 8).trim();
+    return dancerText.split(',').map(name => name.trim()).filter(name => name);
+  }
+  
+  return [];
 }
 </script>
 
@@ -270,5 +344,16 @@ function getClassDisplayName(performance) {
   padding-left: 1.5rem;
   margin-top: 1rem;
   margin-bottom: 1rem;
+}
+
+.dancers-index {
+  columns: 1;
+}
+
+@media (min-width: 640px) {
+  .dancers-index {
+    columns: 2;
+    column-gap: 2rem;
+  }
 }
 </style>

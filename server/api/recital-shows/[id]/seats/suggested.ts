@@ -1,5 +1,5 @@
 // server/api/recital-shows/[id]/seats/suggested.ts
-import { getSupabaseClient } from '../../../../../utils/supabase'
+import { getSupabaseClient } from '../../../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   try {

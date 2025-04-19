@@ -108,102 +108,107 @@
     <div v-else-if="showSeatMap" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Seat Chart (Main Content) -->
       <div class="lg:col-span-2 order-2 lg:order-1">
-    <div class="card p-0 overflow-hidden">
-      <!-- Controls -->
-      <div class="bg-gray-100 p-4 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex gap-3">
-          <Button v-tooltip.top="'Reset selection'" 
-                  icon="pi pi-refresh"
-                  @click="resetSelection" />
-          
-        </div>
-        
-        <div class="flex gap-2 items-center">
-          <Checkbox v-model="showHandicapOnly" 
-          inputId="handicap-filter" 
-          binary />
-<label for="handicap-filter" class="text-sm">Accessible Seats Only</label>
-        </div>
-      </div>
-      
-      <!-- Theater Overview Map -->
-      <SeatingTheaterOverview 
-        :selectedSection="activeSection" 
-        @select-section="setActiveSection" />
-      
-      <!-- Simplified Theater Layout -->
-      <div class="relative">
-        <!-- Stage Area -->
-        <div class="bg-gray-800 text-white text-center py-4 font-semibold">
-          STAGE
-        </div>
-        
-        <!-- Seat Map Container -->
-        <div class="p-4 overflow-auto" style="min-height: 400px; max-height: 600px">
-          <div v-if="filteredSeats.length === 0" class="text-center py-8">
-            <i class="pi pi-exclamation-circle text-3xl text-yellow-500"></i>
-            <p class="mt-2">No seats available in the selected section</p>
-            <Button class="mt-4" 
-                    label="Return to Ticket Selection" 
-                    icon="pi pi-arrow-left" 
-                    @click="showSeatMap = false" />
-          </div>
-          
-          <div v-else>
-            <!-- Sections - Only show active section on mobile, show all or active on desktop -->
-            <div v-if="isMobile">
-              <SeatingSectionSeats 
-                v-if="activeSectionData"
-                :section="activeSectionData" 
-                :selectedSeats="selectedSeats"
-                :sectionType="activeSection"
-                @select-seat="toggleSeatSelection" />
-              <p v-else class="text-center text-gray-500 my-4">
-                Please select a section from the theater map above
-              </p>
+        <div class="card p-0 overflow-hidden">
+          <!-- Controls -->
+          <div class="bg-gray-100 p-4 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex gap-3">
+              <Button v-tooltip.top="'Reset selection'" icon="pi pi-refresh" @click="resetSelection" />
             </div>
-            
-            <div v-else>
-              <SeatingSectionSeats 
-                v-for="(section, type) in sectionsByType" 
-                :key="type"
-                v-show="!activeSection || activeSection === type"
-                :section="section" 
-                :selectedSeats="selectedSeats"
-                :sectionType="type"
-                @select-seat="toggleSeatSelection" />
+
+            <div class="flex gap-2 items-center">
+              <Checkbox v-model="showHandicapOnly" inputId="handicap-filter" binary />
+              <label for="handicap-filter" class="text-sm">Accessible Seats Only</label>
             </div>
           </div>
-        </div>
-        
-        <!-- Legend -->
-        <div class="p-4 border-t border-gray-200">
-          <div class="flex flex-wrap gap-4">
-            <div class="flex items-center">
-              <div class="seat-sample available"></div>
-              <span class="text-sm">Available</span>
+
+          <!-- Theater Overview Map -->
+          <SeatingTheaterOverview :selectedSection="activeSection" @select-section="setActiveSection" />
+
+          <!-- Simplified Theater Layout -->
+          <div class="relative">
+            <!-- Stage Area -->
+            <div class="bg-gray-800 text-white text-center py-4 font-semibold">STAGE</div>
+
+            <!-- Seat Map Container -->
+            <div class="p-4 overflow-auto" style="min-height: 400px; max-height: 600px">
+              <div v-if="filteredSeats.length === 0" class="text-center py-8">
+                <i class="pi pi-exclamation-circle text-3xl text-yellow-500"></i>
+                <p class="mt-2">No seats available in the selected section</p>
+                <Button
+                  class="mt-4"
+                  label="Return to Ticket Selection"
+                  icon="pi pi-arrow-left"
+                  @click="showSeatMap = false"
+                />
+              </div>
+
+              <div v-else>
+                <!-- Sections - Only show active section on mobile, show all or active on desktop -->
+                <div v-if="isMobile">
+                  <SeatingSectionSeats
+                    v-if="activeSectionData"
+                    :section="activeSectionData"
+                    :selectedSeats="selectedSeats"
+                    :sectionType="activeSection"
+                    @select-seat="toggleSeatSelection"
+                  />
+                  <p v-else class="text-center text-gray-500 my-4">
+                    Please select a section from the theater map above
+                  </p>
+                </div>
+
+                <div v-else>
+                  <SeatingSectionSeats
+                    v-for="(section, type) in sectionsByType"
+                    :key="type"
+                    v-show="!activeSection || activeSection === type"
+                    :section="section"
+                    :selectedSeats="selectedSeats"
+                    :sectionType="type"
+                    @select-seat="toggleSeatSelection"
+                  />
+                </div>
+              </div>
             </div>
-            <div class="flex items-center">
-              <div class="seat-sample selected"></div>
-              <span class="text-sm">Selected</span>
-            </div>
-            <div class="flex items-center">
-              <div class="seat-sample unavailable"></div>
-              <span class="text-sm">Unavailable</span>
-            </div>
-            <div class="flex items-center">
-              <div class="seat-sample accessible"></div>
-              <span class="text-sm">Accessible</span>
+
+            <!-- Legend -->
+            <div class="p-4 border-t border-gray-200">
+              <div class="flex flex-wrap gap-4">
+                <div class="flex items-center">
+                  <div class="seat-sample available"></div>
+                  <span class="text-sm">Available</span>
+                </div>
+                <div class="flex items-center">
+                  <div class="seat-sample selected"></div>
+                  <span class="text-sm">Selected</span>
+                </div>
+                <div class="flex items-center">
+                  <div class="seat-sample unavailable"></div>
+                  <span class="text-sm">Unavailable</span>
+                </div>
+                <div class="flex items-center">
+                  <div class="seat-sample accessible"></div>
+                  <span class="text-sm">Accessible</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
       <!-- Ticket Summary and Actions (Sidebar) -->
       <div class="lg:col-span-1 order-1 lg:order-2">
         <div class="card sticky top-4">
+          <div v-if="showReservationTimer" class="mb-4">
+            <TicketReservationTimer
+              :duration="30"
+              :warningThreshold="5"
+              :criticalThreshold="2"
+              @expire="handleReservationExpired"
+              @warning="() => {}"
+              @critical="() => {}"
+            />
+          </div>
           <h2 class="text-xl font-bold mb-4">Selected Seats</h2>
 
           <div v-if="selectedSeats.length === 0" class="bg-gray-50 rounded p-4 text-center text-gray-500">
@@ -256,6 +261,15 @@
                 @click="proceedToCheckout"
                 :disabled="!isSelectionValid"
               />
+              <div v-if="showReservationTimer" class="mt-4 text-xs flex items-center justify-center">
+                <i class="pi pi-clock mr-1"></i>
+                <span>
+                  Your seat reservation expires in
+                  <span class="font-bold" :class="{ 'text-red-600': reservationExpiring }">{{
+                    reservationTimeRemaining
+                  }}</span>
+                </span>
+              </div>
 
               <div v-if="!isSelectionValid" class="text-xs text-red-600 text-center">
                 Please select exactly {{ ticketCount }} seats
@@ -279,20 +293,43 @@
       class="w-full max-w-lg"
     >
       <div>
-        <div v-if="alternateShowSuggestion" class="bg-blue-50 p-4 rounded-lg mb-4">
-          <h3 class="font-medium text-blue-800 mb-2">Better Seats Available!</h3>
-          <p class="text-blue-700 mb-2">We found better seats at a different show time:</p>
-          <div class="font-medium">{{ alternateShowSuggestion.name }}</div>
-          <div>
-            {{ formatDate(alternateShowSuggestion.date) }} at {{ formatTime(alternateShowSuggestion.start_time) }}
+        <div class="bg-gray-50 p-3 rounded-lg mt-4 mb-2">
+          <div class="flex items-center">
+            <i class="pi pi-info-circle text-blue-500 mr-2"></i>
+            <p class="text-sm">
+              Seats will be reserved for <strong>30 minutes</strong> after selecting "Proceed to Checkout"
+            </p>
           </div>
-          <div class="mt-2">
-            <Button
-              label="View These Seats"
-              icon="pi pi-external-link"
-              class="p-button-sm"
-              @click="switchToAlternateShow"
-            />
+        </div>
+        <!-- Add visual seat map preview here -->
+        <div class="mb-4 border rounded p-3">
+          <h3 class="font-medium mb-2">Seat Location Preview</h3>
+
+          <!-- Simple theater layout preview -->
+          <div class="relative bg-gray-100 p-4 rounded">
+            <!-- Stage Area -->
+            <div class="bg-gray-800 text-white text-center py-2 font-semibold text-sm mb-4">STAGE</div>
+
+            <!-- Simplified seat map -->
+            <div class="flex justify-center">
+              <SeatingTheaterOverview :selectedSection="bestSeatsSection" :highlightOnly="true" />
+            </div>
+          </div>
+
+          <!-- List of seats with better formatting -->
+          <div class="mt-3">
+            <div v-if="bestSeatsInSameSection && bestSeatsConsecutive" class="text-green-600 text-sm mb-2">
+              <i class="pi pi-check-circle"></i>
+              These seats are consecutive in the same section
+            </div>
+            <div v-else-if="bestSeatsInSameSection" class="text-blue-600 text-sm mb-2">
+              <i class="pi pi-info-circle"></i>
+              These seats are in the same section but not consecutive
+            </div>
+            <div v-else class="text-yellow-500 text-sm mb-2">
+              <i class="pi pi-exclamation-circle"></i>
+              These seats are in different sections
+            </div>
           </div>
         </div>
 
@@ -333,11 +370,20 @@
         </div>
       </template>
     </Dialog>
+    <div v-if="seatPreference === 'select'" class="mt-4 bg-blue-50 p-3 rounded">
+      <Button
+        label="Show me the best available seats on the map"
+        icon="pi pi-star"
+        class="p-button-outlined p-button-info"
+        @click="highlightBestSeatsOnMap"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { useWindowSize } from '@vueuse/core'; 
+import { useWindowSize } from '@vueuse/core';
+import { detectMechanicsburgConsecutiveSeats, createReservationTimer } from '~/utils/seatDetection';
 const route = useRoute();
 const showId = ref(route.params.id);
 const show = ref({});
@@ -358,6 +404,11 @@ const bestSeats = ref([]);
 const alternateShowSuggestion = ref(null);
 const activeSection = ref('center');
 const selectedSectionFilter = ref(null);
+const bestSeatsSection = ref(null);
+const reservationTimer = ref(null);
+const showReservationTimer = ref(false);
+const reservationTimeRemaining = ref('0:00');
+const reservationExpiring = ref(false);
 
 // Window size for responsive behavior
 const { width } = useWindowSize();
@@ -370,6 +421,12 @@ onMounted(async () => {
   await checkOtherShows();
   loading.value = false;
 
+  // check for existing reservation
+  const reservationToken = localStorage.getItem('current_reservation_token');
+
+  if (reservationToken) {
+    await checkReservationStatus(reservationToken);
+  }
 });
 
 // Watch for filter changes when seat map is displayed
@@ -392,6 +449,47 @@ const sectionOptions = computed(() => {
   return [{ name: 'All Sections' }, ...sections];
 });
 
+const bestSeatsAnalysis = computed(() => {
+  // Only analyze if we have seats
+  if (!bestSeats.value || bestSeats.value.length === 0) {
+    return {
+      isConsecutive: true,
+      inSameSection: true,
+      inSameRow: true,
+      explanation: 'No seats to analyze'
+    };
+  }
+
+  // Use the specialized algorithm for Mechanicsburg Auditorium
+  return detectMechanicsburgConsecutiveSeats(bestSeats.value);
+});
+
+const bestSeatsInSameSection = computed(() => {
+  return bestSeatsAnalysis.value.inSameSection;
+});
+
+const bestSeatsConsecutive = computed(() => {
+  return bestSeatsAnalysis.value.isConsecutive;
+});
+
+//   // Check if seats are in the same row
+//   const firstRow = bestSeats.value[0].row_name;
+//   if (!bestSeats.value.every(seat => seat.row_name === firstRow)) return false;
+
+//   // Sort by seat number and check if consecutive
+//   const sortedSeats = [...bestSeats.value].sort((a, b) =>
+//     parseInt(a.seat_number) - parseInt(b.seat_number)
+//   );
+
+//   for (let i = 0; i < sortedSeats.length - 1; i++) {
+//     if (parseInt(sortedSeats[i + 1].seat_number) - parseInt(sortedSeats[i].seat_number) !== 1) {
+//       return false;
+//     }
+//   }
+
+//   return true;
+// });
+
 // const filteredSeats = computed(() => {
 //   let seats = [...availableSeats.value];
 
@@ -409,13 +507,13 @@ const sectionOptions = computed(() => {
 // Map sections to their theater position types
 const sectionsByType = computed(() => {
   const sections = {};
-  const sectionNames = [...new Set(availableSeats.value.map(seat => seat.section))];
-  
+  const sectionNames = [...new Set(availableSeats.value.map((seat) => seat.section))];
+
   // You'll need logic to map your actual section names to these positions
   // This is an example - adjust based on your actual section naming
-  sectionNames.forEach(sectionName => {
+  sectionNames.forEach((sectionName) => {
     let type = 'center'; // Default
-    
+
     if (sectionName.toLowerCase().includes('left') && sectionName.toLowerCase().includes('wing')) {
       type = 'left-wing';
     } else if (sectionName.toLowerCase().includes('right') && sectionName.toLowerCase().includes('wing')) {
@@ -425,27 +523,27 @@ const sectionsByType = computed(() => {
     } else if (sectionName.toLowerCase().includes('right')) {
       type = 'right-main';
     }
-    
+
     // Create section data structure
-    const sectionSeats = availableSeats.value.filter(seat => seat.section === sectionName);
-    
+    const sectionSeats = availableSeats.value.filter((seat) => seat.section === sectionName);
+
     // Group by row
     const rows = {};
-    sectionSeats.forEach(seat => {
+    sectionSeats.forEach((seat) => {
       if (!rows[seat.row_name]) {
         rows[seat.row_name] = { name: seat.row_name, seats: [] };
       }
       rows[seat.row_name].seats.push(seat);
     });
-    
+
     // Sort seats within rows
-    Object.values(rows).forEach(row => {
+    Object.values(rows).forEach((row) => {
       row.seats.sort((a, b) => a.seat_number.localeCompare(b.seat_number, undefined, { numeric: true }));
     });
-    
+
     sections[type] = { name: sectionName, rows };
   });
-  
+
   return sections;
 });
 
@@ -460,23 +558,87 @@ function setActiveSection(section) {
   activeSection.value = section;
 }
 
+// timer management functions
+function startReservationTimer() {
+  // Only start if we have seats and no active timer
+  if (selectedSeats.value.length === 0 || reservationTimer.value) return;
+
+  showReservationTimer.value = true;
+
+  // Create new timer (30 minutes default)
+  reservationTimer.value = createReservationTimer(
+    30, // 30 minutes
+    // On expire
+    handleReservationExpired,
+    // On update
+    updateReservationDisplay
+  );
+
+  // Start the timer
+  reservationTimer.value.start();
+}
+
+function updateReservationDisplay(timeFormatted, timeRemaining, isUrgent) {
+  reservationTimeRemaining.value = timeFormatted;
+  reservationExpiring.value = isUrgent;
+
+  // Could update UI with timeRemaining info
+  if (isUrgent) {
+    // Show warning notification
+    useToast().add({
+      severity: 'warn',
+      summary: 'Reservation Expiring',
+      detail: 'Your seat reservation is about to expire. Please complete your purchase.',
+      life: 10000
+    });
+  }
+}
+
+function handleReservationExpired() {
+  reservationTimer.value = null;
+  showReservationTimer.value = false;
+
+  // Show error notification
+  useToast().add({
+    severity: 'error',
+    summary: 'Reservation Expired',
+    detail: 'Your seat reservation has expired. These seats are now available to others.',
+    life: 5000
+  });
+
+  // Clear the selected seats
+  selectedSeats.value = [];
+
+  // Optionally refresh available seats
+  fetchAvailableSeats();
+}
+
+function stopReservationTimer() {
+  if (reservationTimer.value) {
+    reservationTimer.value.stop();
+    reservationTimer.value = null;
+  }
+
+  showReservationTimer.value = false;
+}
+
 // Updated filter logic
 const filteredSeats = computed(() => {
   let seats = [...availableSeats.value];
-  
+
   if (selectedSectionFilter.value && selectedSectionFilter.value.name !== 'All Sections') {
-    seats = seats.filter(seat => seat.section === selectedSectionFilter.value.name);
+    seats = seats.filter((seat) => seat.section === selectedSectionFilter.value.name);
   }
-  
+
   if (activeSection.value && sectionsByType.value[activeSection.value]) {
     const sectionName = sectionsByType.value[activeSection.value].name;
-    seats = seats.filter(seat => seat.section === sectionName);
+    seats = seats.filter((seat) => seat.section === sectionName);
   }
-  
+
   if (showHandicapOnly.value) {
-    seats = seats.filter(seat => seat.handicap_access);
+    seats = seats.filter((seat) => seat.handicap_access);
   }
-  
+
   return seats;
 });
 
@@ -606,6 +768,7 @@ async function findBestSeats() {
   processingAutoSelect.value = true;
   bestSeats.value = [];
   alternateShowSuggestion.value = null;
+  bestSeatsSection.value = null;
 
   try {
     // Find best seats for current show
@@ -615,6 +778,7 @@ async function findBestSeats() {
         params: {
           count: ticketCount.value,
           keep_together: true,
+          prefer_center: true,
           handicap_access: showHandicapOnly.value
         }
       }
@@ -625,6 +789,39 @@ async function findBestSeats() {
     // Check if we found enough seats
     if (currentData.value.success) {
       bestSeats.value = currentData.value.seats;
+      
+      // Store the reservation token returned from the API
+      if (currentData.value.reservation_token) {
+        console.log('Reservation token from API:', currentData.value.reservation_token);
+        localStorage.setItem('current_reservation_token', currentData.value.reservation_token);
+      }
+
+      // Determine which section to highlight
+      if (bestSeats.value.length > 0) {
+        // Try to set section based on the section_type from the first seat
+        const firstSeat = bestSeats.value[0];
+
+        // Convert database section_type to our section type values
+        if (firstSeat.section_type) {
+          bestSeatsSection.value = firstSeat.section_type;
+        } else if (firstSeat.section) {
+          // Fallback: try to guess section from section name
+          const sectionName = firstSeat.section.toLowerCase();
+          if (sectionName.includes('center')) {
+            bestSeatsSection.value = 'center';
+          } else if (sectionName.includes('left') && sectionName.includes('wing')) {
+            bestSeatsSection.value = 'left-wing';
+          } else if (sectionName.includes('right') && sectionName.includes('wing')) {
+            bestSeatsSection.value = 'right-wing';
+          } else if (sectionName.includes('left')) {
+            bestSeatsSection.value = 'left-main';
+          } else if (sectionName.includes('right')) {
+            bestSeatsSection.value = 'right-main';
+          } else {
+            bestSeatsSection.value = 'center'; // Default
+          }
+        }
+      }
 
       // Only check other shows if requested and we didn't find ideal seats
       if (
@@ -669,6 +866,61 @@ async function findBestSeats() {
   } finally {
     processingAutoSelect.value = false;
   }
+}
+
+function highlightBestSeatsOnMap() {
+  // First find the best seats
+  findBestSeats().then(() => {
+    // Once we have the seats, show the seat map with those seats pre-selected
+    if (bestSeats.value.length > 0) {
+      showSeatMap.value = true;
+      activeSection.value = bestSeatsSection.value;
+
+      // Pre-select these seats
+      selectedSeats.value = [...bestSeats.value];
+
+      // Display a toast to let the user know we've selected the best seats
+      useToast().add({
+        severity: 'info',
+        summary: 'Best Seats Selected',
+        detail: `We've highlighted ${bestSeats.value.length} best available seats for you`,
+        life: 5000
+      });
+    }
+  });
+}
+
+// Modify the acceptBestSeats function to show the seats on the map
+// function acceptBestSeats() {
+//   // Set the selected seats to the best seats and proceed to checkout
+//   selectedSeats.value = [...bestSeats.value];
+//   showBestSeatsResult.value = false;
+//   proceedToCheckout();
+// }
+
+// Modify the cancelBestSeats function to show the best seats on the map
+function cancelBestSeats() {
+  showBestSeatsResult.value = false;
+
+  // Switch to manual selection and show the best seats on the map
+  seatPreference.value = 'select';
+  showSeatMap.value = true;
+
+  // Set the active section to where the best seats are
+  if (bestSeatsSection.value) {
+    activeSection.value = bestSeatsSection.value;
+  }
+
+  // Pre-select the best seats to help the user locate them
+  selectedSeats.value = [...bestSeats.value];
+
+  // Display a toast to guide the user
+  useToast().add({
+    severity: 'info',
+    summary: 'Choose Your Seats',
+    detail: `We've highlighted our suggested seats. You can keep them or select different ones.`,
+    life: 5000
+  });
 }
 
 async function checkAlternateShows() {
@@ -735,6 +987,11 @@ function toggleSeatSelection(seat) {
   if (index >= 0) {
     // Deselect seat
     selectedSeats.value.splice(index, 1);
+
+    // If no more seats selected, stop the timer
+    if (selectedSeats.value.length === 0) {
+      stopReservationTimer();
+    }
   } else {
     // Don't allow selecting more than the ticket count
     if (selectedSeats.value.length >= ticketCount.value) {
@@ -749,6 +1006,39 @@ function toggleSeatSelection(seat) {
 
     // Select seat
     selectedSeats.value.push(seat);
+
+    // Start the timer if this is the first seat selected
+    if (selectedSeats.value.length === 1) {
+      startReservationTimer();
+    }
+  }
+}
+
+// Modify the acceptBestSeats method to start the timer
+function acceptBestSeats() {
+  // Set the selected seats to the best seats
+  selectedSeats.value = [...bestSeats.value];
+
+  // Close the best seats result modal
+  showBestSeatsResult.value = false;
+
+  // Get the reservation token that was already created by the findBestSeats function
+  const reservationToken = localStorage.getItem('current_reservation_token');
+  
+  if (reservationToken) {
+    console.log('Using existing reservation token:', reservationToken);
+    
+    // Navigate directly to checkout with the existing reservation token
+    navigateTo(`/public/checkout/${reservationToken}`);
+  } else {
+    // In case the token wasn't stored properly, fall back to the original method
+    console.warn('Reservation token not found, falling back to creating a new reservation');
+    
+    // Start reservation timer
+    startReservationTimer();
+    
+    // Proceed to checkout
+    proceedToCheckout();
   }
 }
 
@@ -763,23 +1053,24 @@ function resetSelection() {
   selectedSeats.value = [];
 }
 
-function acceptBestSeats() {
-  // Set the selected seats to the best seats and proceed to checkout
-  selectedSeats.value = [...bestSeats.value];
-  showBestSeatsResult.value = false;
-  proceedToCheckout();
-}
+// function acceptBestSeats() {
+//   // Set the selected seats to the best seats and proceed to checkout
+//   selectedSeats.value = [...bestSeats.value];
+//   showBestSeatsResult.value = false;
+//   proceedToCheckout();
+// }
 
-function cancelBestSeats() {
-  // Clear the best seats and go back to the initial view
-  bestSeats.value = [];
-  showBestSeatsResult.value = false;
+// function cancelBestSeats() {
+//   // Clear the best seats and go back to the initial view
+//   bestSeats.value = [];
+//   showBestSeatsResult.value = false;
 
-  // Switch to manual selection if they reject the automatic selection
-  seatPreference.value = 'select';
-  showSeatMap.value = true;
-}
+//   // Switch to manual selection if they reject the automatic selection
+//   seatPreference.value = 'select';
+//   showSeatMap.value = true;
+// }
 
+// In your reservation function in the seat selection page
 async function proceedToCheckout() {
   if (selectedSeats.value.length === 0) return;
   if (selectedSeats.value.length !== ticketCount.value) {
@@ -796,6 +1087,9 @@ async function proceedToCheckout() {
     // Create reservation
     const seatIds = selectedSeats.value.map((seat) => seat.id);
 
+    // Log seat IDs for debugging
+    console.log('Attempting to reserve seats:', seatIds);
+
     const { data, error } = await useFetch(`/api/recital-shows/${showId.value}/seats/reserve`, {
       method: 'POST',
       body: {
@@ -805,20 +1099,46 @@ async function proceedToCheckout() {
       }
     });
 
-    if (error.value) throw new Error(error.value.message);
+    // Improved error handling - log entire response
+    console.log('Reservation response:', { data: data.value, error: error.value });
 
-    // Store the reservation token for recovery if needed
+    if (error.value) {
+      // More robust error extraction
+      const errorMessage = error.value.data?.statusMessage || 
+                         error.value.message || 
+                         'Failed to reserve seats';
+                         
+      console.error('Reservation error details:', error.value);
+      
+      // Always show toast for any error
+      useToast().add({
+        severity: 'error',
+        summary: 'Reservation Failed',
+        detail: errorMessage,
+        life: 5000
+      });
+      
+      throw new Error(errorMessage);
+    }
+
+    // Check if we got a valid response with a token
+    if (!data.value || !data.value.reservation || !data.value.reservation.token) {
+      throw new Error('Invalid response from server - missing reservation token');
+    }
+
+    // Store token and navigate
     localStorage.setItem('current_reservation_token', data.value.reservation.token);
-
-    // Navigate to checkout with reservation token
     navigateTo(`/public/checkout/${data.value.reservation.token}`);
+    
   } catch (error) {
     console.error('Error creating reservation:', error);
+    
+    // Make sure we always show an error toast
     useToast().add({
       severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to reserve seats. Please try again.',
-      life: 3000
+      summary: 'Reservation Error',
+      detail: error.message || 'Failed to reserve seats. Please try again.',
+      life: 5000
     });
   }
 }

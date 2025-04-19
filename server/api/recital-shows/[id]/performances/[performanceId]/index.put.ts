@@ -26,6 +26,31 @@ export default defineEventHandler(async (event) => {
       }
       throw checkError
     }
+
+    // Extract dancers from notes if present
+    let dancerNames = []
+    let performanceNotes = body.notes || ''
+    
+    // Check if notes contains a dancer list
+    if (performanceNotes && performanceNotes.includes('Dancers:')) {
+      console.log('Found dancers section in notes field')
+      
+      // Extract the dancers section
+      const dancerSection = performanceNotes.substring(performanceNotes.indexOf('Dancers:') + 8).trim()
+      
+      // Parse the dancer names
+      dancerNames = dancerSection.split(',')
+        .map(name => name.trim())
+        .filter(name => name)
+      
+      console.log(`Extracted ${dancerNames.length} dancers from notes`)
+      
+      // Remove dancers section from notes to avoid duplication
+      performanceNotes = performanceNotes.replace(/Dancers:.*$/s, '').trim()
+      
+      // Update the body with the cleaned notes
+      body.notes = performanceNotes
+    }
     
     // Update the performance
     const { data, error } = await client
@@ -56,6 +81,38 @@ export default defineEventHandler(async (event) => {
       `)
     
     if (error) throw error
+    
+    // Handle dancers if we have any
+    if (dancerNames.length > 0) {
+      // First delete existing dancers
+      const { error: deleteError } = await client
+        .from('performance_dancers')
+        .delete()
+        .eq('performance_id', performanceId)
+      
+      if (deleteError) {
+        console.error('Error deleting existing dancers:', deleteError)
+      } else {
+        console.log('Successfully deleted existing dancers')
+      }
+      
+      // Then add new dancers
+      for (const dancerName of dancerNames) {
+        const { error: dancerError } = await client
+          .from('performance_dancers')
+          .insert({
+            performance_id: performanceId,
+            dancer_name: dancerName,
+            created_at: new Date().toISOString()
+          })
+          
+        if (dancerError) {
+          console.error(`Error adding dancer "${dancerName}":`, dancerError)
+        } else {
+          console.log(`Successfully added dancer "${dancerName}" to performance`)
+        }
+      }
+    }
     
     return {
       message: 'Performance updated successfully',

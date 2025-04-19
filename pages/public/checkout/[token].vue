@@ -1,0 +1,3 @@
+<template>
+  <RecitalPublicCheckoutPage />
+</template>
