@@ -55,6 +55,7 @@
           <TabPanel value="cover">
             <RecitalProgramCoverImageUploader
               :cover-image="program?.cover_image_url"
+              :cover-image-proxy="program?.proxied_cover_image_url"
               :loading="loading.saving"
               @upload="uploadCoverImage"
             />
@@ -243,20 +244,34 @@ async function uploadCoverImage(imageFile) {
 }
 
 async function addAdvertisement(advertisementData) {
-  const result = await programStore.addAdvertisement(recitalId, advertisementData);
-
-  if (result) {
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Advertisement added successfully',
-      life: 3000
-    });
-  } else {
+  try {
+    console.log('Adding advertisement with data:', advertisementData);
+    console.log('FormData entries:', [...advertisementData.entries()]);
+    
+    // Ensure you're passing the FormData directly to the fetch call
+    const result = await programStore.addAdvertisement(recitalId, advertisementData);
+    
+    if (result) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Advertisement added successfully',
+        life: 3000
+      });
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: programStore.error || 'Failed to add advertisement',
+        life: 3000
+      });
+    }
+  } catch (error) {
+    console.error('Error adding advertisement:', error);
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: programStore.error || 'Failed to add advertisement',
+      detail: error.message || 'An unexpected error occurred',
       life: 3000
     });
   }

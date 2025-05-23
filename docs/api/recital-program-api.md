@@ -1449,6 +1449,29 @@ The new API structure maintains backward compatibility with existing client code
    - Each series contains one or more recital shows (formerly just "recitals")
    - Previous "recitals" are migrated to "recital shows" within series
 
+
+### Media Proxying
+
+#### Proxy Image
+
+Proxies images from Supabase storage to avoid Content Security Policy (CSP) issues.
+
+**Endpoint:** `GET /api/images/[...path]`
+
+**URL Parameters:**
+- `path` (required): Path to the image in storage, consisting of all path segments after the bucket name
+
+**Response:**
+- Content-Type: Appropriate MIME type based on file extension (e.g., `image/jpeg`, `image/png`)
+- Content-Disposition: `inline`
+- The image file content in the response body
+
+**Notes:**
+- This endpoint serves images through your application domain to avoid CSP restrictions
+- Supports images from both the `recital-covers` and `recital-ads` buckets
+- Caches images for improved performance (one year cache duration)
+- The URL transformation happens automatically in the program data fetch endpoints
+
 ## Conclusion
 
 This API provides comprehensive functionality for managing recital series, shows, programs, and ticket sales. The design supports multiple performances of the same recital series while maintaining separate programs and ticket sales for each show.

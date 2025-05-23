@@ -94,7 +94,10 @@
           />
         </template>
       </Toolbar>
-      <EditorContent :editor="editor" class="p-inputtext tiptap" />
+      <div class="editor-content-wrapper">
+        <EditorContent :editor="editor" class="p-inputtext tiptap" />
+        <div v-if="showPlaceholder" class="editor-placeholder">{{ placeholder }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -106,6 +109,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
+import Placeholder from '@tiptap/extension-placeholder'
 
 const props = defineProps({
   modelValue: {
@@ -127,12 +131,22 @@ const props = defineProps({
   maxHeight: {
     type: String,
     default: 'none',
+  },
+  placeholder: {
+    type: String,
+    default: 'Start typing...',
   }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const editor = ref(null)
+const isEmpty = ref(true)
+
+// Compute if we should show the placeholder
+const showPlaceholder = computed(() => {
+  return isEmpty.value && (!editor.value || !editor.value.isFocused)
+})
 
 // Computed style for the editor container
 const editorStyle = computed(() => {
@@ -143,17 +157,37 @@ const editorStyle = computed(() => {
   }
 })
 
+// Helper function to check if content is empty
+const checkIfEmpty = (content) => {
+  if (!content) return true
+  
+  // Remove HTML tags to check if there's actual content
+  const div = document.createElement('div')
+  div.innerHTML = content
+  const text = div.textContent || div.innerText || ''
+  return text.trim() === ''
+}
+
+// Watch for external model changes
 watch(
   () => props.modelValue,
   (value) => {
     // Only update content if it's different from current content
     if (editor.value && editor.value.getHTML() !== value) {
-      editor.value.commands.setContent(value, false)
+      // Ensure we always have at least an empty paragraph
+      const content = value || '<p></p>'
+      editor.value.commands.setContent(content, false)
+      isEmpty.value = checkIfEmpty(content)
     }
   },
 )
 
+// Initialize editor
 onMounted(() => {
+  // Ensure we have at least an empty paragraph
+  const initialContent = props.modelValue || '<p></p>'
+  isEmpty.value = checkIfEmpty(initialContent)
+  
   editor.value = new Editor({
     extensions: [
       StarterKit,
@@ -162,19 +196,43 @@ onMounted(() => {
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      Placeholder.configure({
+        placeholder: props.placeholder,
+        showOnlyWhenEditable: true,
+      }),
     ],
-    content: props.modelValue,
+    content: initialContent,
     editable: props.editable,
     onUpdate: ({ editor }) => {
-      emit('update:modelValue', editor.getHTML())
+      const content = editor.getHTML()
+      isEmpty.value = checkIfEmpty(content)
+      emit('update:modelValue', content)
+    },
+    onFocus: () => {
+      // No need to show custom placeholder when editor is focused
+      // as the built-in placeholder will show
+    },
+    onBlur: () => {
+      // Check if content is empty after blur
+      if (editor.value) {
+        isEmpty.value = checkIfEmpty(editor.value.getHTML())
+      }
     },
   })
 })
 
+// Clean up on unmount
 onBeforeUnmount(() => {
   if (editor.value) {
     editor.value.destroy()
     editor.value = null
+  }
+})
+
+// Watch for editable property changes
+watch(() => props.editable, (isEditable) => {
+  if (editor.value) {
+    editor.value.setEditable(isEditable)
   }
 })
 </script>
@@ -224,6 +282,13 @@ onBeforeUnmount(() => {
   vertical-align: middle;
 }
 
+.editor-content-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 :deep(.tiptap) {
   flex: 1;
   overflow-y: auto;
@@ -246,5 +311,18 @@ onBeforeUnmount(() => {
 :deep(.tiptap h2) {
   font-size: 1.25rem;
   margin-bottom: 0.75rem;
+}
+
+.editor-placeholder {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  color: #6c757d;
+  pointer-events: none;
+}
+
+/* Style for empty paragraphs to ensure they have enough height */
+:deep(.tiptap p:empty::after) {
+  content: '\00a0';
 }
 </style>

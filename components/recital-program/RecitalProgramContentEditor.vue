@@ -1,5 +1,5 @@
 <template>
- <div class="space-y-4">
+  <div class="space-y-4">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-semibold">Program Content</h2>
       <div class="flex items-center gap-2">
@@ -8,15 +8,18 @@
       </div>
     </div>
     
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div v-if="loading" class="p-4 flex justify-center">
+      <ProgressSpinner style="width: 50px; height: 50px" />
+    </div>
+    
+    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-medium">Artistic Director's Note</h3>
           <Button 
-            v-if="needsSave && !autoSave" 
             icon="pi pi-save" 
             label="Save" 
-            @click="saveContent" 
+            @click="saveArtisticDirectorNote" 
             :loading="isSaving"
             size="small"
           />
@@ -26,19 +29,20 @@
           <TipTapEditor
             v-model="artisticDirectorNote"
             height="400px"
-            @update:modelValue="onContentChange"
+            placeholder="Enter the artistic director's note here..."
+            @update:modelValue="onArtisticNoteChange"
           />
         </div>
+        <small class="text-red-500" v-if="errors.artisticDirectorNote">{{ errors.artisticDirectorNote }}</small>
       </div>
       
       <div class="space-y-2">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-medium">Acknowledgments</h3>
           <Button 
-            v-if="needsSave && !autoSave" 
             icon="pi pi-save" 
             label="Save" 
-            @click="saveContent" 
+            @click="saveAcknowledgments" 
             :loading="isSaving"
             size="small"
           />
@@ -48,102 +52,231 @@
           <TipTapEditor
             v-model="acknowledgments"
             height="400px"
-            @update:modelValue="onContentChange"
+            placeholder="Enter acknowledgments here..."
+            @update:modelValue="onAcknowledgmentsChange"
           />
         </div>
+        <small class="text-red-500" v-if="errors.acknowledgments">{{ errors.acknowledgments }}</small>
       </div>
+    </div>
+
+    <div class="flex justify-end mt-4">
+      <Button 
+        label="Save All Content" 
+        icon="pi pi-save" 
+        @click="saveAllContent" 
+        :loading="isSaving"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 
 // Props
 const props = defineProps({
   programContent: {
     type: Object,
     required: true,
-    default: () => ({ artisticDirectorNote: '', acknowledgments: '' })
+    default: () => ({ 
+      artistic_director_note: '', 
+      acknowledgments: '' 
+    })
   },
   loading: {
     type: Boolean,
     default: false
-  },
-  autoSave: {
-    type: Boolean,
-    default: true
   }
 });
 
 // Emits
 const emit = defineEmits(['save']);
 
-const artisticDirectorNote = ref(props.programContent?.artistic_director_note || '');
-const acknowledgments = ref(props.programContent?.acknowledgments || '');
-const needsSave = ref(false);
+// Set up reactive state with safe defaults
+const artisticDirectorNote = ref('<p></p>');
+const acknowledgments = ref('<p></p>');
 const isSaving = ref(false);
 const lastSaved = ref(null);
-const saveTimeout = ref(null);
+const errors = ref({
+  artisticDirectorNote: '',
+  acknowledgments: ''
+});
 
 const toast = useToast();
 
-// Initialize content when programContent changes externally
-watch(() => props.programContent, (newContent) => {
-  if (newContent) {
-    artisticDirectorNote.value = newContent.artistic_director_note || '';
-    acknowledgments.value = newContent.acknowledgments || '';
-    needsSave.value = false;
+// Initialize content on mount
+onMounted(() => {
+  if (props.programContent) {
+    artisticDirectorNote.value = props.programContent.artisticDirectorNote || '<p></p>';
+    acknowledgments.value = props.programContent.acknowledgments || '<p></p>';
   }
-}, { deep: true });
+});
 
-// Handle content changes
-const onContentChange = () => {
-  needsSave.value = true;
+// Watch for programContent changes
+watch(() => props.programContent, (newContent) => {
+  console.log("programContent changed:", newContent);
   
-  if (props.autoSave) {
-    if (saveTimeout.value) {
-      clearTimeout(saveTimeout.value);
+  if (newContent) {
+    if (newContent.artistic_director_note) {
+      artisticDirectorNote.value = newContent.artistic_director_note;
+      console.log("Updated artistic note from props:", artisticDirectorNote.value);
     }
     
-    // Debounce save to avoid too many API calls
-    saveTimeout.value = setTimeout(() => {
-      saveContent();
-    }, 2000);
+    if (newContent.acknowledgments) {
+      acknowledgments.value = newContent.acknowledgments;
+      console.log("Updated acknowledgments from props:", acknowledgments.value);
+    }
   }
+}, { deep: true, immediate: true });
+
+// Handle content changes
+const onArtisticNoteChange = () => {
+  errors.value.artisticDirectorNote = '';
 };
 
-// Save content to parent
-const saveContent = async () => {
-  if (!needsSave.value) return;
+const onAcknowledgmentsChange = () => {
+  errors.value.acknowledgments = '';
+};
+
+// Helper function to check if content is empty
+const isContentEmpty = (content) => {
+  if (!content) return true;
   
+  // Remove HTML tags to check if there's actual content
+  const div = document.createElement('div');
+  div.innerHTML = content;
+  const text = div.textContent || div.innerText || '';
+  return text.trim() === '';
+};
+
+// Prepare content for saving
+const prepareContentForSave = (content) => {
+  if (isContentEmpty(content)) {
+    return '<p>Not provided</p>';
+  }
+  return content;
+};
+
+// Save artistic director's note
+const saveArtisticDirectorNote = async () => {
   try {
     isSaving.value = true;
+    errors.value.artisticDirectorNote = '';
     
-    const content = {
-      artistic_director_note: artisticDirectorNote.value,
-      acknowledgments: acknowledgments.value
-    };
+    const preparedContent = prepareContentForSave(artisticDirectorNote.value);
     
-    // Let parent handle the actual API call
-    await emit('save', content);
+    // Save just the artistic director's note
+    await emit('save', {
+      artistic_director_note: preparedContent,
+      acknowledgments: undefined // undefined means don't update this field
+    });
     
-    needsSave.value = false;
     lastSaved.value = new Date();
     
     toast.add({
       severity: 'success',
       summary: 'Saved',
-      detail: 'Program content updated successfully',
+      detail: 'Artistic Director\'s Note updated successfully',
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error saving artistic director\'s note:', error);
+    errors.value.artisticDirectorNote = 'Failed to save: Please ensure content is not empty';
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to save Artistic Director\'s Note',
+      life: 3000
+    });
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// Save acknowledgments
+const saveAcknowledgments = async () => {
+  try {
+    isSaving.value = true;
+    errors.value.acknowledgments = '';
+    
+    const preparedContent = prepareContentForSave(acknowledgments.value);
+    
+    // Save just the acknowledgments
+    await emit('save', {
+      artistic_director_note: undefined, // undefined means don't update this field
+      acknowledgments: preparedContent
+    });
+    
+    lastSaved.value = new Date();
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Saved',
+      detail: 'Acknowledgments updated successfully',
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error saving acknowledgments:', error);
+    errors.value.acknowledgments = 'Failed to save: Please ensure content is not empty';
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to save Acknowledgments',
+      life: 3000
+    });
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// Save all content
+const saveAllContent = async () => {
+  try {
+    isSaving.value = true;
+    errors.value = { artisticDirectorNote: '', acknowledgments: '' };
+    
+    const content = {
+      artistic_director_note: prepareContentForSave(artisticDirectorNote.value),
+      acknowledgments: prepareContentForSave(acknowledgments.value)
+    };
+    
+    // Log the content we're saving
+    console.log("Saving content:", content);
+    
+    // Let parent handle the actual API call
+    await emit('save', content);
+    
+    lastSaved.value = new Date();
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Saved',
+      detail: 'All program content updated successfully',
       life: 3000
     });
   } catch (error) {
     console.error('Error saving program content:', error);
     
+    // Attempt to identify which section had the error
+    if (error.message && error.message.includes('artistic')) {
+      errors.value.artisticDirectorNote = 'Failed to save: Please ensure content is not empty';
+    } else if (error.message && error.message.includes('acknowledgments')) {
+      errors.value.acknowledgments = 'Failed to save: Please ensure content is not empty';
+    } else {
+      // Generic error for both
+      errors.value = {
+        artisticDirectorNote: 'Failed to save content',
+        acknowledgments: 'Failed to save content'
+      };
+    }
+    
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'Failed to save program content',
+      detail: 'Failed to save program content. Please check for errors.',
       life: 3000
     });
   } finally {
@@ -172,16 +305,4 @@ const formatLastSaved = () => {
   // Return formatted time
   return lastSaved.value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
-
-// Clear the timeout when component is unmounted
-onBeforeUnmount(() => {
-  if (saveTimeout.value) {
-    clearTimeout(saveTimeout.value);
-  }
-  
-  // If there are unsaved changes, save them before unmounting
-  if (needsSave.value) {
-    saveContent();
-  }
-});
 </script>

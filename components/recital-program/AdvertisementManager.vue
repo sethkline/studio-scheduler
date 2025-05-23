@@ -25,7 +25,7 @@
           <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
             <img 
               v-if="ad.image_url" 
-              :src="ad.image_url" 
+              :src="ad.proxied_image_url || ad.image_url" 
               :alt="ad.title" 
               class="w-full h-full object-contain"
             />
@@ -307,8 +307,10 @@ function onSelectAdImage(event) {
     return;
   }
   
-  // Create preview
+  // Store the file object for later upload
   adDialog.data.image = file;
+  
+  // Create preview
   const reader = new FileReader();
   reader.onload = (e) => {
     adDialog.imagePreview = e.target.result;
@@ -329,24 +331,33 @@ function saveAdvertisement(event) {
     
     if (!valid) return;
     
+    // Create a properly formatted FormData object
     const formData = new FormData();
-    formData.append('title', values.title);
-    formData.append('description', values.description || '');
-    formData.append('order_position', values.order_position);
     
+    // Add the JSON data with name 'data'
+    formData.append('data', JSON.stringify({
+      title: values.title,
+      description: values.description || '',
+      order_position: values.order_position
+    }));
+    
+    // If there's an image, add it
     if (adDialog.data.image) {
       formData.append('image', adDialog.data.image);
     }
     
+    // Log what we're emitting
+    console.log('FormData created with entries:');
+    for (let pair of formData.entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+    }
+    
     if (adDialog.isNew) {
-      // Add new advertisement
       emit('add', formData);
     } else {
-      // Update existing advertisement
       emit('update', adDialog.data.id, formData);
     }
     
-    // Close the dialog
     closeAdDialog();
   } finally {
     adDialog.saving = false;

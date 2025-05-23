@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { useRecitalProgramService } from '~/composables/useRecitalProgramService';
+import { getProxiedImageUrl } from '~/utils/image-utils';
 
 export const useRecitalProgramStore = defineStore('recitalProgram', {
   state: () => ({
@@ -62,10 +63,11 @@ export const useRecitalProgramStore = defineStore('recitalProgram', {
       try {
         const programService = useRecitalProgramService();
         const { data, error } = await programService.fetchRecitalProgram(recitalId);
+        console.log(data.value, 'data');
 
         if (error.value) throw new Error(error.value.message || 'Failed to fetch program data');
 
-        this.recital = data.value.recital;
+        this.recital = data.value.show;
         this.program = data.value.program;
         this.performances = data.value.performances || [];
         this.advertisements = data.value.advertisements || [];
@@ -271,44 +273,81 @@ export const useRecitalProgramStore = defineStore('recitalProgram', {
      * @param {string} recitalId - UUID of the recital
      * @param {object} content - Program content data
      */
-    async saveProgramContent(recitalId, content) {
-      this.loading.saving = true;
-      this.error = null;
-
+    async saveProgramContent(recitalId: string, content: any): Promise<boolean> {
       try {
+        this.loading.saving = true;
+        this.error = null;
+        
+        console.log('Saving program content with:', content);
+        
+        // Validate content object
+        if (!content) {
+          throw new Error('Content object is required');
+        }
+        
         const programService = useRecitalProgramService();
-        let result;
-
-        // Update artistic director's note if provided
-        if (content.artisticDirectorNote !== undefined) {
-          const { data, error } = await programService.updateArtisticNote(recitalId, content.artisticDirectorNote);
-
-          if (error.value) throw new Error(error.value.message || 'Failed to update artistic note');
-          result = data.value;
+        
+        // Process artistic director's note if provided
+        if (content.artistic_director_note !== undefined) {
+          // Ensure we have valid content
+          let noteContent = content.artistic_director_note;
+          
+          // If it's empty or just whitespace, provide default content
+          if (!noteContent || noteContent === '<p></p>' || noteContent.trim() === '') {
+            noteContent = '<p>Not provided</p>';
+          }
+          
+          console.log('Saving artistic note:', noteContent);
+          
+          const noteResult = await programService.updateArtisticNote(
+            recitalId,
+            noteContent
+          );
+          
+          if (noteResult.error.value) {
+            console.error('Error from API:', noteResult.error.value);
+            throw new Error(`Error updating artistic director's note: ${noteResult.error.value.message || 'Unknown error'}`);
+          }
+          
+          // Update the local state immediately
+          if (this.program) {
+            this.program.artistic_director_note = noteContent;
+          }
         }
-
-        // Update acknowledgments if provided
+        
+        // Process acknowledgments if provided
         if (content.acknowledgments !== undefined) {
-          const { data, error } = await programService.updateAcknowledgments(recitalId, content.acknowledgments);
-
-          if (error.value) throw new Error(error.value.message || 'Failed to update acknowledgments');
-          result = data.value;
+          // Ensure we have valid content
+          let acksContent = content.acknowledgments;
+          
+          // If it's empty or just whitespace, provide default content
+          if (!acksContent || acksContent === '<p></p>' || acksContent.trim() === '') {
+            acksContent = '<p>Not provided</p>';
+          }
+          
+          console.log('Saving acknowledgments:', acksContent);
+          
+          const acksResult = await programService.updateAcknowledgments(
+            recitalId,
+            acksContent
+          );
+          
+          if (acksResult.error.value) {
+            console.error('Error from API:', acksResult.error.value);
+            throw new Error(`Error updating acknowledgments: ${acksResult.error.value.message || 'Unknown error'}`);
+          }
+          
+          // Update the local state immediately
+          if (this.program) {
+            this.program.acknowledgments = acksContent;
+          }
         }
-
-        // Update local state
-        if (this.program) {
-          this.program = {
-            ...this.program,
-            artistic_director_note: content.artisticDirectorNote,
-            acknowledgments: content.acknowledgments
-          };
-        }
-
-        return result;
-      } catch (err) {
-        this.error = err.message;
-        console.error('Error saving program content:', err);
-        return null;
+        
+        return true;
+      } catch (error) {
+        console.error('Error saving program content:', error);
+        this.error = error.message || 'Failed to save program content';
+        return false;
       } finally {
         this.loading.saving = false;
       }
@@ -319,25 +358,58 @@ export const useRecitalProgramStore = defineStore('recitalProgram', {
      * @param {string} recitalId - UUID of the recital
      * @param {File} imageFile - Image file to upload
      */
-    async uploadCoverImage(recitalId, imageFile) {
+async uploadCoverImage(recitalId, imageFile) {
+  this.loading.saving = true;
+  this.error = null;
+  
+  try {
+    const programService = useRecitalProgramService();
+    const { data, error } = await programService.uploadCoverImage(recitalId, imageFile);
+    
+    if (error.value) throw new Error(error.value.message || 'Failed to upload cover image');
+    
+    // Update local state with both the original and proxied URLs
+    if (this.program) {
+      this.program.cover_image_url = data.value.coverImageUrl;
+      this.program.proxied_cover_image_url = getProxiedImageUrl(data.value.coverImageUrl);
+    }
+    
+    return {
+      ...data.value,
+      proxiedCoverImageUrl: getProxiedImageUrl(data.value.coverImageUrl)
+    };
+  } catch (err) {
+    this.error = err.message;
+    console.error('Error uploading cover image:', err);
+    return null;
+  } finally {
+    this.loading.saving = false;
+  }
+},
+
+    /**
+     * Remove cover image for the program
+     * @param {string} recitalId - UUID of the recital
+     */
+    async removeCoverImage(recitalId) {
       this.loading.saving = true;
       this.error = null;
-
+      
       try {
         const programService = useRecitalProgramService();
-        const { data, error } = await programService.uploadCoverImage(recitalId, imageFile);
-
-        if (error.value) throw new Error(error.value.message || 'Failed to upload cover image');
-
+        const { data, error } = await programService.removeCoverImage(recitalId);
+        
+        if (error.value) throw new Error(error.value.message || 'Failed to remove cover image');
+        
         // Update local state
         if (this.program) {
-          this.program.cover_image_url = data.value.coverImageUrl;
+          this.program.cover_image_url = null;
         }
-
+        
         return data.value;
       } catch (err) {
         this.error = err.message;
-        console.error('Error uploading cover image:', err);
+        console.error('Error removing cover image:', err);
         return null;
       } finally {
         this.loading.saving = false;
@@ -352,16 +424,19 @@ export const useRecitalProgramStore = defineStore('recitalProgram', {
     async addAdvertisement(recitalId, advertisementData) {
       this.loading.saving = true;
       this.error = null;
-
+    
       try {
+        console.log('Store adding advertisement, FormData:', advertisementData);
+        console.log('FormData entries:', [...advertisementData.entries()]);
+        
         const programService = useRecitalProgramService();
         const { data, error } = await programService.addAdvertisement(recitalId, advertisementData);
-
+        
         if (error.value) throw new Error(error.value.message || 'Failed to add advertisement');
-
+        
         // Add to local state
-        this.advertisements.push(data.value);
-
+        this.advertisements.push(data.value.advertisement);
+        
         return data.value;
       } catch (err) {
         this.error = err.message;

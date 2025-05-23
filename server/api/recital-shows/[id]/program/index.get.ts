@@ -42,6 +42,23 @@ export default defineEventHandler(async (event) => {
     
     if (programError) throw programError
     
+    // Transform the cover image URL if it exists
+    if (program?.cover_image_url) {
+      try {
+        const url = new URL(program.cover_image_url);
+        const pathSegments = url.pathname.split('/');
+        const bucketIndex = pathSegments.findIndex(segment => segment === 'recital-covers');
+        
+        if (bucketIndex >= 0 && bucketIndex < pathSegments.length - 1) {
+          const relativePath = pathSegments.slice(bucketIndex + 1).join('/');
+          program.proxied_cover_image_url = `/api/images/${relativePath}`;
+          console.log('Transformed cover image URL:', program.cover_image_url, 'to', program.proxied_cover_image_url);
+        }
+      } catch (error) {
+        console.warn('Error transforming cover image URL:', error);
+      }
+    }
+    
     // Fetch advertisements if program exists
     let advertisements = []
     if (program) {
@@ -53,6 +70,24 @@ export default defineEventHandler(async (event) => {
       
       if (adsError) throw adsError
       advertisements = ads || []
+      
+      // Transform ad image URLs if they exist
+      advertisements.forEach(ad => {
+        if (ad.image_url) {
+          try {
+            const url = new URL(ad.image_url);
+            const pathSegments = url.pathname.split('/');
+            const bucketIndex = pathSegments.findIndex(segment => segment === 'recital-ads');
+            
+            if (bucketIndex >= 0 && bucketIndex < pathSegments.length - 1) {
+              const relativePath = pathSegments.slice(bucketIndex + 1).join('/');
+              ad.proxied_image_url = `/api/images/${relativePath}`;
+            }
+          } catch (error) {
+            console.warn('Error transforming advertisement image URL:', error);
+          }
+        }
+      });
     }
     
     // Fetch performances

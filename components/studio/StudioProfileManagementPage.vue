@@ -123,13 +123,12 @@
             />
           </div>
           
-          <!-- Logo Upload (placeholder for now) -->
-          <div class="col-span-2">
-            <label class="label">Studio Logo</label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <p class="text-gray-500">Logo upload feature coming soon</p>
-            </div>
-          </div>
+          <!-- Logo Upload Component -->
+          <StudioLogoUpload 
+            v-model="form.logo_url"
+            @upload-success="handleLogoUploadSuccess"
+            @delete-success="handleLogoDeleteSuccess"
+          />
         </div>
         
         <div class="flex justify-end space-x-3 pt-4">
@@ -152,9 +151,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useStudioStore } from '~/stores/studio'
 import { useToast } from 'primevue/usetoast'
+import StudioLogoUpload from '~/components/studio/StudioLogoUpload.vue'
 
 // Component setup
 definePageMeta({
@@ -228,6 +228,27 @@ const validateForm = () => {
   
   validationErrors.value = errors
   return Object.keys(errors).length === 0
+}
+
+// Handle logo upload success
+const handleLogoUploadSuccess = (profile) => {
+  // The logo_url is already updated through v-model,
+  // but we might want to update other profile data if returned
+  Object.keys(form).forEach(key => {
+    if (profile[key] !== undefined && key !== 'logo_url') {
+      form[key] = profile[key]
+    }
+  })
+}
+
+// Handle logo delete success
+const handleLogoDeleteSuccess = (profile) => {
+  // Similar to upload success handler
+  Object.keys(form).forEach(key => {
+    if (profile[key] !== undefined && key !== 'logo_url') {
+      form[key] = profile[key]
+    }
+  })
 }
 
 // Form submission

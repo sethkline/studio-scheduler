@@ -769,3 +769,38 @@ This requires the pg_cron extension to be enabled.
 - Permissions are granted to authenticated users only
 - Personal information (name, email, phone) should be handled according to privacy policies
 - Payment details are stored as references only, not actual payment information
+
+## Image Storage and URL Handling
+
+### Storage Buckets
+
+The application uses Supabase Storage to store media files related to recital programs:
+
+1. **recital-covers**: Stores program cover images
+   - Organized by recital ID: `{recital_id}/{unique_id}.{extension}`
+   - Maximum file size: 5MB
+   - Supported formats: JPG, PNG, WEBP
+
+2. **recital-ads**: Stores advertisement images
+   - Organized by program ID: `{program_id}/{ad_id}.{extension}`
+   - Maximum file size: 5MB
+   - Supported formats: JPG, PNG, WEBP
+
+### URL Transformation for CSP Compliance
+
+To comply with Content Security Policy (CSP) restrictions, the application implements URL transformation for images:
+
+1. **Original URLs**: Direct Supabase storage URLs (e.g., `https://[project-ref].supabase.co/storage/v1/object/public/recital-covers/...`)
+
+2. **Proxied URLs**: Application domain URLs that proxy the images (e.g., `/api/images/...`)
+
+This transformation happens automatically in API responses, where both the original URL and a proxied URL are provided:
+
+```json
+{
+  "program": {
+    "id": "uuid",
+    "cover_image_url": "https://[project-ref].supabase.co/storage/v1/object/public/recital-covers/...",
+    "proxied_cover_image_url": "/api/images/..."
+  }
+}

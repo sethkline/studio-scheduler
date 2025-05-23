@@ -11,7 +11,8 @@ export const useStudioStore = defineStore('studio', {
       locations: false,
       currentLocation: false,
       operatingHours: false,
-      rooms: false
+      rooms: false,
+      logo: false
     },
     error: null as string | null
   }),
@@ -19,7 +20,9 @@ export const useStudioStore = defineStore('studio', {
   getters: {
     activeLocations: (state) => state.locations.filter(loc => loc.is_active),
     hasProfile: (state) => !!state.profile,
-    locationById: (state) => (id: string) => state.locations.find(loc => loc.id === id)
+    locationById: (state) => (id: string) => state.locations.find(loc => loc.id === id),
+    studioName: (state) => state.profile?.name || 'Dance Studio',
+    logoUrl: (state) => state.profile?.logo_url || null
   },
   
   actions: {
@@ -66,6 +69,85 @@ export const useStudioStore = defineStore('studio', {
         return null
       } finally {
         this.loading.profile = false
+      }
+    },
+    
+    // New method: Upload logo
+    async uploadLogo(file: File) {
+      this.loading.logo = true
+      this.error = null
+      
+      try {
+        // Create form data
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        // Upload using fetch to handle multipart/form-data
+        const response = await fetch('/api/studio/logo', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.statusMessage || 'Upload failed')
+        }
+        
+        const data = await response.json()
+        
+        // Update the profile with the new logo URL
+        if (this.profile) {
+          this.profile.logo_url = data.profile.logo_url
+        } else {
+          this.profile = data.profile
+        }
+        
+        return data.profile
+      } catch (err) {
+        this.error = err.message
+        console.error('Error uploading logo:', err)
+        return null
+      } finally {
+        this.loading.logo = false
+      }
+    },
+    
+    // New method: Delete logo
+    async deleteLogo() {
+      this.loading.logo = true
+      this.error = null
+      
+      try {
+        const response = await fetch('/api/studio/logo', {
+          method: 'DELETE'
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.statusMessage || 'Delete failed')
+        }
+        
+        const data = await response.json()
+        
+        // Update profile to remove logo URL
+        if (this.profile) {
+          this.profile.logo_url = null
+        }
+        
+        return data.profile
+      } catch (err) {
+        this.error = err.message
+        console.error('Error deleting logo:', err)
+        return null
+      } finally {
+        this.loading.logo = false
+      }
+    },
+    
+    // New method: Update logo URL
+    updateLogoUrl(logoUrl: string | null) {
+      if (this.profile) {
+        this.profile.logo_url = logoUrl
       }
     },
     
@@ -299,7 +381,6 @@ export const useStudioStore = defineStore('studio', {
         this.loading.operatingHours = false
       }
     },
-
 
     async fetchRoomsByLocation(locationId: string) {
       const { fetchRooms } = useApiService()

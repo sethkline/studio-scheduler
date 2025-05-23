@@ -32,11 +32,17 @@ export function useRecitalProgramService() {
    */
   const uploadCoverImage = async (recitalId, imageFile) => {
     const formData = new FormData();
-    formData.append('coverImage', imageFile);
+    formData.append('file', imageFile);
 
     return await useFetch(`/api/recital-shows/${recitalId}/program/cover`, {
       method: 'PUT',
       body: formData
+    });
+  };
+
+  const removeCoverImage = async (recitalId) => {
+    return await useFetch(`/api/recital-shows/${recitalId}/program/cover`, {
+      method: 'DELETE'
     });
   };
 
@@ -46,18 +52,12 @@ export function useRecitalProgramService() {
    * @param {object} advertisementData - Advertisement data including image
    * @returns {Promise<object>} - Created advertisement data
    */
-  const addAdvertisement = async (recitalId, advertisementData) => {
-    const formData = new FormData();
+  const addAdvertisement = async (recitalId, formData) => {
+    // Log what we're sending
+    console.log('Service adding advertisement');
+    console.log('FormData entries:', [...formData.entries()]);
     
-    // Add all properties to formData
-    Object.keys(advertisementData).forEach(key => {
-      if (key === 'image' && advertisementData[key] instanceof File) {
-        formData.append('image', advertisementData[key]);
-      } else {
-        formData.append(key, advertisementData[key]);
-      }
-    });
-
+    // Pass the formData directly without modifications
     return await useFetch(`/api/recital-shows/${recitalId}/program/advertisements`, {
       method: 'POST',
       body: formData
@@ -134,11 +134,29 @@ export function useRecitalProgramService() {
    * @param {string} note - Updated note content
    * @returns {Promise<object>} - Response with status
    */
-  const updateArtisticNote = async (recitalId, note) => {
-    return await useFetch(`/api/recital-shows/${recitalId}/program/artistic-note`, {
-      method: 'PUT',
-      body: { note }
-    });
+  const updateArtisticNote = async (recitalId: string, note: string) => {
+    try {
+      // Validate content
+      if (!note || note.trim() === '' || note === '<p></p>') {
+        note = '<p>Not provided</p>';
+      }
+      
+      // Make API call with valid content
+      return await useFetch(`/api/recital-shows/${recitalId}/program/artistic-note`, {
+        method: 'PUT',
+        body: {
+          note
+        },
+        // Disable request cancellation to prevent race conditions with auto-save
+        options: {
+          key: `update-artistic-note-${recitalId}-${Date.now()}`,
+          immediate: true
+        }
+      });
+    } catch (error) {
+      console.error('Error updating artistic note:', error);
+      throw error;
+    }
   };
 
   /**
@@ -147,11 +165,33 @@ export function useRecitalProgramService() {
    * @param {string} acknowledgments - Updated acknowledgments content
    * @returns {Promise<object>} - Response with status
    */
-  const updateAcknowledgments = async (recitalId, acknowledgments) => {
-    return await useFetch(`/api/recital-shows/${recitalId}/program/acknowledgments`, {
-      method: 'PUT',
-      body: { acknowledgments }
-    });
+  const updateAcknowledgments = async (recitalId: string, acknowledgments: string) => {
+    try {
+      // Validate content
+      if (!acknowledgments || acknowledgments.trim() === '' || acknowledgments === '<p></p>') {
+        acknowledgments = '<p>Not provided</p>';
+      }
+      
+      console.log('Sending acknowledgments update with data:', {
+        acknowledgments: acknowledgments // Important: This matches the expected parameter name on the server
+      });
+      
+      // Make API call with valid content and correctly named parameter
+      return await useFetch(`/api/recital-shows/${recitalId}/program/acknowledgments`, {
+        method: 'PUT',
+        body: {
+          acknowledgments: acknowledgments // The server expects a parameter named 'acknowledgments'
+        },
+        // Disable request cancellation to prevent race conditions
+        options: {
+          key: `update-acknowledgments-${recitalId}-${Date.now()}`,
+          immediate: true
+        }
+      });
+    } catch (error) {
+      console.error('Error updating acknowledgments:', error);
+      throw error;
+    }
   };
 
   /**
@@ -178,6 +218,7 @@ export function useRecitalProgramService() {
     fetchRecitalProgram,
     updateProgramDetails,
     uploadCoverImage,
+    removeCoverImage,
     addAdvertisement,
     updateAdvertisement,
     deleteAdvertisement,

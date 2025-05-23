@@ -172,26 +172,31 @@ RecitalProgramManager (Container)
 **Purpose:** Handles the upload, preview, and management of the program cover image.
 
 **Props:**
-- `coverImage` (String): Current cover image URL
+- `coverImage` (String): Original cover image URL from Supabase
+- `coverImageProxy` (String): Proxied cover image URL for display
 - `loading` (Boolean): Loading state indicator
 
 **Events:**
-- `upload`: Emitted when a new image is uploaded
+- `upload`: Emitted when a new image is uploaded, with the file as payload
 - `remove`: Emitted when the current image is removed
 
 **Key Features:**
 - Image file upload with validation
-- Image preview
+- Image preview with CSP-compliant URLs
 - Remove option
 - File type and size validation
+- Guidance for optimal image dimensions
 
 **Dependencies:**
 - PrimeVue FileUpload component
+- Image proxy service for CSP-compliant image display
 
 **Technical Notes:**
 - Validates file types (JPG, PNG, WEBP)
 - Enforces 5MB file size limit
 - Creates local previews before actual upload
+- Uses proxied image URLs to avoid CSP restrictions
+- Includes detailed image guidelines for users
 
 ### 5. AdvertisementManager
 

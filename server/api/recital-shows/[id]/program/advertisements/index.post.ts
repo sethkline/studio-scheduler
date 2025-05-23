@@ -6,9 +6,11 @@ export default defineEventHandler(async (event) => {
   try {
     const client = getSupabaseClient()
     const recitalId = getRouterParam(event, 'id')
+    console.log(`Creating advertisement for recital ${recitalId}`)
     
     // Parse multipart form data
     const formData = await readMultipartFormData(event)
+    console.log(formData)
     
     if (!formData || !formData.length) {
       return createError({
@@ -89,13 +91,17 @@ export default defineEventHandler(async (event) => {
     )
     
     let imageUrl = null
+    let proxiedImageUrl = null
+    
     if (imagePart && imagePart.data) {
-      // Upload to Supabase Storage
-      const fileName = `advertisements/${programId}/${uuidv4()}.${imagePart.type.split('/')[1]}`
+      // Generate a unique file path within the recital-ads bucket
+      const fileExt = imagePart.type.split('/')[1] || 'jpg'
+      const filePath = `${recitalId}/${uuidv4()}.${fileExt}`
       
-      const { error: uploadError, data: uploadData } = await client.storage
-        .from('recital-programs')
-        .upload(fileName, imagePart.data, {
+      // Upload to Supabase Storage using the recital-ads bucket
+      const { error: uploadError } = await client.storage
+        .from('recital-ads')
+        .upload(filePath, imagePart.data, {
           contentType: imagePart.type,
           upsert: true
         })
@@ -104,10 +110,13 @@ export default defineEventHandler(async (event) => {
       
       // Get public URL
       const { data: urlData } = client.storage
-        .from('recital-programs')
-        .getPublicUrl(fileName)
+        .from('recital-ads')
+        .getPublicUrl(filePath)
       
       imageUrl = urlData.publicUrl
+      
+      // Generate proxied URL for the image
+      proxiedImageUrl = `/api/images/${filePath}`
     }
     
     // Insert the advertisement
@@ -124,9 +133,15 @@ export default defineEventHandler(async (event) => {
     
     if (insertError) throw insertError
     
+    // Add the proxied URL to the response
+    const adWithProxiedUrl = {
+      ...advertisement[0],
+      proxied_image_url: proxiedImageUrl
+    }
+    
     return {
       message: 'Advertisement added successfully',
-      advertisement: advertisement[0]
+      advertisement: adWithProxiedUrl
     }
   } catch (error) {
     console.error('Add advertisement error:', error)
