@@ -1,6 +1,6 @@
 /**
- * Admin middleware - requires admin role
- * Use this on routes that should only be accessible to studio administrators
+ * Teacher middleware - requires teacher, staff, or admin role
+ * Use this on routes that should be accessible to teachers and above
  */
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const user = useSupabaseUser()
@@ -16,9 +16,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     await authStore.fetchUserProfile()
   }
 
-  // Check if user has admin role
-  if (!authStore.isAdmin) {
-    console.warn(`Access denied: User ${user.value.id} attempted to access admin route ${to.path}`)
+  // Check if user has teacher, staff, or admin role
+  if (!authStore.hasRole(['admin', 'staff', 'teacher'])) {
+    console.warn(`Access denied: User ${user.value.id} attempted to access teacher route ${to.path}`)
     return navigateTo('/unauthorized')
   }
 })

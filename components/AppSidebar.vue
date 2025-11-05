@@ -193,7 +193,7 @@
         </div>
         <div class="ml-3">
           <NuxtLink to="/profile" class="text-sm font-medium hover:text-primary-700">{{ userEmail }}</NuxtLink>
-          <p v-if="userRole" class="text-xs text-gray-500">{{ userRole }}</p>
+          <p v-if="userRoleDisplay" class="text-xs text-gray-500">{{ userRoleDisplay }}</p>
           <button @click="handleLogout" class="text-xs text-gray-500 hover:text-primary-700 flex items-center mt-1">
             <i class="pi pi-sign-out mr-1"></i> Logout
           </button>
@@ -208,6 +208,7 @@ import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '~/stores/auth';
 import { useScheduleTermStore } from '~/stores/useScheduleTermStore';
+import { usePermissions } from '~/composables/usePermissions';
 
 const user = useSupabaseUser();
 const client = useSupabaseClient();
@@ -215,6 +216,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const scheduleTermStore = useScheduleTermStore();
+const { can, isAdmin, hasAdminAccess, fullName, initials, userRole } = usePermissions();
 
 // Emits
 const emit = defineEmits(['close']);
@@ -222,38 +224,28 @@ const emit = defineEmits(['close']);
 // State
 const activeScheduleId = ref<string | null>(null);
 
-// Get user email and initials for avatar
+// Get user email
 const userEmail = computed(() => {
   return user.value?.email || '';
 });
 
-const userInitials = computed(() => {
-  if (!user.value?.email) return '';
-  return user.value.email.charAt(0).toUpperCase();
-});
+// Get user initials for avatar (from permissions composable)
+const userInitials = computed(() => initials.value);
 
-// Get user role for display
-const userRole = computed(() => {
-  if (!authStore.userProfile) return '';
+// Get user role display name
+const userRoleDisplay = computed(() => {
+  const role = userRole.value;
+  if (!role) return '';
 
-  const role = authStore.userProfile.user_role;
-  if (role === 'admin') return 'Administrator';
-  if (role === 'staff') return 'Staff Member';
-  if (role === 'teacher') return 'Teacher';
-  return role;
-});
+  const roleLabels: Record<string, string> = {
+    admin: 'Administrator',
+    staff: 'Staff Member',
+    teacher: 'Teacher',
+    parent: 'Parent/Guardian',
+    student: 'Student',
+  };
 
-// Access control helpers
-const isAdmin = computed(() => {
-  // return authStore.isAdmin
-  // TODO update this when we add more roles
-  return true;
-});
-
-const hasAdminAccess = computed(() => {
-  // return authStore.hasRole(['admin', 'staff'])
-  // TODO update this when we add more roles
-  return true;
+  return roleLabels[role] || role;
 });
 
 // Check if a route is active

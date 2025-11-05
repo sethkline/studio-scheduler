@@ -1,4 +1,8 @@
 // types/index.ts
+
+// Auth & Permissions
+export * from './auth'
+
 export interface Student {
   id: string
   first_name: string
