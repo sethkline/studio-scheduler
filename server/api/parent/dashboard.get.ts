@@ -128,7 +128,19 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // TODO: Get pending payments, outstanding costumes, volunteer hours
+    // Get outstanding costumes (assigned or picked_up status)
+    let outstandingCostumes = 0
+    if (studentIds.length > 0) {
+      const { count } = await client
+        .from('costume_assignments')
+        .select('*', { count: 'exact', head: true })
+        .in('student_id', studentIds)
+        .in('status', ['assigned', 'picked_up'])
+
+      outstandingCostumes = count || 0
+    }
+
+    // TODO: Get pending payments, volunteer hours
     // These will need their own tables/logic
 
     // Build dashboard stats
@@ -137,7 +149,7 @@ export default defineEventHandler(async (event) => {
       active_enrollments: activeEnrollments,
       upcoming_recitals: upcomingRecitals?.length || 0,
       pending_payments: 0, // TODO: Implement
-      outstanding_costumes: 0, // TODO: Implement
+      outstanding_costumes: outstandingCostumes,
       required_volunteer_hours: 0, // TODO: Implement
       completed_volunteer_hours: 0, // TODO: Implement
     }

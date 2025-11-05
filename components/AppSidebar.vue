@@ -112,7 +112,7 @@
         </div>
 
         <!-- Parent Section - Parent Only -->
-        <div v-if="isParent.value" class="space-y-2">
+        <div v-if="isParent" class="space-y-2">
           <div class="sidebar-header">My Family</div>
 
           <NuxtLink to="/parent/dashboard" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/dashboard') }">
@@ -139,15 +139,35 @@
             <i class="pi pi-star mr-3"></i>
             <span>Recitals & Tickets</span>
           </NuxtLink>
+
+          <NuxtLink to="/parent/costumes" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/costumes') }">
+            <i class="pi pi-shopping-bag mr-3"></i>
+            <span>Costumes</span>
+          </NuxtLink>
         </div>
 
         <!-- Events Section -->
-        <div v-if="!isParent.value" class="space-y-2">
+        <div v-if="!isParent" class="space-y-2">
           <div class="sidebar-header">Events</div>
 
           <NuxtLink to="/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/recitals') }">
             <i class="pi pi-star mr-3"></i>
             <span>Recitals</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Costumes Section - Staff/Admin Only -->
+        <div v-if="hasAdminAccess" class="space-y-2">
+          <div class="sidebar-header">Costumes</div>
+
+          <NuxtLink to="/costumes" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/costumes') && !isActive('/costumes/assignments') }">
+            <i class="pi pi-shopping-bag mr-3"></i>
+            <span>Inventory</span>
+          </NuxtLink>
+
+          <NuxtLink to="/costumes/assignments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/costumes/assignments') }">
+            <i class="pi pi-list mr-3"></i>
+            <span>Assignments</span>
           </NuxtLink>
         </div>
 
@@ -246,7 +266,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const scheduleTermStore = useScheduleTermStore();
-const { can, isAdmin, hasAdminAccess, fullName, initials, userRole } = usePermissions();
+const { can, isAdmin, hasAdminAccess, isParent, fullName, initials, userRole } = usePermissions();
 
 // Emits
 const emit = defineEmits(['close']);

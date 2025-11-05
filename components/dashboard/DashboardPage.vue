@@ -180,8 +180,14 @@ async function loadDashboardData() {
   }
 
   // Update component data with API response
-  upcomingClasses.value = data.value.upcomingClasses;
-  statistics.value = data.value.statistics;
+  if (data.value) {
+    upcomingClasses.value = data.value.upcomingClasses || [];
+    statistics.value = data.value.statistics || {
+      totalClasses: 0,
+      activeStudents: 0,
+      totalTeachers: 0,
+    };
+  }
 }
 
 async function loadActiveSchedule() {

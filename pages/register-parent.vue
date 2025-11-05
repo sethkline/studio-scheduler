@@ -14,8 +14,9 @@
 
       <!-- Registration Card -->
       <Card class="shadow-lg">
-        <!-- Step 1: Account Creation -->
-        <template v-if="currentStep === 0">
+        <template #content>
+          <!-- Step 1: Account Creation -->
+          <template v-if="currentStep === 0">
           <div class="space-y-6">
             <div class="text-center mb-6">
               <i class="pi pi-user-plus text-5xl text-primary-500 mb-3"></i>
@@ -294,6 +295,7 @@
             <small v-if="errors.acceptTerms" class="p-error">{{ errors.acceptTerms }}</small>
           </div>
         </template>
+        </template>
 
         <!-- Navigation Buttons -->
         <template #footer>
@@ -345,7 +347,7 @@
       :closable="true"
       class="w-full max-w-2xl"
     >
-      <AddStudentForm
+      <ParentAddStudentForm
         v-model="currentStudent"
         @save="saveStudent"
         @cancel="cancelAddStudent"

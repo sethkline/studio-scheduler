@@ -6,6 +6,9 @@ export * from './auth'
 // Parent Portal
 export * from './parents'
 
+// Costume Management
+export * from './costumes'
+
 export interface Student {
   id: string
   first_name: string
