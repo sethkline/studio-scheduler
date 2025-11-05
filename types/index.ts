@@ -3,6 +3,9 @@
 // Auth & Permissions
 export * from './auth'
 
+// Parent Portal
+export * from './parents'
+
 export interface Student {
   id: string
   first_name: string

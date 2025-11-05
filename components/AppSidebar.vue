@@ -111,8 +111,38 @@
           </NuxtLink>
         </div>
 
+        <!-- Parent Section - Parent Only -->
+        <div v-if="isParent.value" class="space-y-2">
+          <div class="sidebar-header">My Family</div>
+
+          <NuxtLink to="/parent/dashboard" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/dashboard') }">
+            <i class="pi pi-home mr-3"></i>
+            <span>Parent Dashboard</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/students" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/students') }">
+            <i class="pi pi-users mr-3"></i>
+            <span>My Dancers</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/schedule" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/schedule') }">
+            <i class="pi pi-calendar mr-3"></i>
+            <span>Schedule</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/payments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/payments') }">
+            <i class="pi pi-dollar mr-3"></i>
+            <span>Payments</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/recitals') }">
+            <i class="pi pi-star mr-3"></i>
+            <span>Recitals & Tickets</span>
+          </NuxtLink>
+        </div>
+
         <!-- Events Section -->
-        <div class="space-y-2">
+        <div v-if="!isParent.value" class="space-y-2">
           <div class="sidebar-header">Events</div>
 
           <NuxtLink to="/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/recitals') }">
