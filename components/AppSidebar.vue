@@ -149,6 +149,11 @@
             <i class="pi pi-heart mr-3"></i>
             <span>Volunteer</span>
           </NuxtLink>
+
+          <NuxtLink to="/parent/media" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/media') }">
+            <i class="pi pi-images mr-3"></i>
+            <span>Media Gallery</span>
+          </NuxtLink>
         </div>
 
         <!-- Events Section -->
@@ -158,6 +163,11 @@
           <NuxtLink to="/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/recitals') }">
             <i class="pi pi-star mr-3"></i>
             <span>Recitals</span>
+          </NuxtLink>
+
+          <NuxtLink v-if="hasAdminAccess" to="/media" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/media') }">
+            <i class="pi pi-images mr-3"></i>
+            <span>Media Gallery</span>
           </NuxtLink>
         </div>
 
