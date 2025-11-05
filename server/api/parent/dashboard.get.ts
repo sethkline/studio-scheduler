@@ -140,8 +140,22 @@ export default defineEventHandler(async (event) => {
       outstandingCostumes = count || 0
     }
 
-    // TODO: Get pending payments, volunteer hours
-    // These will need their own tables/logic
+    // Get volunteer requirements for this guardian
+    let requiredVolunteerHours = 0
+    let completedVolunteerHours = 0
+
+    const { data: volunteerRequirements } = await client
+      .from('volunteer_requirements')
+      .select('required_hours, completed_hours')
+      .eq('guardian_id', guardian.id)
+
+    if (volunteerRequirements && volunteerRequirements.length > 0) {
+      requiredVolunteerHours = volunteerRequirements.reduce((sum, req) => sum + (req.required_hours || 0), 0)
+      completedVolunteerHours = volunteerRequirements.reduce((sum, req) => sum + (req.completed_hours || 0), 0)
+    }
+
+    // TODO: Get pending payments
+    // This will need its own tables/logic
 
     // Build dashboard stats
     const stats: ParentDashboardStats = {
@@ -150,8 +164,8 @@ export default defineEventHandler(async (event) => {
       upcoming_recitals: upcomingRecitals?.length || 0,
       pending_payments: 0, // TODO: Implement
       outstanding_costumes: outstandingCostumes,
-      required_volunteer_hours: 0, // TODO: Implement
-      completed_volunteer_hours: 0, // TODO: Implement
+      required_volunteer_hours: requiredVolunteerHours,
+      completed_volunteer_hours: completedVolunteerHours,
     }
 
     return {

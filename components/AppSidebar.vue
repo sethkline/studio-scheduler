@@ -144,6 +144,11 @@
             <i class="pi pi-shopping-bag mr-3"></i>
             <span>Costumes</span>
           </NuxtLink>
+
+          <NuxtLink to="/parent/volunteers" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/volunteers') }">
+            <i class="pi pi-heart mr-3"></i>
+            <span>Volunteer</span>
+          </NuxtLink>
         </div>
 
         <!-- Events Section -->

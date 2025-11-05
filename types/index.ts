@@ -9,6 +9,9 @@ export * from './parents'
 // Costume Management
 export * from './costumes'
 
+// Volunteer and Task Management
+export * from './volunteers'
+
 export interface Student {
   id: string
   first_name: string
