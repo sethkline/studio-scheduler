@@ -15,6 +15,9 @@ export * from './volunteers'
 // Media Gallery
 export * from './media'
 
+// Billing & Financial Management
+export * from './billing'
+
 export interface Student {
   id: string
   first_name: string
