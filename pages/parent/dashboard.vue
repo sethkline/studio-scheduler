@@ -298,7 +298,7 @@ const actionItems = computed(() => {
       title: 'Volunteer Hours Needed',
       description: `You need ${volunteerDeficit} more volunteer hour(s)`,
       actionLabel: 'Sign Up',
-      action: () => navigateTo('/parent/volunteer'),
+      action: () => navigateTo('/parent/volunteers'),
     })
   }
 
