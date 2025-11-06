@@ -231,6 +231,15 @@
             <span>User Management</span>
           </NuxtLink>
 
+          <NuxtLink
+            to="/onboarding"
+            class="sidebar-link"
+            :class="{ 'sidebar-link-active': isActive('/onboarding') }"
+          >
+            <i class="pi pi-book mr-3"></i>
+            <span>Studio Setup Wizard</span>
+          </NuxtLink>
+
           <NuxtLink to="/reports" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/reports') }">
             <i class="pi pi-chart-bar mr-3"></i>
             <span>Reports</span>
