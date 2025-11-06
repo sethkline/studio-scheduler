@@ -15,6 +15,9 @@ export * from './volunteers'
 // Media Gallery
 export * from './media'
 
+// Attendance System
+export * from './attendance'
+
 export interface Student {
   id: string
   first_name: string
