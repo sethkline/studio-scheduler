@@ -12,7 +12,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
       <div class="card bg-blue-50 border-l-4 border-blue-500">
         <div class="flex items-center justify-between">
           <div>
@@ -33,6 +33,16 @@
         </div>
       </div>
 
+      <div class="card bg-yellow-50 border-l-4 border-yellow-500">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-600">Pending Requests</p>
+            <p class="text-3xl font-bold text-yellow-700">{{ stats.pending_enrollment_requests || 0 }}</p>
+          </div>
+          <i class="pi pi-clock text-3xl text-yellow-300"></i>
+        </div>
+      </div>
+
       <div class="card bg-purple-50 border-l-4 border-purple-500">
         <div class="flex items-center justify-between">
           <div>
@@ -50,6 +60,43 @@
             <p class="text-3xl font-bold text-orange-700">{{ actionItemsCount }}</p>
           </div>
           <i class="pi pi-exclamation-triangle text-3xl text-orange-300"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Browse Classes Card -->
+      <div class="card bg-gradient-to-br from-blue-500 to-indigo-600 text-white cursor-pointer hover:shadow-xl transition-shadow" @click="navigateTo('/parent/classes')">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xl font-bold mb-2">Browse Classes</h3>
+            <p class="text-blue-100 mb-4">Find and enroll in available classes</p>
+            <Button
+              label="View Classes"
+              icon="pi pi-search"
+              class="bg-white text-blue-600 border-0 hover:bg-blue-50"
+              size="small"
+            />
+          </div>
+          <i class="pi pi-book text-6xl opacity-20"></i>
+        </div>
+      </div>
+
+      <!-- Manage Enrollments Card -->
+      <div class="card bg-gradient-to-br from-purple-500 to-pink-600 text-white cursor-pointer hover:shadow-xl transition-shadow" @click="navigateTo('/parent/enrollments')">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xl font-bold mb-2">Manage Enrollments</h3>
+            <p class="text-purple-100 mb-4">View enrollment requests and active classes</p>
+            <Button
+              label="View Enrollments"
+              icon="pi pi-list"
+              class="bg-white text-purple-600 border-0 hover:bg-purple-50"
+              size="small"
+            />
+          </div>
+          <i class="pi pi-calendar-plus text-6xl opacity-20"></i>
         </div>
       </div>
     </div>
@@ -260,6 +307,8 @@ const stats = ref<ParentDashboardStats>({
   outstanding_costumes: 0,
   required_volunteer_hours: 0,
   completed_volunteer_hours: 0,
+  pending_enrollment_requests: 0,
+  approved_enrollment_requests: 0,
 })
 
 // Computed
@@ -267,6 +316,28 @@ const parentName = computed(() => authStore.fullName || 'Parent')
 
 const actionItems = computed(() => {
   const items = []
+
+  if (stats.value.pending_enrollment_requests > 0) {
+    items.push({
+      id: 'enrollment_requests',
+      icon: 'pi pi-clock',
+      title: 'Pending Enrollment Requests',
+      description: `You have ${stats.value.pending_enrollment_requests} enrollment request(s) awaiting approval`,
+      actionLabel: 'View Requests',
+      action: () => navigateTo('/parent/enrollments'),
+    })
+  }
+
+  if (stats.value.approved_enrollment_requests > 0) {
+    items.push({
+      id: 'approved_requests',
+      icon: 'pi pi-check-circle',
+      title: 'Enrollment Requests Approved',
+      description: `${stats.value.approved_enrollment_requests} enrollment request(s) have been approved`,
+      actionLabel: 'View Details',
+      action: () => navigateTo('/parent/enrollments'),
+    })
+  }
 
   if (stats.value.pending_payments > 0) {
     items.push({
@@ -330,6 +401,8 @@ async function loadDashboardData() {
       outstanding_costumes: 0,
       required_volunteer_hours: 2,
       completed_volunteer_hours: 0,
+      pending_enrollment_requests: 0,
+      approved_enrollment_requests: 0,
     }
   } catch (error) {
     console.error('Error loading dashboard data:', error)
