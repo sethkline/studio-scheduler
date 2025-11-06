@@ -1,8 +1,13 @@
 <template>
   <div class="min-h-screen flex flex-col">
+    <!-- PWA Components -->
+    <OfflineIndicator />
+    <PwaUpdatePrompt />
+    <PwaInstallPrompt />
+
     <!-- Header -->
     <AppHeader @toggle-sidebar="toggleSidebar" />
-    
+
     <div class="flex flex-1 overflow-hidden">
       <!-- Sidebar - Visible on desktop, conditionally visible on mobile -->
       <div
