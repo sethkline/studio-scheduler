@@ -46,6 +46,9 @@ export function useSeo(meta: SeoMeta) {
       { property: 'og:title', content: fullTitle.value },
       { property: 'og:description', content: meta.description },
       { property: 'og:image', content: imageUrl.value },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
+      { property: 'og:image:alt', content: fullTitle.value },
       { property: 'og:site_name', content: studioName.value },
 
       // Twitter
