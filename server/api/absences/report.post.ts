@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../../utils/supabase'
+import { sendAbsenceNotification } from '../../utils/notifications'
 import type { ReportAbsenceRequest } from '~/types/attendance'
 
 export default defineEventHandler(async (event) => {
@@ -8,7 +9,7 @@ export default defineEventHandler(async (event) => {
   if (!user) {
     throw createError({
       statusCode: 401,
-      message: 'Unauthorized',
+      message: 'Unauthorized - Please log in',
     })
   }
 
@@ -19,18 +20,19 @@ export default defineEventHandler(async (event) => {
     if (!student_id || !class_instance_id || !absence_date) {
       throw createError({
         statusCode: 400,
-        message: 'Missing required fields',
+        message: 'Student ID, class ID, and absence date are required',
       })
     }
 
     // Verify user has permission (parent, staff, or admin)
-    const { data: profile } = await client
+    const { data: profile, error: profileError } = await client
       .from('profiles')
       .select('user_role')
       .eq('id', user.id)
       .single()
 
-    if (!profile) {
+    if (profileError || !profile) {
+      console.error('Profile lookup error:', profileError)
       throw createError({
         statusCode: 404,
         message: 'User profile not found',
@@ -45,24 +47,24 @@ export default defineEventHandler(async (event) => {
         .eq('user_id', user.id)
         .single()
 
-      if (guardian) {
-        const { data: relationship } = await client
-          .from('student_guardian_relationships')
-          .select('id')
-          .eq('guardian_id', guardian.id)
-          .eq('student_id', student_id)
-          .maybeSingle()
-
-        if (!relationship) {
-          throw createError({
-            statusCode: 403,
-            message: 'You can only report absences for your own students',
-          })
-        }
-      } else {
+      if (!guardian) {
         throw createError({
           statusCode: 403,
           message: 'Guardian profile not found',
+        })
+      }
+
+      const { data: relationship } = await client
+        .from('student_guardian_relationships')
+        .select('id')
+        .eq('guardian_id', guardian.id)
+        .eq('student_id', student_id)
+        .maybeSingle()
+
+      if (!relationship) {
+        throw createError({
+          statusCode: 403,
+          message: 'You can only report absences for your own students',
         })
       }
     } else if (!['admin', 'staff'].includes(profile.user_role)) {
@@ -72,16 +74,29 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verify student is enrolled in this class
-    const { data: enrollment } = await client
+    // Get enrollment record (using enrollment_id)
+    const { data: enrollment, error: enrollmentError } = await client
       .from('enrollments')
-      .select('id, status')
+      .select(`
+        id,
+        status,
+        student:students(
+          id,
+          first_name,
+          last_name
+        ),
+        class_instance:class_instances(
+          id,
+          name
+        )
+      `)
       .eq('student_id', student_id)
       .eq('class_instance_id', class_instance_id)
       .eq('status', 'active')
-      .maybeSingle()
+      .single()
 
-    if (!enrollment) {
+    if (enrollmentError || !enrollment) {
+      console.error('Enrollment lookup error:', enrollmentError)
       throw createError({
         statusCode: 404,
         message: 'Student is not enrolled in this class',
@@ -92,8 +107,7 @@ export default defineEventHandler(async (event) => {
     const { data: existingAbsence } = await client
       .from('absences')
       .select('id')
-      .eq('student_id', student_id)
-      .eq('class_instance_id', class_instance_id)
+      .eq('enrollment_id', enrollment.id)
       .eq('absence_date', absence_date)
       .maybeSingle()
 
@@ -104,10 +118,11 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Create absence record
+    // Create absence record with enrollment_id
     const { data: absence, error: absenceError } = await client
       .from('absences')
       .insert({
+        enrollment_id: enrollment.id,
         student_id,
         class_instance_id,
         absence_date,
@@ -125,13 +140,15 @@ export default defineEventHandler(async (event) => {
         ),
         class_instance:class_instances(
           id,
-          name,
-          dance_style:dance_styles(name, color)
+          name
         )
       `)
       .single()
 
-    if (absenceError) throw absenceError
+    if (absenceError) {
+      console.error('Absence creation error:', absenceError)
+      throw absenceError
+    }
 
     // Mark as absent in attendance if date is today or past
     const today = new Date().toISOString().split('T')[0]
@@ -150,8 +167,7 @@ export default defineEventHandler(async (event) => {
       const { data: existingAttendance } = await client
         .from('attendance')
         .select('id')
-        .eq('student_id', student_id)
-        .eq('class_instance_id', class_instance_id)
+        .eq('enrollment_id', enrollment.id)
         .eq('attendance_date', absence_date)
         .maybeSingle()
 
@@ -160,6 +176,7 @@ export default defineEventHandler(async (event) => {
         await client
           .from('attendance')
           .insert({
+            enrollment_id: enrollment.id,
             student_id,
             class_instance_id,
             schedule_class_id: scheduleClass?.id,
@@ -170,15 +187,63 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Send notification to guardians if this was an unexpected absence
+    if (absence_type === 'unplanned' || !absence_type) {
+      // Get all guardians for this student
+      const { data: guardians } = await client
+        .from('student_guardian_relationships')
+        .select(`
+          guardian:guardians(
+            user:profiles!guardians_user_id_fkey(
+              email,
+              first_name,
+              last_name
+            )
+          )
+        `)
+        .eq('student_id', student_id)
+
+      if (guardians && guardians.length > 0) {
+        // Send notification to each guardian
+        for (const guardianRel of guardians) {
+          const guardian = guardianRel.guardian as any
+          if (guardian?.user?.email) {
+            await sendAbsenceNotification({
+              studentName: `${enrollment.student.first_name} ${enrollment.student.last_name}`,
+              className: enrollment.class_instance.name,
+              absenceDate: absence_date,
+              parentEmail: guardian.user.email,
+              parentName: `${guardian.user.first_name || ''} ${guardian.user.last_name || ''}`.trim(),
+            })
+          }
+        }
+
+        // Mark notification as sent
+        await client
+          .from('absences')
+          .update({
+            notification_sent: true,
+            notification_sent_at: new Date().toISOString(),
+          })
+          .eq('id', absence.id)
+      }
+    }
+
     return {
       success: true,
       absence,
+      message: 'Absence reported successfully',
     }
   } catch (error: any) {
     console.error('Error reporting absence:', error)
+
+    if (error.statusCode) {
+      throw error
+    }
+
     throw createError({
-      statusCode: error.statusCode || 500,
-      message: error.message || 'Failed to report absence',
+      statusCode: 500,
+      message: error.message || 'Failed to report absence. Please try again.',
     })
   }
 })

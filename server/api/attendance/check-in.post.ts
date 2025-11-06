@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!user) {
     throw createError({
       statusCode: 401,
-      message: 'Unauthorized',
+      message: 'Unauthorized - Please log in',
     })
   }
 
@@ -16,55 +16,73 @@ export default defineEventHandler(async (event) => {
     const body = await readBody<CheckInRequest>(event)
     const { student_id, qr_code_data, class_instance_id, check_in_time, notes } = body
 
-    // Get student ID from QR code if provided
+    // Step 1: Get student ID from QR code if provided
     let studentId = student_id
     if (qr_code_data && !studentId) {
       const { data: qrCode, error: qrError } = await client
         .from('student_qr_codes')
-        .select('student_id')
+        .select('student_id, is_active')
         .eq('qr_code_data', qr_code_data)
-        .eq('is_active', true)
         .single()
 
-      if (qrError || !qrCode) {
+      if (qrError) {
+        console.error('QR code lookup error:', qrError)
         throw createError({
           statusCode: 404,
-          message: 'Invalid or inactive QR code',
+          message: 'QR code not found. Please generate a new QR code for this student.',
+        })
+      }
+
+      if (!qrCode.is_active) {
+        throw createError({
+          statusCode: 403,
+          message: 'QR code is inactive. Please contact staff for assistance.',
         })
       }
 
       studentId = qrCode.student_id
 
-      // Update last used time
-      await client
+      // Update last used time (non-blocking)
+      client
         .from('student_qr_codes')
         .update({ last_used_at: new Date().toISOString() })
         .eq('qr_code_data', qr_code_data)
+        .then(() => {})
     }
 
     if (!studentId) {
       throw createError({
         statusCode: 400,
-        message: 'Student ID or QR code required',
+        message: 'Student ID or QR code is required',
       })
     }
 
-    // Get student details
+    // Step 2: Verify student exists and get details
     const { data: student, error: studentError } = await client
       .from('students')
-      .select('id, first_name, last_name, photo_url, allergies, medical_conditions, emergency_contact_name, emergency_contact_phone')
+      .select('id, first_name, last_name, photo_url, status')
       .eq('id', studentId)
       .single()
 
     if (studentError || !student) {
+      console.error('Student lookup error:', studentError)
       throw createError({
         statusCode: 404,
-        message: 'Student not found',
+        message: `Student not found in system`,
       })
     }
 
-    // If no class_instance_id provided, find the current class for this student
+    if (student.status !== 'active') {
+      throw createError({
+        statusCode: 403,
+        message: `Student account is ${student.status}. Please contact staff.`,
+      })
+    }
+
+    // Step 3: Find current class if not provided
     let classInstanceId = class_instance_id
+    let scheduleClassId = null
+
     if (!classInstanceId) {
       const now = new Date()
       const currentTime = now.toTimeString().split(' ')[0]
@@ -80,8 +98,11 @@ export default defineEventHandler(async (event) => {
           class_instances!inner(
             id,
             name,
+            status,
             enrollments!inner(
-              student_id
+              id,
+              student_id,
+              status
             )
           )
         `)
@@ -89,104 +110,123 @@ export default defineEventHandler(async (event) => {
         .lte('start_time', currentTime)
         .gte('end_time', currentTime)
         .eq('class_instances.enrollments.student_id', studentId)
+        .eq('class_instances.enrollments.status', 'active')
         .limit(1)
-        .single()
+        .maybeSingle()
 
-      if (classError || !currentClass) {
+      if (classError) {
+        console.error('Class lookup error:', classError)
+      }
+
+      if (!currentClass) {
         throw createError({
           statusCode: 404,
-          message: 'No active class found for this student at this time',
+          message: `No active class found for ${student.first_name} ${student.last_name} at this time. Please select a class manually.`,
         })
       }
 
       classInstanceId = currentClass.class_instance_id
+      scheduleClassId = currentClass.id
     }
 
-    // Verify student is enrolled in this class (or it's a makeup)
+    // Step 4: Get enrollment record (CRITICAL - uses enrollment_id now)
     const { data: enrollment, error: enrollmentError } = await client
       .from('enrollments')
       .select('id, status')
       .eq('student_id', studentId)
       .eq('class_instance_id', classInstanceId)
-      .eq('status', 'active')
-      .maybeSingle()
+      .single()
 
-    // Check if this is a makeup booking
+    // Check if this is a makeup booking if no enrollment
     let isMakeup = false
     let makeupBooking = null
-    if (!enrollment) {
+    let enrollmentId = enrollment?.id
+
+    if (enrollmentError || !enrollment) {
+      const today = new Date().toISOString().split('T')[0]
       const { data: booking, error: bookingError } = await client
         .from('makeup_bookings')
-        .select('*')
+        .select(`
+          id,
+          original_enrollment_id,
+          makeup_class_instance_id,
+          status
+        `)
         .eq('student_id', studentId)
         .eq('makeup_class_instance_id', classInstanceId)
-        .eq('makeup_date', new Date().toISOString().split('T')[0])
+        .eq('makeup_date', today)
         .eq('status', 'booked')
         .maybeSingle()
 
-      if (booking) {
-        isMakeup = true
-        makeupBooking = booking
-      } else {
+      if (bookingError || !booking) {
         throw createError({
           statusCode: 403,
-          message: 'Student is not enrolled in this class and has no makeup booking',
+          message: `${student.first_name} ${student.last_name} is not enrolled in this class and has no makeup booking for today.`,
         })
       }
+
+      isMakeup = true
+      makeupBooking = booking
+      enrollmentId = booking.original_enrollment_id
+    } else if (enrollment.status !== 'active') {
+      throw createError({
+        statusCode: 403,
+        message: `Enrollment is ${enrollment.status}. Please contact staff.`,
+      })
     }
 
     const checkInTimeValue = check_in_time || new Date().toISOString()
     const attendanceDate = new Date().toISOString().split('T')[0]
 
-    // Check if already checked in today
-    const { data: existingAttendance } = await client
+    // Step 5: Check if already checked in today
+    const { data: existingAttendance, error: existingError } = await client
       .from('attendance')
-      .select('id, status')
-      .eq('student_id', studentId)
-      .eq('class_instance_id', classInstanceId)
+      .select('id, status, check_in_time')
+      .eq('enrollment_id', enrollmentId)
       .eq('attendance_date', attendanceDate)
       .maybeSingle()
 
     if (existingAttendance) {
+      const checkInTime = new Date(existingAttendance.check_in_time).toLocaleTimeString()
       throw createError({
         statusCode: 409,
-        message: 'Student already checked in for this class today',
+        message: `${student.first_name} ${student.last_name} already checked in at ${checkInTime}`,
       })
     }
 
-    // Determine if student is tardy
+    // Step 6: Determine if student is tardy
     const { data: scheduleClass } = await client
       .from('schedule_classes')
-      .select('start_time, day_of_week')
+      .select('id, start_time, day_of_week')
       .eq('class_instance_id', classInstanceId)
       .eq('day_of_week', new Date().getDay())
-      .single()
+      .maybeSingle()
 
     let status: 'present' | 'tardy' = 'present'
     if (scheduleClass && scheduleClass.start_time) {
+      scheduleClassId = scheduleClassId || scheduleClass.id
       const classStartTime = new Date(`1970-01-01T${scheduleClass.start_time}`)
       const checkInDate = new Date(checkInTimeValue)
       const checkInTimeOnly = new Date(`1970-01-01T${checkInDate.toTimeString().split(' ')[0]}`)
 
-      // If more than 10 minutes late
       const minutesLate = (checkInTimeOnly.getTime() - classStartTime.getTime()) / (1000 * 60)
       if (minutesLate > 10) {
         status = 'tardy'
       }
     }
 
-    // Create attendance record
+    // Step 7: Create attendance record (uses enrollment_id!)
     const { data: attendance, error: attendanceError } = await client
       .from('attendance')
       .insert({
+        enrollment_id: enrollmentId,
         student_id: studentId,
         class_instance_id: classInstanceId,
-        schedule_class_id: scheduleClass?.id || null,
+        schedule_class_id: scheduleClassId,
         attendance_date: attendanceDate,
         check_in_time: checkInTimeValue,
         status,
         is_makeup: isMakeup,
-        original_absence_id: makeupBooking?.absence_id || null,
         marked_by: user.id,
         notes,
       })
@@ -196,9 +236,7 @@ export default defineEventHandler(async (event) => {
           id,
           first_name,
           last_name,
-          photo_url,
-          allergies,
-          medical_conditions
+          photo_url
         ),
         class_instance:class_instances(
           id,
@@ -208,11 +246,17 @@ export default defineEventHandler(async (event) => {
       `)
       .single()
 
-    if (attendanceError) throw attendanceError
+    if (attendanceError) {
+      console.error('Attendance creation error:', attendanceError)
+      throw createError({
+        statusCode: 500,
+        message: 'Failed to create attendance record. Please try again.',
+      })
+    }
 
-    // If this is a makeup, update the booking status
+    // Step 8: Update makeup booking if this is a makeup class
     if (isMakeup && makeupBooking) {
-      await client
+      const { error: updateError } = await client
         .from('makeup_bookings')
         .update({
           status: 'attended',
@@ -220,13 +264,12 @@ export default defineEventHandler(async (event) => {
         })
         .eq('id', makeupBooking.id)
 
-      // Update makeup credit usage
-      await client
-        .from('makeup_credits')
-        .update({
-          credits_used: client.rpc('increment', { x: 1 }),
+      if (!updateError) {
+        // Update makeup credit usage
+        await client.rpc('increment_makeup_credit_usage', {
+          booking_id: makeupBooking.id
         })
-        .eq('id', makeupBooking.makeup_credit_id)
+      }
     }
 
     return {
@@ -234,12 +277,22 @@ export default defineEventHandler(async (event) => {
       attendance,
       student,
       is_makeup: isMakeup,
+      status,
+      message: status === 'tardy'
+        ? `${student.first_name} ${student.last_name} checked in late`
+        : `${student.first_name} ${student.last_name} checked in successfully`,
     }
   } catch (error: any) {
-    console.error('Error checking in student:', error)
+    console.error('Check-in error:', error)
+
+    // Return user-friendly error messages
+    if (error.statusCode) {
+      throw error // Already a createError
+    }
+
     throw createError({
-      statusCode: error.statusCode || 500,
-      message: error.message || 'Failed to check in student',
+      statusCode: 500,
+      message: error.message || 'An unexpected error occurred during check-in. Please try again or contact staff.',
     })
   }
 })
