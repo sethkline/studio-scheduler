@@ -1,0 +1,3 @@
+<template>
+  <RecitalProgramManager />
+</template>

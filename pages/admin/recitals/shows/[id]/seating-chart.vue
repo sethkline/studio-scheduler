@@ -1,0 +1,3 @@
+<template>
+  <SeatingChartPage />
+</template>

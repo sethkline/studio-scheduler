@@ -13,7 +13,7 @@
       <nav class="space-y-6">
         <!-- Dashboard -->
         <div>
-          <NuxtLink to="/" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/') }">
+          <NuxtLink to="/admin/dashboard" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/dashboard') || isActive('/admin') }">
             <i class="pi pi-home mr-3"></i>
             <span>Dashboard</span>
           </NuxtLink>
@@ -23,16 +23,16 @@
         <div class="space-y-2">
           <div class="sidebar-header">Schedule</div>
 
-          <NuxtLink to="/schedule" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/schedule') }">
+          <NuxtLink to="/admin/schedule" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/schedule') }">
             <i class="pi pi-calendar mr-3"></i>
             <span>View Schedule</span>
           </NuxtLink>
 
           <template v-if="hasAdminAccess">
             <NuxtLink
-              to="/schedules"
+              to="/admin/schedules"
               class="sidebar-link"
-              :class="{ 'sidebar-link-active': isActive('/schedules') && !isActive('/schedules/*/builder') }"
+              :class="{ 'sidebar-link-active': isActive('/admin/schedules') && !isActive('/admin/schedules/*/builder') }"
             >
               <i class="pi pi-calendar-plus mr-3"></i>
               <span>Manage Terms</span>
@@ -40,9 +40,9 @@
 
             <NuxtLink
               v-if="activeScheduleId"
-              :to="`/schedules/${activeScheduleId}/builder`"
+              :to="`/admin/schedules/${activeScheduleId}/builder`"
               class="sidebar-link"
-              :class="{ 'sidebar-link-active': isActive('/schedules/') && isActive('/builder') }"
+              :class="{ 'sidebar-link-active': isActive('/admin/schedules/') && isActive('/builder') }"
             >
               <i class="pi pi-pencil mr-3"></i>
               <span>Schedule Builder</span>
@@ -55,11 +55,11 @@
           <div class="sidebar-header">Classes</div>
 
           <NuxtLink
-            to="/classes"
+            to="/admin/classes"
             class="sidebar-link"
             :class="{
               'sidebar-link-active':
-                isActive('/classes') && !isActive('/classes/styles') && !isActive('/classes/levels')
+                isActive('/admin/classes') && !isActive('/admin/classes/styles') && !isActive('/admin/classes/levels')
             }"
           >
             <i class="pi pi-th-large mr-3"></i>
@@ -68,27 +68,27 @@
 
           <template v-if="hasAdminAccess">
             <NuxtLink
-              to="/classes/styles"
+              to="/admin/classes/styles"
               class="sidebar-link"
-              :class="{ 'sidebar-link-active': isActive('/classes/styles') }"
+              :class="{ 'sidebar-link-active': isActive('/admin/classes/styles') }"
             >
               <i class="pi pi-palette mr-3"></i>
               <span>Dance Styles</span>
             </NuxtLink>
 
             <NuxtLink
-              to="/classes/levels"
+              to="/admin/classes/levels"
               class="sidebar-link"
-              :class="{ 'sidebar-link-active': isActive('/classes/levels') }"
+              :class="{ 'sidebar-link-active': isActive('/admin/classes/levels') }"
             >
               <i class="pi pi-chart-line mr-3"></i>
               <span>Class Levels</span>
             </NuxtLink>
 
             <NuxtLink
-              to="/classes/definitions"
+              to="/admin/classes/definitions"
               class="sidebar-link"
-              :class="{ 'sidebar-link-active': isActive('/classes/levels') }"
+              :class="{ 'sidebar-link-active': isActive('/admin/classes/definitions') }"
             >
               <i class="pi pi-briefcase mr-3"></i>
               <span>Class Definitions</span>
@@ -100,12 +100,12 @@
         <div class="space-y-2">
           <div class="sidebar-header">People</div>
 
-          <NuxtLink to="/students" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/students') }">
+          <NuxtLink to="/admin/students" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/students') }">
             <i class="pi pi-users mr-3"></i>
             <span>Students</span>
           </NuxtLink>
 
-          <NuxtLink to="/teachers" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/teachers') }">
+          <NuxtLink to="/admin/teachers" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/teachers') }">
             <i class="pi pi-user mr-3"></i>
             <span>Teachers</span>
           </NuxtLink>
@@ -160,12 +160,12 @@
         <div v-if="!isParent" class="space-y-2">
           <div class="sidebar-header">Events</div>
 
-          <NuxtLink to="/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/recitals') }">
+          <NuxtLink to="/admin/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/recitals') }">
             <i class="pi pi-star mr-3"></i>
             <span>Recitals</span>
           </NuxtLink>
 
-          <NuxtLink v-if="hasAdminAccess" to="/media" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/media') }">
+          <NuxtLink v-if="hasAdminAccess" to="/admin/media" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/media') }">
             <i class="pi pi-images mr-3"></i>
             <span>Media Gallery</span>
           </NuxtLink>
@@ -175,12 +175,12 @@
         <div v-if="hasAdminAccess" class="space-y-2">
           <div class="sidebar-header">Costumes</div>
 
-          <NuxtLink to="/costumes" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/costumes') && !isActive('/costumes/assignments') }">
+          <NuxtLink to="/admin/costumes" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/costumes') && !isActive('/admin/costumes/assignments') }">
             <i class="pi pi-shopping-bag mr-3"></i>
             <span>Inventory</span>
           </NuxtLink>
 
-          <NuxtLink to="/costumes/assignments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/costumes/assignments') }">
+          <NuxtLink to="/admin/costumes/assignments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/costumes/assignments') }">
             <i class="pi pi-list mr-3"></i>
             <span>Assignments</span>
           </NuxtLink>
@@ -191,27 +191,27 @@
           <div class="sidebar-header">Studio Setup</div>
 
           <NuxtLink
-            to="/studio/profile"
+            to="/admin/studio/profile"
             class="sidebar-link"
-            :class="{ 'sidebar-link-active': isActive('/studio/profile') }"
+            :class="{ 'sidebar-link-active': isActive('/admin/studio/profile') }"
           >
             <i class="pi pi-building mr-3"></i>
             <span>Studio Profile</span>
           </NuxtLink>
 
           <NuxtLink
-            to="/studio/locations"
+            to="/admin/studio/locations"
             class="sidebar-link"
-            :class="{ 'sidebar-link-active': isActive('/studio/locations') }"
+            :class="{ 'sidebar-link-active': isActive('/admin/studio/locations') }"
           >
             <i class="pi pi-map-marker mr-3"></i>
             <span>Locations & Rooms</span>
           </NuxtLink>
 
           <NuxtLink
-            to="/studio/constraints"
+            to="/admin/studio/constraints"
             class="sidebar-link"
-            :class="{ 'sidebar-link-active': isActive('/studio/constraints') }"
+            :class="{ 'sidebar-link-active': isActive('/admin/studio/constraints') }"
           >
             <i class="pi pi-sliders-h mr-3"></i>
             <span>Scheduling Rules</span>
@@ -223,9 +223,9 @@
           <div class="sidebar-header">Administration</div>
 
           <NuxtLink
-            to="/settings/users"
+            to="/admin/settings/users"
             class="sidebar-link"
-            :class="{ 'sidebar-link-active': isActive('/settings/users') }"
+            :class="{ 'sidebar-link-active': isActive('/admin/settings/users') }"
           >
             <i class="pi pi-users-cog mr-3"></i>
             <span>User Management</span>
@@ -240,15 +240,15 @@
             <span>Studio Setup Wizard</span>
           </NuxtLink>
 
-          <NuxtLink to="/reports" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/reports') }">
+          <NuxtLink to="/admin/reports" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/reports') }">
             <i class="pi pi-chart-bar mr-3"></i>
             <span>Reports</span>
           </NuxtLink>
 
           <NuxtLink
-            to="/settings"
+            to="/admin/settings"
             class="sidebar-link"
-            :class="{ 'sidebar-link-active': isActive('/settings') && !isActive('/settings/users') }"
+            :class="{ 'sidebar-link-active': isActive('/admin/settings') && !isActive('/admin/settings/users') }"
           >
             <i class="pi pi-cog mr-3"></i>
             <span>Settings</span>

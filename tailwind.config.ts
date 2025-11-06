@@ -15,9 +15,14 @@ module.exports = {
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
-        
-        // Secondary colors
-        secondary: {
+
+        // Dynamic theme colors
+        primary: 'var(--color-primary)',
+        secondary: 'var(--color-secondary)',
+        accent: 'var(--color-accent)',
+
+        // Secondary color shades
+        'secondary-shade': {
           50: 'var(--secondary-50)',
           100: 'var(--secondary-100)',
           200: 'var(--secondary-200)',
