@@ -77,6 +77,14 @@ export interface Permissions {
   canManagePayments: boolean
   canViewOwnPayments: boolean
 
+  // Payroll Management
+  canManagePayroll: boolean
+  canViewPayroll: boolean
+  canApprovePayroll: boolean
+  canExportPayroll: boolean
+  canViewOwnPayStubs: boolean
+  canManagePayRates: boolean
+
   // User Management
   canManageUsers: boolean
   canManageRoles: boolean
@@ -132,6 +140,14 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     canManagePayments: true,
     canViewOwnPayments: true,
 
+    // Payroll Management
+    canManagePayroll: true,
+    canViewPayroll: true,
+    canApprovePayroll: true,
+    canExportPayroll: true,
+    canViewOwnPayStubs: true,
+    canManagePayRates: true,
+
     // User Management
     canManageUsers: true,
     canManageRoles: true,
@@ -182,6 +198,14 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     canViewReports: false,
     canManagePayments: true,
     canViewOwnPayments: true,
+
+    // Payroll Management
+    canManagePayroll: true,
+    canViewPayroll: true,
+    canApprovePayroll: false,
+    canExportPayroll: false,
+    canViewOwnPayStubs: true,
+    canManagePayRates: false,
 
     // User Management
     canManageUsers: false,
@@ -234,6 +258,14 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     canManagePayments: false,
     canViewOwnPayments: true,
 
+    // Payroll Management
+    canManagePayroll: false,
+    canViewPayroll: false,
+    canApprovePayroll: false,
+    canExportPayroll: false,
+    canViewOwnPayStubs: true,
+    canManagePayRates: false,
+
     // User Management
     canManageUsers: false,
     canManageRoles: false,
@@ -285,6 +317,14 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     canManagePayments: false,
     canViewOwnPayments: true,
 
+    // Payroll Management
+    canManagePayroll: false,
+    canViewPayroll: false,
+    canApprovePayroll: false,
+    canExportPayroll: false,
+    canViewOwnPayStubs: false,
+    canManagePayRates: false,
+
     // User Management
     canManageUsers: false,
     canManageRoles: false,
@@ -335,6 +375,14 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     canViewReports: false,
     canManagePayments: false,
     canViewOwnPayments: true,
+
+    // Payroll Management
+    canManagePayroll: false,
+    canViewPayroll: false,
+    canApprovePayroll: false,
+    canExportPayroll: false,
+    canViewOwnPayStubs: false,
+    canManagePayRates: false,
 
     // User Management
     canManageUsers: false,

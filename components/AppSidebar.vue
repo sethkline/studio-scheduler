@@ -186,6 +186,31 @@
           </NuxtLink>
         </div>
 
+        <!-- Payroll Section - Admin/Staff Only -->
+        <div v-if="can('canViewPayroll')" class="space-y-2">
+          <div class="sidebar-header">Payroll</div>
+
+          <NuxtLink to="/payroll" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/payroll') && !isActive('/payroll/pay-rates') }">
+            <i class="pi pi-wallet mr-3"></i>
+            <span>Payroll Periods</span>
+          </NuxtLink>
+
+          <NuxtLink v-if="can('canManagePayRates')" to="/payroll/pay-rates" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/payroll/pay-rates') }">
+            <i class="pi pi-dollar mr-3"></i>
+            <span>Pay Rates</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Teacher Pay Stubs - Teachers Only -->
+        <div v-if="can('canViewOwnPayStubs') && !hasAdminAccess" class="space-y-2">
+          <div class="sidebar-header">My Pay</div>
+
+          <NuxtLink to="/teacher/pay-stubs" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/teacher/pay-stubs') }">
+            <i class="pi pi-file mr-3"></i>
+            <span>Pay Stubs</span>
+          </NuxtLink>
+        </div>
+
         <!-- Studio Management Section - Admin Only -->
         <div v-if="hasAdminAccess" class="space-y-2">
           <div class="sidebar-header">Studio Setup</div>
