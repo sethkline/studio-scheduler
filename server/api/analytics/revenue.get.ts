@@ -1,6 +1,10 @@
 // server/api/analytics/revenue.get.ts
 import { getSupabaseClient } from '../../utils/supabase'
 import { format, startOfMonth, endOfMonth, subMonths, subYears, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns'
+import { analyticsCache, CACHE_TTL } from '../../utils/analyticsCache'
+
+// Query timeout in milliseconds (10 seconds)
+const QUERY_TIMEOUT = 10000
 
 export default defineEventHandler(async (event) => {
   try {
@@ -12,6 +16,20 @@ export default defineEventHandler(async (event) => {
     const endDate = query.endDate as string || format(new Date(), 'yyyy-MM-dd')
     const period = query.period as string || 'month' // month, quarter, year
     const compareYearAgo = query.compareYearAgo === 'true'
+
+    // Generate cache key
+    const cacheKey = analyticsCache.constructor.generateKey('revenue', {
+      startDate,
+      endDate,
+      period,
+      compareYearAgo: compareYearAgo.toString()
+    })
+
+    // Try to get from cache first
+    const cached = analyticsCache.get(cacheKey, CACHE_TTL.MEDIUM)
+    if (cached) {
+      return cached
+    }
 
     // ============================================================================
     // TOTAL REVENUE METRICS
@@ -272,7 +290,7 @@ export default defineEventHandler(async (event) => {
     // RETURN RESPONSE
     // ============================================================================
 
-    return {
+    const result = {
       dateRange: {
         startDate,
         endDate,
@@ -306,8 +324,22 @@ export default defineEventHandler(async (event) => {
         byMethod: refundsByMethod
       }
     }
-  } catch (error) {
+
+    // Cache the result
+    analyticsCache.set(cacheKey, result)
+
+    return result
+  } catch (error: any) {
     console.error('Revenue analytics error:', error)
+
+    // Handle query timeout
+    if (error?.code === 'PGRST301' || error?.message?.includes('timeout')) {
+      return createError({
+        statusCode: 504,
+        statusMessage: 'Analytics query took too long. Try a shorter date range.'
+      })
+    }
+
     return createError({
       statusCode: 500,
       statusMessage: 'Failed to fetch revenue analytics'
