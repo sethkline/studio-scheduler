@@ -15,6 +15,9 @@ export * from './volunteers'
 // Media Gallery
 export * from './media'
 
+// Choreography Notes
+export * from './choreography'
+
 export interface Student {
   id: string
   first_name: string

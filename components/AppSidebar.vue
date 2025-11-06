@@ -96,6 +96,20 @@
           </template>
         </div>
 
+        <!-- Choreography Section - Teachers, Staff & Admin -->
+        <div v-if="!isParent" class="space-y-2">
+          <div class="sidebar-header">Teaching Tools</div>
+
+          <NuxtLink
+            to="/choreography"
+            class="sidebar-link"
+            :class="{ 'sidebar-link-active': isActive('/choreography') }"
+          >
+            <i class="pi pi-book mr-3"></i>
+            <span>Choreography Notes</span>
+          </NuxtLink>
+        </div>
+
         <!-- People Section -->
         <div class="space-y-2">
           <div class="sidebar-header">People</div>
