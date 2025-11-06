@@ -6,9 +6,10 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+const sizes = [72, 96, 128, 144, 152, 180, 192, 384, 512];
 const svgPath = join(__dirname, '../public/icon.svg');
 const iconDir = join(__dirname, '../public/icons');
+const publicDir = join(__dirname, '../public');
 
 const svgBuffer = readFileSync(svgPath);
 
@@ -49,5 +50,13 @@ for (const size of maskableSizes) {
 
   console.log(`✓ Generated ${size}x${size} maskable icon`);
 }
+
+// Generate apple-touch-icon for iOS (180x180)
+const appleTouchIconPath = join(publicDir, 'apple-touch-icon.png');
+await sharp(svgBuffer)
+  .resize(180, 180)
+  .png()
+  .toFile(appleTouchIconPath);
+console.log('✓ Generated apple-touch-icon.png (180x180)');
 
 console.log('\n✅ All icons generated successfully!');

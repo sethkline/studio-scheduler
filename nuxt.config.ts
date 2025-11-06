@@ -45,11 +45,14 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
     marketingSiteUrl: process.env.MARKETING_SITE_URL,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+    mailgunDomain: process.env.MAILGUN_DOMAIN,
     // Public keys (can be exposed to client)
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY
+      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY
     }
   },
 
@@ -83,7 +86,15 @@ export default defineNuxtConfig({
     head: {
       title: 'Dance Studio Scheduler',
       meta: [
-        { name: 'description', content: 'Dance studio class scheduling application' }
+        { name: 'description', content: 'Dance studio class scheduling application' },
+        { name: 'theme-color', content: '#8B5CF6' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+        { name: 'apple-mobile-web-app-title', content: 'Studio' }
+      ],
+      link: [
+        { rel: 'manifest', href: '/manifest.json' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
       ]
     }
   },
