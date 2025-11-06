@@ -238,6 +238,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
+import { useParentStudentService } from '~/composables/useParentStudentService'
 import type { ParentDashboardStats, StudentProfile, ParentScheduleEvent } from '~/types/parents'
 
 definePageMeta({
@@ -246,6 +247,7 @@ definePageMeta({
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { fetchStudents } = useParentStudentService()
 
 // State
 const loading = ref(true)
@@ -315,15 +317,22 @@ onMounted(async () => {
 async function loadDashboardData() {
   loading.value = true
   try {
-    // TODO: Replace with actual API calls
-    // const { data } = await useFetch('/api/parent/dashboard')
+    // Fetch students
+    const { data: studentsData, error: studentsError } = await fetchStudents()
 
-    // Mock data for now
-    students.value = []
+    if (studentsError.value) {
+      console.error('Error loading students:', studentsError.value)
+    } else {
+      students.value = studentsData.value || []
+    }
+
+    // TODO: Fetch dashboard stats, schedule, and recitals from API
+    // const { data: dashboardData } = await useFetch('/api/parent/dashboard')
+
     weeklySchedule.value = []
     upcomingRecitals.value = []
     stats.value = {
-      total_students: 0,
+      total_students: students.value.length,
       active_enrollments: 0,
       upcoming_recitals: 0,
       pending_payments: 0,
