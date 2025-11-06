@@ -15,6 +15,9 @@ export * from './volunteers'
 // Media Gallery
 export * from './media'
 
+// Email Notification System
+export * from './email'
+
 export interface Student {
   id: string
   first_name: string
