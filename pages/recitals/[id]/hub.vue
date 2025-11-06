@@ -7,7 +7,17 @@
           <h1 class="text-3xl font-bold text-gray-900">
             {{ recital?.name || 'Loading...' }}
           </h1>
-          <p class="text-gray-600 mt-1">Recital Command Center</p>
+          <div class="flex items-center gap-2 mt-1">
+            <p class="text-gray-600">Recital Command Center</p>
+            <span
+              v-if="isLive"
+              class="live-badge"
+              :class="{ 'pulse': recentUpdate }"
+            >
+              <i class="pi pi-circle-fill text-xs"></i>
+              Live
+            </span>
+          </div>
         </div>
         <div class="flex gap-3">
           <Button
@@ -78,11 +88,19 @@ definePageMeta({
 
 const route = useRoute()
 const recitalId = route.params.id as string
+const supabase = useSupabaseClient()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 const metrics = ref<any>(null)
 const recital = ref<any>(null)
+const isLive = ref(false)
+const recentUpdate = ref(false)
+
+// Track realtime channels for cleanup
+let ticketChannel: any = null
+let taskChannel: any = null
+let volunteerChannel: any = null
 
 // Load dashboard data
 const loadDashboard = async () => {
@@ -106,20 +124,138 @@ const loadDashboard = async () => {
   }
 }
 
-// Auto-refresh every 60 seconds
-const refreshInterval = setInterval(loadDashboard, 60000)
+// Show visual feedback when data updates
+const triggerUpdateIndicator = () => {
+  recentUpdate.value = true
+  setTimeout(() => {
+    recentUpdate.value = false
+  }, 2000)
+}
 
-onMounted(() => {
-  loadDashboard()
+// Set up real-time subscriptions
+const setupRealtimeSubscriptions = async () => {
+  // Get show IDs for this recital
+  const { data: shows } = await supabase
+    .from('recital_shows')
+    .select('id')
+    .eq('recital_id', recitalId)
+
+  const showIds = shows?.map(s => s.id) || []
+
+  // Subscribe to ticket sales
+  if (showIds.length > 0) {
+    ticketChannel = supabase
+      .channel('ticket-sales-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tickets',
+        filter: `show_id=in.(${showIds.join(',')})`
+      }, async (payload) => {
+        console.log('Ticket update:', payload)
+        // Reload metrics when tickets change
+        await loadDashboard()
+        triggerUpdateIndicator()
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          isLive.value = true
+        }
+      })
+  }
+
+  // Subscribe to task completions
+  taskChannel = supabase
+    .channel('task-updates')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'recital_tasks',
+      filter: `recital_id=eq.${recitalId}`
+    }, async (payload) => {
+      console.log('Task update:', payload)
+      // Reload metrics when tasks change
+      await loadDashboard()
+      triggerUpdateIndicator()
+    })
+    .subscribe()
+
+  // Subscribe to volunteer signups
+  volunteerChannel = supabase
+    .channel('volunteer-updates')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'volunteer_signups'
+    }, async (payload) => {
+      console.log('Volunteer update:', payload)
+      // Check if this signup is for a shift in this recital
+      const { data: shift } = await supabase
+        .from('volunteer_shifts')
+        .select('recital_id')
+        .eq('id', payload.new?.shift_id || payload.old?.shift_id)
+        .single()
+
+      if (shift?.recital_id === recitalId) {
+        await loadDashboard()
+        triggerUpdateIndicator()
+      }
+    })
+    .subscribe()
+}
+
+// Cleanup realtime subscriptions
+const cleanupRealtimeSubscriptions = () => {
+  if (ticketChannel) {
+    supabase.removeChannel(ticketChannel)
+    ticketChannel = null
+  }
+  if (taskChannel) {
+    supabase.removeChannel(taskChannel)
+    taskChannel = null
+  }
+  if (volunteerChannel) {
+    supabase.removeChannel(volunteerChannel)
+    volunteerChannel = null
+  }
+  isLive.value = false
+}
+
+onMounted(async () => {
+  await loadDashboard()
+  await setupRealtimeSubscriptions()
 })
 
 onUnmounted(() => {
-  clearInterval(refreshInterval)
+  cleanupRealtimeSubscriptions()
 })
 </script>
 
 <style scoped>
 .recital-hub {
   @apply p-6 max-w-7xl mx-auto;
+}
+
+.live-badge {
+  @apply inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full;
+}
+
+.live-badge i {
+  @apply text-green-600;
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
 }
 </style>

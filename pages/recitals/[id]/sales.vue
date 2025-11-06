@@ -3,7 +3,17 @@
     <!-- Page Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Ticket Sales Analytics</h1>
+        <div class="flex items-center gap-2">
+          <h1 class="text-3xl font-bold text-gray-900">Ticket Sales Analytics</h1>
+          <span
+            v-if="isLive"
+            class="live-badge"
+            :class="{ 'pulse': recentUpdate }"
+          >
+            <i class="pi pi-circle-fill text-xs"></i>
+            Live
+          </span>
+        </div>
         <p class="text-gray-600 mt-1">{{ recital?.name }}</p>
       </div>
       <div class="flex gap-3">
@@ -71,12 +81,19 @@ definePageMeta({
 
 const route = useRoute()
 const recitalId = route.params.id as string
+const supabase = useSupabaseClient()
 
 const loading = ref(true)
 const exporting = ref(false)
 const error = ref<string | null>(null)
 const analytics = ref<any>(null)
 const recital = ref<any>(null)
+const isLive = ref(false)
+const recentUpdate = ref(false)
+
+// Track realtime channels for cleanup
+let ticketChannel: any = null
+let orderChannel: any = null
 
 // Load analytics data
 const loadAnalytics = async () => {
@@ -104,6 +121,76 @@ const loadAnalytics = async () => {
   }
 }
 
+// Show visual feedback when data updates
+const triggerUpdateIndicator = () => {
+  recentUpdate.value = true
+  setTimeout(() => {
+    recentUpdate.value = false
+  }, 2000)
+}
+
+// Set up real-time subscriptions for ticket sales
+const setupRealtimeSubscriptions = async () => {
+  // Get show IDs for this recital
+  const { data: shows } = await supabase
+    .from('recital_shows')
+    .select('id')
+    .eq('recital_id', recitalId)
+
+  const showIds = shows?.map(s => s.id) || []
+
+  // Subscribe to ticket changes
+  if (showIds.length > 0) {
+    ticketChannel = supabase
+      .channel('sales-ticket-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tickets',
+        filter: `show_id=in.(${showIds.join(',')})`
+      }, async (payload) => {
+        console.log('Ticket sale update:', payload)
+        // Reload analytics when tickets change
+        await loadAnalytics()
+        triggerUpdateIndicator()
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          isLive.value = true
+        }
+      })
+
+    // Subscribe to order changes
+    orderChannel = supabase
+      .channel('sales-order-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `show_id=in.(${showIds.join(',')})`
+      }, async (payload) => {
+        console.log('Order update:', payload)
+        // Reload analytics when orders change
+        await loadAnalytics()
+        triggerUpdateIndicator()
+      })
+      .subscribe()
+  }
+}
+
+// Cleanup realtime subscriptions
+const cleanupRealtimeSubscriptions = () => {
+  if (ticketChannel) {
+    supabase.removeChannel(ticketChannel)
+    ticketChannel = null
+  }
+  if (orderChannel) {
+    supabase.removeChannel(orderChannel)
+    orderChannel = null
+  }
+  isLive.value = false
+}
+
 // Export sales data
 const exportSales = async () => {
   exporting.value = true
@@ -118,13 +205,41 @@ const exportSales = async () => {
   }
 }
 
-onMounted(() => {
-  loadAnalytics()
+onMounted(async () => {
+  await loadAnalytics()
+  await setupRealtimeSubscriptions()
+})
+
+onUnmounted(() => {
+  cleanupRealtimeSubscriptions()
 })
 </script>
 
 <style scoped>
 .sales-analytics-page {
   @apply p-6 max-w-7xl mx-auto;
+}
+
+.live-badge {
+  @apply inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full;
+}
+
+.live-badge i {
+  @apply text-green-600;
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
 }
 </style>
