@@ -186,6 +186,26 @@
           </NuxtLink>
         </div>
 
+        <!-- Merchandise Section -->
+        <div class="space-y-2">
+          <div class="sidebar-header">Merchandise</div>
+
+          <NuxtLink to="/merchandise" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/merchandise') && !isActive('/merchandise/orders') && !isActive('/merchandise/cart') }">
+            <i class="pi pi-shopping-bag mr-3"></i>
+            <span>Shop</span>
+          </NuxtLink>
+
+          <NuxtLink to="/merchandise/orders" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/merchandise/orders') }">
+            <i class="pi pi-list mr-3"></i>
+            <span>My Orders</span>
+          </NuxtLink>
+
+          <NuxtLink v-if="hasAdminAccess" to="/admin/merchandise/products" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/admin/merchandise') }">
+            <i class="pi pi-cog mr-3"></i>
+            <span>Manage Products</span>
+          </NuxtLink>
+        </div>
+
         <!-- Studio Management Section - Admin Only -->
         <div v-if="hasAdminAccess" class="space-y-2">
           <div class="sidebar-header">Studio Setup</div>
