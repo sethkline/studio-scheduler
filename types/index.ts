@@ -1,4 +1,20 @@
 // types/index.ts
+
+// Auth & Permissions
+export * from './auth'
+
+// Parent Portal
+export * from './parents'
+
+// Costume Management
+export * from './costumes'
+
+// Volunteer and Task Management
+export * from './volunteers'
+
+// Media Gallery
+export * from './media'
+
 export interface Student {
   id: string
   first_name: string

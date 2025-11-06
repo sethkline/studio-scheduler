@@ -111,13 +111,78 @@
           </NuxtLink>
         </div>
 
+        <!-- Parent Section - Parent Only -->
+        <div v-if="isParent" class="space-y-2">
+          <div class="sidebar-header">My Family</div>
+
+          <NuxtLink to="/parent/dashboard" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/dashboard') }">
+            <i class="pi pi-home mr-3"></i>
+            <span>Parent Dashboard</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/students" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/students') }">
+            <i class="pi pi-users mr-3"></i>
+            <span>My Dancers</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/schedule" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/schedule') }">
+            <i class="pi pi-calendar mr-3"></i>
+            <span>Schedule</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/payments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/payments') }">
+            <i class="pi pi-dollar mr-3"></i>
+            <span>Payments</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/recitals') }">
+            <i class="pi pi-star mr-3"></i>
+            <span>Recitals & Tickets</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/costumes" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/costumes') }">
+            <i class="pi pi-shopping-bag mr-3"></i>
+            <span>Costumes</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/volunteers" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/volunteers') }">
+            <i class="pi pi-heart mr-3"></i>
+            <span>Volunteer</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/media" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/media') }">
+            <i class="pi pi-images mr-3"></i>
+            <span>Media Gallery</span>
+          </NuxtLink>
+        </div>
+
         <!-- Events Section -->
-        <div class="space-y-2">
+        <div v-if="!isParent" class="space-y-2">
           <div class="sidebar-header">Events</div>
 
           <NuxtLink to="/recitals" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/recitals') }">
             <i class="pi pi-star mr-3"></i>
             <span>Recitals</span>
+          </NuxtLink>
+
+          <NuxtLink v-if="hasAdminAccess" to="/media" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/media') }">
+            <i class="pi pi-images mr-3"></i>
+            <span>Media Gallery</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Costumes Section - Staff/Admin Only -->
+        <div v-if="hasAdminAccess" class="space-y-2">
+          <div class="sidebar-header">Costumes</div>
+
+          <NuxtLink to="/costumes" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/costumes') && !isActive('/costumes/assignments') }">
+            <i class="pi pi-shopping-bag mr-3"></i>
+            <span>Inventory</span>
+          </NuxtLink>
+
+          <NuxtLink to="/costumes/assignments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/costumes/assignments') }">
+            <i class="pi pi-list mr-3"></i>
+            <span>Assignments</span>
           </NuxtLink>
         </div>
 
@@ -166,6 +231,15 @@
             <span>User Management</span>
           </NuxtLink>
 
+          <NuxtLink
+            to="/onboarding"
+            class="sidebar-link"
+            :class="{ 'sidebar-link-active': isActive('/onboarding') }"
+          >
+            <i class="pi pi-book mr-3"></i>
+            <span>Studio Setup Wizard</span>
+          </NuxtLink>
+
           <NuxtLink to="/reports" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/reports') }">
             <i class="pi pi-chart-bar mr-3"></i>
             <span>Reports</span>
@@ -193,7 +267,7 @@
         </div>
         <div class="ml-3">
           <NuxtLink to="/profile" class="text-sm font-medium hover:text-primary-700">{{ userEmail }}</NuxtLink>
-          <p v-if="userRole" class="text-xs text-gray-500">{{ userRole }}</p>
+          <p v-if="userRoleDisplay" class="text-xs text-gray-500">{{ userRoleDisplay }}</p>
           <button @click="handleLogout" class="text-xs text-gray-500 hover:text-primary-700 flex items-center mt-1">
             <i class="pi pi-sign-out mr-1"></i> Logout
           </button>
@@ -208,6 +282,7 @@ import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '~/stores/auth';
 import { useScheduleTermStore } from '~/stores/useScheduleTermStore';
+import { usePermissions } from '~/composables/usePermissions';
 
 const user = useSupabaseUser();
 const client = useSupabaseClient();
@@ -215,6 +290,7 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const scheduleTermStore = useScheduleTermStore();
+const { can, isAdmin, hasAdminAccess, isParent, fullName, initials, userRole } = usePermissions();
 
 // Emits
 const emit = defineEmits(['close']);
@@ -222,38 +298,28 @@ const emit = defineEmits(['close']);
 // State
 const activeScheduleId = ref<string | null>(null);
 
-// Get user email and initials for avatar
+// Get user email
 const userEmail = computed(() => {
   return user.value?.email || '';
 });
 
-const userInitials = computed(() => {
-  if (!user.value?.email) return '';
-  return user.value.email.charAt(0).toUpperCase();
-});
+// Get user initials for avatar (from permissions composable)
+const userInitials = computed(() => initials.value);
 
-// Get user role for display
-const userRole = computed(() => {
-  if (!authStore.userProfile) return '';
+// Get user role display name
+const userRoleDisplay = computed(() => {
+  const role = userRole.value;
+  if (!role) return '';
 
-  const role = authStore.userProfile.user_role;
-  if (role === 'admin') return 'Administrator';
-  if (role === 'staff') return 'Staff Member';
-  if (role === 'teacher') return 'Teacher';
-  return role;
-});
+  const roleLabels: Record<string, string> = {
+    admin: 'Administrator',
+    staff: 'Staff Member',
+    teacher: 'Teacher',
+    parent: 'Parent/Guardian',
+    student: 'Student',
+  };
 
-// Access control helpers
-const isAdmin = computed(() => {
-  // return authStore.isAdmin
-  // TODO update this when we add more roles
-  return true;
-});
-
-const hasAdminAccess = computed(() => {
-  // return authStore.hasRole(['admin', 'staff'])
-  // TODO update this when we add more roles
-  return true;
+  return roleLabels[role] || role;
 });
 
 // Check if a route is active
