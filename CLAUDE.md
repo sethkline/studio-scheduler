@@ -41,6 +41,7 @@ npm run postinstall      # Nuxt prepare (runs automatically after install)
 - **Rich Text**: TipTap editor
 - **Calendar**: FullCalendar
 - **PDF Generation**: jsPDF, pdf-lib, puppeteer
+- **PWA**: @vite-pwa/nuxt with Workbox for offline support
 
 ### Project Structure
 
@@ -68,6 +69,9 @@ npm run postinstall      # Nuxt prepare (runs automatically after install)
 - `useScheduleManager.ts` - Schedule management logic
 - `useTicketingService.ts` - Ticketing operations
 - `usePermissions.ts` - Role and permission checking (RBAC)
+- `usePwa.ts` - PWA install prompts and service worker updates
+- `useOffline.ts` - Offline detection and action queue management
+- `useOfflineStorage.ts` - IndexedDB caching for offline data (in utils)
 
 **Stores** (`/stores`): Pinia stores for state management:
 - `auth.ts` - Authentication state with role-based access control
@@ -164,6 +168,8 @@ Accessed via `runtimeConfig` in `nuxt.config.ts` (private keys server-side only)
 **Ticketing**: Public ticket purchase flow with interactive seating chart, seat selection with consecutive seat detection, Stripe checkout integration, QR code ticket generation.
 
 **Studio Management**: Profile, locations, rooms, operating hours, logo upload.
+
+**Progressive Web App (PWA)**: Installable app with offline support, service worker caching, background sync, and automatic updates. Users can install to home screen on mobile devices and work offline with queued actions that sync when back online. See `/docs/pwa-guide.md` for complete documentation.
 
 ## Important Notes
 
