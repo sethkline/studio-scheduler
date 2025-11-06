@@ -1,3 +1,9 @@
+export interface StudioTheme {
+  primary_color?: string
+  secondary_color?: string
+  accent_color?: string
+}
+
 export interface StudioProfile {
   id: string
   name: string
@@ -13,6 +19,7 @@ export interface StudioProfile {
   postal_code?: string
   country?: string
   tax_id?: string
+  theme?: StudioTheme
   created_at: string
   updated_at: string
 }

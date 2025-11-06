@@ -48,7 +48,9 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY
+      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      marketingSiteUrl: process.env.MARKETING_SITE_URL || 'https://localhost:3000',
+      googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || '',
     }
   },
 
