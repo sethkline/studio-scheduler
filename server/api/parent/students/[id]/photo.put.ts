@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '~/server/utils/supabase'
+import sharp from 'sharp'
 
 export default defineEventHandler(async (event) => {
   const client = getSupabaseClient()
@@ -93,40 +94,80 @@ export default defineEventHandler(async (event) => {
 
     if (studentError) throw studentError
 
-    // Delete old photo if it exists
+    // Delete old photo and thumbnail if they exist
     if (student.photo_url) {
       try {
         const urlParts = student.photo_url.split('/')
         const fileName = urlParts[urlParts.length - 1]
-        await client.storage.from('student-photos').remove([fileName])
+
+        // Delete both main photo and thumbnail
+        const thumbFileName = fileName.replace(/(\.[^.]+)$/, '-thumb$1')
+        await client.storage.from('student-photos').remove([fileName, thumbFileName])
       } catch (error) {
         // Ignore errors when deleting old photo
         console.error('Error deleting old photo:', error)
       }
     }
 
-    // Upload to Supabase Storage
-    const fileExt = photoFile.filename?.split('.').pop() || 'jpg'
-    const fileName = `student-${studentId}-${Date.now()}.${fileExt}`
+    // Optimize image with sharp
+    const timestamp = Date.now()
+    const mainFileName = `student-${studentId}-${timestamp}.jpg`
+    const thumbFileName = `student-${studentId}-${timestamp}-thumb.jpg`
 
-    const { error: uploadError } = await client.storage
-      .from('student-photos')
-      .upload(fileName, photoFile.data, {
-        contentType: photoFile.type,
-        upsert: true,
+    // Create optimized main image (max 800x800, quality 85%)
+    const optimizedImage = await sharp(photoFile.data)
+      .resize(800, 800, {
+        fit: 'inside',
+        withoutEnlargement: true
       })
+      .jpeg({ quality: 85 })
+      .toBuffer()
 
-    if (uploadError) throw uploadError
+    // Create thumbnail (150x150, quality 80%)
+    const thumbnail = await sharp(photoFile.data)
+      .resize(150, 150, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .jpeg({ quality: 80 })
+      .toBuffer()
 
-    // Get public URL
-    const { data: urlData } = client.storage.from('student-photos').getPublicUrl(fileName)
+    // Upload both optimized image and thumbnail to Supabase Storage
+    const [mainUpload, thumbUpload] = await Promise.all([
+      client.storage
+        .from('student-photos')
+        .upload(mainFileName, optimizedImage, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        }),
+      client.storage
+        .from('student-photos')
+        .upload(thumbFileName, thumbnail, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        })
+    ])
 
-    const photoUrl = urlData.publicUrl
+    if (mainUpload.error) throw mainUpload.error
+    if (thumbUpload.error) {
+      // Log thumbnail error but don't fail the whole upload
+      console.error('Error uploading thumbnail:', thumbUpload.error)
+    }
 
-    // Update student record
+    // Get public URLs
+    const { data: mainUrlData } = client.storage.from('student-photos').getPublicUrl(mainFileName)
+    const { data: thumbUrlData } = client.storage.from('student-photos').getPublicUrl(thumbFileName)
+
+    const photoUrl = mainUrlData.publicUrl
+    const thumbnailUrl = thumbUrlData.publicUrl
+
+    // Update student record with both photo URLs
     const { data: updatedStudent, error: updateError } = await client
       .from('students')
-      .update({ photo_url: photoUrl })
+      .update({
+        photo_url: photoUrl,
+        photo_thumbnail_url: thumbnailUrl
+      })
       .eq('id', studentId)
       .select()
       .single()
@@ -134,8 +175,9 @@ export default defineEventHandler(async (event) => {
     if (updateError) throw updateError
 
     return {
-      message: 'Photo uploaded successfully',
+      message: 'Photo uploaded and optimized successfully',
       photo_url: photoUrl,
+      thumbnail_url: thumbnailUrl,
       student: updatedStudent,
     }
   } catch (error: any) {

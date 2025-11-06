@@ -49,35 +49,52 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get current student photo URL
+    // Get current student photo URLs
     const { data: student, error: studentError } = await client
       .from('students')
-      .select('photo_url')
+      .select('photo_url, photo_thumbnail_url')
       .eq('id', studentId)
       .single()
 
     if (studentError) throw studentError
 
-    // Delete photo from storage if it exists
+    // Delete photo and thumbnail from storage if they exist
+    const filesToDelete: string[] = []
+
     if (student.photo_url) {
+      const urlParts = student.photo_url.split('/')
+      const fileName = urlParts[urlParts.length - 1]
+      filesToDelete.push(fileName)
+    }
+
+    if (student.photo_thumbnail_url) {
+      const urlParts = student.photo_thumbnail_url.split('/')
+      const thumbFileName = urlParts[urlParts.length - 1]
+      filesToDelete.push(thumbFileName)
+    }
+
+    if (filesToDelete.length > 0) {
       try {
-        const urlParts = student.photo_url.split('/')
-        const fileName = urlParts[urlParts.length - 1]
-        const { error: deleteError } = await client.storage.from('student-photos').remove([fileName])
+        const { error: deleteError } = await client.storage
+          .from('student-photos')
+          .remove(filesToDelete)
 
         if (deleteError && !deleteError.message.includes('Object not found')) {
           throw deleteError
         }
       } catch (error) {
-        console.error('Error deleting photo from storage:', error)
+        console.error('Error deleting photos from storage:', error)
         // Continue even if storage delete fails
       }
     }
 
-    // Update student record to remove photo URL
+    // Update student record to remove photo URLs
     const { data: updatedStudent, error: updateError } = await client
       .from('students')
-      .update({ photo_url: null })
+      .update({
+        photo_url: null,
+        photo_thumbnail_url: null
+      })
       .eq('id', studentId)
       .select()
       .single()

@@ -117,7 +117,7 @@
         >
           <div class="flex items-center space-x-3 mb-3">
             <Avatar
-              :image="student.photo_url"
+              :image="student.photo_thumbnail_url || student.photo_url"
               :label="getInitials(student.first_name, student.last_name)"
               size="xlarge"
               shape="circle"

@@ -48,7 +48,7 @@
         <!-- Student Header with Photo -->
         <div class="flex items-start space-x-4 mb-4">
           <Avatar
-            :image="student.photo_url"
+            :image="student.photo_thumbnail_url || student.photo_url"
             :label="getInitials(student.first_name, student.last_name)"
             size="xlarge"
             shape="circle"

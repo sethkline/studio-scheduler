@@ -32,6 +32,7 @@ export interface StudentProfile {
   date_of_birth: string
   gender?: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say'
   photo_url?: string
+  photo_thumbnail_url?: string        // Optimized thumbnail (150x150)
 
   // Contact Information
   email?: string
