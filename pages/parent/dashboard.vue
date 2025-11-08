@@ -315,10 +315,30 @@ onMounted(async () => {
 async function loadDashboardData() {
   loading.value = true
   try {
-    // TODO: Replace with actual API calls
-    // const { data } = await useFetch('/api/parent/dashboard')
+    const { data, error } = await useFetch('/api/parent/dashboard')
 
-    // Mock data for now
+    if (error.value) {
+      throw error.value
+    }
+
+    if (data.value) {
+      const dashboardData = data.value as any
+      students.value = dashboardData.students || []
+      weeklySchedule.value = dashboardData.weekly_schedule || []
+      upcomingRecitals.value = dashboardData.upcoming_recitals || []
+      stats.value = dashboardData.stats || {
+        total_students: 0,
+        active_enrollments: 0,
+        upcoming_recitals: 0,
+        pending_payments: 0,
+        outstanding_costumes: 0,
+        required_volunteer_hours: 0,
+        completed_volunteer_hours: 0,
+      }
+    }
+  } catch (error) {
+    console.error('Error loading dashboard data:', error)
+    // Set default values on error
     students.value = []
     weeklySchedule.value = []
     upcomingRecitals.value = []
@@ -328,11 +348,9 @@ async function loadDashboardData() {
       upcoming_recitals: 0,
       pending_payments: 0,
       outstanding_costumes: 0,
-      required_volunteer_hours: 2,
+      required_volunteer_hours: 0,
       completed_volunteer_hours: 0,
     }
-  } catch (error) {
-    console.error('Error loading dashboard data:', error)
   } finally {
     loading.value = false
   }
