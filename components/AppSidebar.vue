@@ -130,6 +130,20 @@
             <span>Schedule</span>
           </NuxtLink>
 
+          <div class="sidebar-header">Enrollment</div>
+
+          <NuxtLink to="/parent/classes" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/classes') }">
+            <i class="pi pi-search mr-3"></i>
+            <span>Browse Classes</span>
+          </NuxtLink>
+
+          <NuxtLink to="/parent/enrollments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/enrollments') }">
+            <i class="pi pi-list mr-3"></i>
+            <span>My Enrollments</span>
+          </NuxtLink>
+
+          <div class="sidebar-header">More</div>
+
           <NuxtLink to="/parent/payments" class="sidebar-link" :class="{ 'sidebar-link-active': isActive('/parent/payments') }">
             <i class="pi pi-dollar mr-3"></i>
             <span>Payments</span>
@@ -215,6 +229,20 @@
           >
             <i class="pi pi-sliders-h mr-3"></i>
             <span>Scheduling Rules</span>
+          </NuxtLink>
+        </div>
+
+        <!-- Enrollment Management - Staff/Admin Only -->
+        <div v-if="hasAdminAccess" class="space-y-2">
+          <div class="sidebar-header">Enrollment</div>
+
+          <NuxtLink
+            to="/enrollment-requests"
+            class="sidebar-link"
+            :class="{ 'sidebar-link-active': isActive('/enrollment-requests') }"
+          >
+            <i class="pi pi-check-circle mr-3"></i>
+            <span>Enrollment Requests</span>
           </NuxtLink>
         </div>
 
