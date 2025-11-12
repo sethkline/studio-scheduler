@@ -80,6 +80,16 @@ export interface Permissions {
   // User Management
   canManageUsers: boolean
   canManageRoles: boolean
+
+  // Lesson Planning
+  canManageLessonPlans: boolean
+  canViewAllLessonPlans: boolean
+  canManageLearningObjectives: boolean
+  canViewLearningObjectives: boolean
+  canManageLessonTemplates: boolean
+  canViewAllLessonTemplates: boolean
+  canShareLessonPlans: boolean
+  canTrackStudentProgress: boolean
 }
 
 /**
@@ -135,6 +145,16 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: true,
     canManageRoles: true,
+
+    // Lesson Planning
+    canManageLessonPlans: true,
+    canViewAllLessonPlans: true,
+    canManageLearningObjectives: true,
+    canViewLearningObjectives: true,
+    canManageLessonTemplates: true,
+    canViewAllLessonTemplates: true,
+    canShareLessonPlans: true,
+    canTrackStudentProgress: true,
   },
 
   staff: {
@@ -186,6 +206,16 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Lesson Planning
+    canManageLessonPlans: true,
+    canViewAllLessonPlans: true,
+    canManageLearningObjectives: true,
+    canViewLearningObjectives: true,
+    canManageLessonTemplates: true,
+    canViewAllLessonTemplates: true,
+    canShareLessonPlans: true,
+    canTrackStudentProgress: true,
   },
 
   teacher: {
@@ -237,6 +267,16 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Lesson Planning
+    canManageLessonPlans: true, // Can manage own lesson plans
+    canViewAllLessonPlans: false, // Cannot view other teachers' plans
+    canManageLearningObjectives: false, // Cannot create curriculum objectives
+    canViewLearningObjectives: true, // Can view objectives
+    canManageLessonTemplates: true, // Can manage own templates
+    canViewAllLessonTemplates: true, // Can view all public templates
+    canShareLessonPlans: true, // Can share with assistants
+    canTrackStudentProgress: true, // Can track progress for own students
   },
 
   parent: {
@@ -288,6 +328,16 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Lesson Planning
+    canManageLessonPlans: false,
+    canViewAllLessonPlans: false,
+    canManageLearningObjectives: false,
+    canViewLearningObjectives: false,
+    canManageLessonTemplates: false,
+    canViewAllLessonTemplates: false,
+    canShareLessonPlans: false,
+    canTrackStudentProgress: false,
   },
 
   student: {
@@ -339,6 +389,16 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Lesson Planning
+    canManageLessonPlans: false,
+    canViewAllLessonPlans: false,
+    canManageLearningObjectives: false,
+    canViewLearningObjectives: false,
+    canManageLessonTemplates: false,
+    canViewAllLessonTemplates: false,
+    canShareLessonPlans: false,
+    canTrackStudentProgress: false,
   },
 }
 
