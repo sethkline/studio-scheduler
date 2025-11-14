@@ -237,6 +237,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '~/stores/auth'
 import type { ParentDashboardStats, StudentProfile, ParentScheduleEvent } from '~/types/parents'
 
@@ -246,6 +247,7 @@ definePageMeta({
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
 // State
 const loading = ref(true)
@@ -315,24 +317,34 @@ onMounted(async () => {
 async function loadDashboardData() {
   loading.value = true
   try {
-    // TODO: Replace with actual API calls
-    // const { data } = await useFetch('/api/parent/dashboard')
+    const { data, error } = await useFetch('/api/parent/dashboard')
 
-    // Mock data for now
-    students.value = []
-    weeklySchedule.value = []
-    upcomingRecitals.value = []
-    stats.value = {
-      total_students: 0,
-      active_enrollments: 0,
-      upcoming_recitals: 0,
-      pending_payments: 0,
-      outstanding_costumes: 0,
-      required_volunteer_hours: 2,
-      completed_volunteer_hours: 0,
+    if (error.value) {
+      throw new Error(error.value.message || 'Failed to load dashboard data')
     }
-  } catch (error) {
+
+    if (data.value) {
+      students.value = data.value.students || []
+      weeklySchedule.value = data.value.weeklySchedule || []
+      upcomingRecitals.value = data.value.upcomingRecitals || []
+      stats.value = data.value.stats || {
+        total_students: 0,
+        active_enrollments: 0,
+        upcoming_recitals: 0,
+        pending_payments: 0,
+        outstanding_costumes: 0,
+        required_volunteer_hours: 0,
+        completed_volunteer_hours: 0,
+      }
+    }
+  } catch (error: any) {
     console.error('Error loading dashboard data:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.message || 'Failed to load dashboard data',
+      life: 5000,
+    })
   } finally {
     loading.value = false
   }
