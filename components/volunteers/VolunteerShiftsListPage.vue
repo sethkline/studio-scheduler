@@ -204,7 +204,7 @@
                   <span :class="typography.body.small" class="text-gray-600">
                     {{ shift.slots_filled }} / {{ shift.slots_total }} volunteers
                   </span>
-                  <span :class="typography.body.small" :class="getSlotStatusColor(shift)">
+                  <span :class="[typography.body.small, getSlotStatusColor(shift)]">
                     {{ getSlotStatusLabel(shift) }}
                   </span>
                 </div>
