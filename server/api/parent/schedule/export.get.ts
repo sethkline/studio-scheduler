@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get all active enrollments for these students with class details
+    // Get all active enrollments for these students with class details including schedule dates
     const { data: enrollments, error: enrollmentsError } = await client
       .from('enrollments')
       .select(`
@@ -71,11 +71,13 @@ export default defineEventHandler(async (event) => {
         class_instance:class_instances(
           id,
           name,
+          schedule_id,
           schedule_classes(
             id,
             day_of_week,
             start_time,
             end_time,
+            schedule_id,
             studio_room:studio_rooms(name, location)
           ),
           class_definition:class_definitions(
@@ -91,26 +93,68 @@ export default defineEventHandler(async (event) => {
 
     if (enrollmentsError) throw enrollmentsError
 
-    // Transform into schedule events
+    // Get schedule dates for all schedules referenced in the enrollments
+    const scheduleIds = new Set<string>()
+    enrollments?.forEach((enrollment: any) => {
+      const scheduleId = enrollment.class_instance?.schedule_id
+      if (scheduleId) {
+        scheduleIds.add(scheduleId)
+      }
+      enrollment.class_instance?.schedule_classes?.forEach((sc: any) => {
+        if (sc.schedule_id) {
+          scheduleIds.add(sc.schedule_id)
+        }
+      })
+    })
+
+    const scheduleIdArray = Array.from(scheduleIds)
+    let schedulesMap = new Map<string, { start_date: string; end_date: string }>()
+
+    if (scheduleIdArray.length > 0) {
+      const { data: schedules } = await client
+        .from('schedules')
+        .select('id, start_date, end_date')
+        .in('id', scheduleIdArray)
+
+      schedules?.forEach((schedule: any) => {
+        schedulesMap.set(schedule.id, {
+          start_date: schedule.start_date,
+          end_date: schedule.end_date,
+        })
+      })
+    }
+
+    // Transform into schedule events with schedule dates
     const scheduleEvents = enrollments
       ?.filter((enrollment: any) => enrollment.class_instance)
       .flatMap((enrollment: any) => {
         const classInstance = enrollment.class_instance
         const scheduleClasses = classInstance.schedule_classes || []
 
-        return scheduleClasses.map((sc: any) => ({
-          student_name: `${enrollment.student.first_name} ${enrollment.student.last_name}`,
-          class_name: classInstance.class_definition?.name || classInstance.name,
-          description: classInstance.class_definition?.description || '',
-          day_of_week: sc.day_of_week,
-          start_time: sc.start_time,
-          end_time: sc.end_time,
-          location: sc.studio_room?.name || 'TBA',
-          teacher_name: classInstance.teacher
-            ? `${classInstance.teacher.first_name} ${classInstance.teacher.last_name}`
-            : 'TBA',
-          dance_style: classInstance.class_definition?.dance_style?.name || '',
-        }))
+        return scheduleClasses.map((sc: any) => {
+          // Get schedule dates from the schedule_class's schedule_id or class_instance's schedule_id
+          const scheduleId = sc.schedule_id || classInstance.schedule_id
+          const scheduleDates = scheduleId ? schedulesMap.get(scheduleId) : null
+
+          return {
+            enrollment_id: enrollment.id,
+            schedule_class_id: sc.id,
+            student_id: enrollment.student.id,
+            student_name: `${enrollment.student.first_name} ${enrollment.student.last_name}`,
+            class_name: classInstance.class_definition?.name || classInstance.name,
+            description: classInstance.class_definition?.description || '',
+            day_of_week: sc.day_of_week,
+            start_time: sc.start_time,
+            end_time: sc.end_time,
+            location: sc.studio_room?.name || 'TBA',
+            teacher_name: classInstance.teacher
+              ? `${classInstance.teacher.first_name} ${classInstance.teacher.last_name}`
+              : 'TBA',
+            dance_style: classInstance.class_definition?.dance_style?.name || '',
+            schedule_start_date: scheduleDates?.start_date,
+            schedule_end_date: scheduleDates?.end_date,
+          }
+        })
       }) || []
 
     // Generate iCalendar content
@@ -121,58 +165,78 @@ export default defineEventHandler(async (event) => {
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       `X-WR-CALNAME:${studio?.name || 'Dance Studio'} - Class Schedule`,
-      'X-WR-TIMEZONE:America/New_York',
       'X-WR-CALDESC:Dance class schedule for ' + (studentId ? 'student' : 'all students'),
     ]
 
-    // Generate recurring events for the next 6 months
-    const today = new Date()
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1)
-    const endDate = new Date(today.getFullYear(), today.getMonth() + 6, 0)
+    // Helper to format dates in UTC for iCal (YYYYMMDDTHHMMSSZ)
+    const formatICalDateUTC = (date: Date): string => {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      const hour = String(date.getUTCHours()).padStart(2, '0')
+      const minute = String(date.getUTCMinutes()).padStart(2, '0')
+      const second = String(date.getUTCSeconds()).padStart(2, '0')
+      return `${year}${month}${day}T${hour}${minute}${second}Z`
+    }
 
-    scheduleEvents.forEach((scheduleEvent, index) => {
+    // Helper to format date-only values for UNTIL (YYYYMMDD)
+    const formatICalDateOnly = (date: Date): string => {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      return `${year}${month}${day}`
+    }
+
+    scheduleEvents.forEach((scheduleEvent) => {
+      // Use schedule dates if available, otherwise fallback to reasonable defaults
+      const today = new Date()
+      const scheduleStartDate = scheduleEvent.schedule_start_date
+        ? new Date(scheduleEvent.schedule_start_date)
+        : new Date(today.getFullYear(), today.getMonth(), 1)
+      const scheduleEndDate = scheduleEvent.schedule_end_date
+        ? new Date(scheduleEvent.schedule_end_date)
+        : new Date(today.getFullYear(), today.getMonth() + 6, 0)
+
       // Generate RRULE for recurring events
       const dayMap = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
       const byDay = dayMap[scheduleEvent.day_of_week]
 
-      // Find the first occurrence
-      let firstOccurrence = new Date(startDate)
+      // Find the first occurrence on or after schedule start date
+      let firstOccurrence = new Date(scheduleStartDate)
       while (firstOccurrence.getDay() !== scheduleEvent.day_of_week) {
-        firstOccurrence.setDate(firstOccurrence.getDate() + 1)
+        firstOccurrence.setUTCDate(firstOccurrence.getUTCDate() + 1)
+      }
+
+      // If first occurrence is after schedule end date, skip this event
+      if (firstOccurrence > scheduleEndDate) {
+        return
       }
 
       const [startHour, startMin] = scheduleEvent.start_time.split(':').map(Number)
       const [endHour, endMin] = scheduleEvent.end_time.split(':').map(Number)
 
+      // Create UTC dates for start and end times
       const dtstart = new Date(firstOccurrence)
-      dtstart.setHours(startHour, startMin, 0)
+      dtstart.setUTCHours(startHour, startMin, 0, 0)
 
       const dtend = new Date(firstOccurrence)
-      dtend.setHours(endHour, endMin, 0)
+      dtend.setUTCHours(endHour, endMin, 0, 0)
 
-      const until = new Date(endDate)
-      until.setHours(23, 59, 59)
+      // UNTIL date should be at end of day in UTC
+      const until = new Date(scheduleEndDate)
+      until.setUTCHours(23, 59, 59, 999)
 
-      // Format dates for iCal (YYYYMMDDTHHMMSS)
-      const formatICalDate = (date: Date): string => {
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
-        const hour = String(date.getHours()).padStart(2, '0')
-        const minute = String(date.getMinutes()).padStart(2, '0')
-        const second = String(date.getSeconds()).padStart(2, '0')
-        return `${year}${month}${day}T${hour}${minute}${second}`
-      }
-
-      const uid = `class-${index}-${Date.now()}@${studio?.name?.replace(/\s+/g, '-').toLowerCase() || 'studio'}.com`
+      // Create deterministic UID based on enrollment, schedule_class, and student
+      // This ensures the same event always has the same UID
+      const uid = `${scheduleEvent.enrollment_id}-${scheduleEvent.schedule_class_id}-${scheduleEvent.student_id}@${studio?.name?.replace(/\s+/g, '-').toLowerCase() || 'studio'}.com`
 
       icsLines.push(
         'BEGIN:VEVENT',
         `UID:${uid}`,
-        `DTSTAMP:${formatICalDate(new Date())}`,
-        `DTSTART:${formatICalDate(dtstart)}`,
-        `DTEND:${formatICalDate(dtend)}`,
-        `RRULE:FREQ=WEEKLY;BYDAY=${byDay};UNTIL=${formatICalDate(until)}`,
+        `DTSTAMP:${formatICalDateUTC(new Date())}`,
+        `DTSTART:${formatICalDateUTC(dtstart)}`,
+        `DTEND:${formatICalDateUTC(dtend)}`,
+        `RRULE:FREQ=WEEKLY;BYDAY=${byDay};UNTIL=${formatICalDateOnly(until)}`,
         `SUMMARY:${scheduleEvent.class_name}${scheduleEvent.student_name ? ' - ' + scheduleEvent.student_name : ''}`,
         `DESCRIPTION:${scheduleEvent.description || scheduleEvent.class_name}\\nTeacher: ${scheduleEvent.teacher_name}\\nDance Style: ${scheduleEvent.dance_style}`,
         `LOCATION:${scheduleEvent.location}`,

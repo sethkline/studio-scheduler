@@ -100,16 +100,18 @@ export default defineEventHandler(async (event): Promise<PaymentHistoryResponse>
     // Find next due date and last payment date
     const paidPayments = paymentsWithRelations.filter((p) => p.status === 'paid' && p.paid_at)
     const lastPaymentDate = paidPayments.length > 0
-      ? paidPayments.reduce((latest, p) =>
-          (p.paid_at && (!latest || p.paid_at > latest)) ? p.paid_at : latest,
-        '', )
+      ? paidPayments
+          .map((p) => ({ payment: p, date: new Date(p.paid_at!) }))
+          .sort((a, b) => b.date.getTime() - a.date.getTime())[0]
+          .payment.paid_at
       : undefined
 
     const upcomingPayments = paymentsWithRelations
       .filter((p) => (p.status === 'pending' || p.status === 'overdue') && p.due_date)
-      .sort((a, b) => (a.due_date! < b.due_date! ? -1 : 1))
+      .map((p) => ({ payment: p, date: new Date(p.due_date!) }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
 
-    const nextDueDate = upcomingPayments.length > 0 ? upcomingPayments[0].due_date : undefined
+    const nextDueDate = upcomingPayments.length > 0 ? upcomingPayments[0].payment.due_date : undefined
 
     const summary: PaymentSummary = {
       total_paid: totalPaid,
