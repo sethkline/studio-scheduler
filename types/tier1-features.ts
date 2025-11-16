@@ -469,7 +469,153 @@ export interface BulkUpdateTaskStatusInput {
 }
 
 // ============================================================
-// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 4)
+// VOLUNTEER MANAGEMENT (Tier 1 Feature 4)
+// ============================================================
+
+export type VolunteerShiftStatus = 'open' | 'filled' | 'confirmed' | 'completed' | 'cancelled'
+export type VolunteerRole = 'usher' | 'ticket_scanner' | 'backstage' | 'dressing_room' | 'setup' | 'cleanup' | 'concessions' | 'photographer' | 'other'
+
+export interface VolunteerShift {
+  id: string
+  recital_show_id: string
+  role: VolunteerRole
+  title: string
+  description?: string
+  location?: string
+  date: string // ISO date
+  start_time: string // HH:MM
+  end_time: string // HH:MM
+  slots_total: number
+  slots_filled: number
+  status: VolunteerShiftStatus
+  requirements?: string // Special requirements or skills needed
+  created_at: string
+  updated_at: string
+}
+
+export interface VolunteerAssignment {
+  id: string
+  shift_id: string
+  volunteer_user_id: string
+  status: 'pending' | 'confirmed' | 'checked_in' | 'completed' | 'no_show' | 'cancelled'
+  signed_up_at: string
+  confirmed_at?: string
+  checked_in_at?: string
+  checked_out_at?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VolunteerAvailability {
+  id: string
+  user_id: string
+  recital_show_id: string
+  date: string // ISO date
+  start_time: string // HH:MM
+  end_time: string // HH:MM
+  preferred_roles?: VolunteerRole[]
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VolunteerProfile {
+  id: string
+  user_id: string
+  phone?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  preferred_roles?: VolunteerRole[]
+  skills?: string[]
+  availability_notes?: string
+  total_hours_volunteered: number
+  total_shifts_completed: number
+  created_at: string
+  updated_at: string
+}
+
+// Extended types with relations
+export interface ShiftWithAssignments extends VolunteerShift {
+  assignments?: VolunteerAssignment[]
+  volunteers?: Array<{
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    status: string
+  }>
+}
+
+export interface AssignmentWithDetails extends VolunteerAssignment {
+  shift?: VolunteerShift
+  volunteer?: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    phone?: string
+  }
+}
+
+export interface VolunteerSummary {
+  total_shifts: number
+  open_shifts: number
+  filled_shifts: number
+  total_slots: number
+  filled_slots: number
+  fill_rate: number
+  total_volunteers: number
+  confirmed_volunteers: number
+  upcoming_shifts: number
+}
+
+export interface VolunteerSchedule {
+  volunteer_id: string
+  volunteer_name: string
+  shifts: ShiftWithAssignments[]
+  total_hours: number
+}
+
+// Form types for create/edit
+export interface CreateShiftInput {
+  recital_show_id: string
+  role: VolunteerRole
+  title: string
+  description?: string
+  location?: string
+  date: string
+  start_time: string
+  end_time: string
+  slots_total: number
+  requirements?: string
+}
+
+export interface UpdateShiftInput extends Partial<CreateShiftInput> {
+  id: string
+  status?: VolunteerShiftStatus
+}
+
+export interface SignUpForShiftInput {
+  shift_id: string
+  notes?: string
+}
+
+export interface BulkCreateShiftsInput {
+  recital_show_id: string
+  role: VolunteerRole
+  title: string
+  description?: string
+  location?: string
+  dates: string[] // Array of ISO dates
+  start_time: string
+  end_time: string
+  slots_per_shift: number
+  requirements?: string
+}
+
+// ============================================================
+// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 5)
 // ============================================================
 
 export type ConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'expired'
