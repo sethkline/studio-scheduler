@@ -169,6 +169,7 @@ export default defineEventHandler(async (event) => {
       .from('class_instances')
       .select(`
         id,
+        status,
         name,
         class_definitions (
           id,
@@ -197,6 +198,19 @@ export default defineEventHandler(async (event) => {
         message: 'Class not found',
       })
     }
+
+    // Validate class is active and accepting enrollments
+    const classInstanceTyped = classInstance as any
+    if (classInstanceTyped.status && classInstanceTyped.status !== 'active') {
+      throw createError({
+        statusCode: 400,
+        message: `Cannot enroll in ${classInstanceTyped.status} class. Only active classes accept enrollments.`,
+      })
+    }
+
+    // Note: Date-based validation (e.g., class start/end dates) would go here
+    // if class_instances table has start_date/end_date fields
+    // Example: if (classInstance.end_date < new Date()) { throw 'Class has ended' }
 
     const classDef = classInstance.class_definitions as any
     const scheduleClass = (classInstance.schedule_classes as any)?.[0]

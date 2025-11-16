@@ -1,5 +1,12 @@
 import { getSupabaseClient } from '../../../utils/supabase'
 
+/**
+ * Approve or Deny Enrollment Request (Staff/Admin)
+ *
+ * Uses atomic database functions to ensure transaction safety and concurrency control.
+ * - approve_enrollment_request(): Locks request, checks capacity, creates enrollment or waitlists
+ * - deny_enrollment_request(): Atomically denies request with reason
+ */
 export default defineEventHandler(async (event) => {
   const client = getSupabaseClient()
   const user = event.context.user
@@ -51,206 +58,81 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get the enrollment request
-    const { data: enrollmentRequest, error: requestError } = await client
-      .from('enrollment_requests')
-      .select(`
-        id,
-        student_id,
-        class_instance_id,
-        guardian_id,
-        status,
-        notes,
-        students (
-          id,
-          first_name,
-          last_name
-        ),
-        guardians (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        class_instances (
-          id,
-          name,
-          class_definitions (
-            max_students
-          )
-        )
-      `)
-      .eq('id', requestId)
-      .single()
-
-    if (requestError || !enrollmentRequest) {
-      throw createError({
-        statusCode: 404,
-        message: 'Enrollment request not found',
-      })
-    }
-
-    // Can only process pending or waitlist requests
-    if (!['pending', 'waitlist'].includes(enrollmentRequest.status)) {
-      throw createError({
-        statusCode: 400,
-        message: `Cannot process request with status: ${enrollmentRequest.status}`,
-      })
-    }
-
-    const student = enrollmentRequest.students as any
-    const guardian = enrollmentRequest.guardians as any
-    const classInstance = enrollmentRequest.class_instances as any
-    const classDef = classInstance?.class_definitions
-
     if (action === 'deny') {
-      // Deny the request
-      const { data: updatedRequest, error: updateError } = await client
-        .from('enrollment_requests')
-        .update({
-          status: 'denied',
-          processed_at: new Date().toISOString(),
-          processed_by: user.id,
-          admin_notes,
-          denial_reason,
+      // Validate denial reason is provided
+      if (!denial_reason || denial_reason.trim() === '') {
+        throw createError({
+          statusCode: 400,
+          message: 'Denial reason is required',
         })
-        .eq('id', requestId)
-        .select()
-        .single()
+      }
 
-      if (updateError) throw updateError
-
-      // Create notification for parent
-      await client.from('enrollment_notifications').insert({
-        enrollment_request_id: requestId,
-        guardian_id: enrollmentRequest.guardian_id,
-        notification_type: 'denied',
-        subject: 'Enrollment Request Denied',
-        message: `Unfortunately, the enrollment request for ${student?.first_name} ${student?.last_name} in ${classInstance?.name} has been denied.${
-          denial_reason ? `\n\nReason: ${denial_reason}` : ''
-        }`,
-        metadata: {
-          student_name: `${student?.first_name} ${student?.last_name}`,
-          class_name: classInstance?.name,
-          denial_reason,
-          processed_by: `${profile.first_name} ${profile.last_name}`,
-        },
+      // Use atomic database function for denial
+      // Handles locking, validation, and notification creation in single transaction
+      const { data: result, error: denyError } = await client.rpc('deny_enrollment_request', {
+        p_request_id: requestId,
+        p_denier_id: user.id,
+        p_denial_reason: denial_reason,
+        p_admin_notes: admin_notes,
       })
+
+      if (denyError) {
+        console.error('Error denying enrollment request:', denyError)
+        throw createError({
+          statusCode: 500,
+          message: denyError.message || 'Failed to deny enrollment request',
+        })
+      }
 
       return {
+        success: true,
         message: 'Enrollment request denied',
-        enrollmentRequest: updatedRequest,
+        result,
       }
     }
 
     // Action is 'approve'
-    // Check if class has capacity
-    const { count: currentEnrollments } = await client
-      .from('enrollments')
-      .select('*', { count: 'exact', head: true })
-      .eq('class_instance_id', enrollmentRequest.class_instance_id)
-      .eq('status', 'active')
+    // Use atomic database function for approval
+    // Handles: locking, capacity check, enrollment creation or waitlist, notification
+    // All in single transaction with concurrency safety
+    const { data: result, error: approveError } = await client.rpc('approve_enrollment_request', {
+      p_request_id: requestId,
+      p_approver_id: user.id,
+      p_admin_notes: admin_notes,
+    })
 
-    const maxStudents = classDef?.max_students
-    const isFull = maxStudents && currentEnrollments !== null && currentEnrollments >= maxStudents
-
-    // If class is full, update request to waitlist instead
-    if (isFull) {
-      const { data: updatedRequest, error: updateError } = await client
-        .from('enrollment_requests')
-        .update({
-          status: 'waitlist',
-          processed_at: new Date().toISOString(),
-          processed_by: user.id,
-          admin_notes: admin_notes || 'Class is full - moved to waitlist',
-        })
-        .eq('id', requestId)
-        .select()
-        .single()
-
-      if (updateError) throw updateError
-
-      // Create notification for parent
-      await client.from('enrollment_notifications').insert({
-        enrollment_request_id: requestId,
-        guardian_id: enrollmentRequest.guardian_id,
-        notification_type: 'waitlist_added',
-        subject: 'Enrollment Request - Added to Waitlist',
-        message: `The enrollment request for ${student?.first_name} ${student?.last_name} in ${classInstance?.name} has been approved, but the class is currently full. ${student?.first_name} has been added to the waitlist and will be notified if a spot becomes available.`,
-        metadata: {
-          student_name: `${student?.first_name} ${student?.last_name}`,
-          class_name: classInstance?.name,
-          processed_by: `${profile.first_name} ${profile.last_name}`,
-        },
+    if (approveError) {
+      console.error('Error approving enrollment request:', approveError)
+      throw createError({
+        statusCode: 500,
+        message: approveError.message || 'Failed to approve enrollment request',
       })
+    }
 
+    // Extract result details
+    const resultData = result as any
+
+    if (resultData.action === 'waitlisted') {
       return {
+        success: true,
         message: 'Class is full. Request approved and student added to waitlist.',
-        enrollmentRequest: updatedRequest,
         waitlisted: true,
+        waitlistPosition: resultData.waitlist_position,
+        result: resultData,
       }
     }
 
-    // Create the actual enrollment
-    const { data: enrollment, error: enrollmentError } = await client
-      .from('enrollments')
-      .insert({
-        student_id: enrollmentRequest.student_id,
-        class_instance_id: enrollmentRequest.class_instance_id,
-        status: 'active',
-        enrolled_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
-
-    if (enrollmentError) {
-      // If enrollment creation fails, don't update the request status
-      throw enrollmentError
-    }
-
-    // Update request to approved
-    const { data: updatedRequest, error: updateError } = await client
-      .from('enrollment_requests')
-      .update({
-        status: 'approved',
-        processed_at: new Date().toISOString(),
-        processed_by: user.id,
-        admin_notes,
-      })
-      .eq('id', requestId)
-      .select()
-      .single()
-
-    if (updateError) {
-      // If request update fails, delete the enrollment we just created
-      await client.from('enrollments').delete().eq('id', enrollment.id)
-      throw updateError
-    }
-
-    // Create notification for parent
-    await client.from('enrollment_notifications').insert({
-      enrollment_request_id: requestId,
-      guardian_id: enrollmentRequest.guardian_id,
-      notification_type: 'approved',
-      subject: 'Enrollment Request Approved!',
-      message: `Great news! The enrollment request for ${student?.first_name} ${student?.last_name} in ${classInstance?.name} has been approved. ${student?.first_name} is now enrolled in the class!`,
-      metadata: {
-        student_name: `${student?.first_name} ${student?.last_name}`,
-        class_name: classInstance?.name,
-        enrollment_id: enrollment.id,
-        processed_by: `${profile.first_name} ${profile.last_name}`,
-      },
-    })
-
     return {
+      success: true,
       message: 'Enrollment request approved and student enrolled successfully',
-      enrollmentRequest: updatedRequest,
-      enrollment,
       waitlisted: false,
+      enrollmentId: resultData.enrollment_id,
+      result: resultData,
     }
   } catch (error: any) {
     console.error('Error processing enrollment request:', error)
 
+    // Re-throw createError errors directly
     if (error.statusCode) {
       throw error
     }

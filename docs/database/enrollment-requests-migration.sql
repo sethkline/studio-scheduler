@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS enrollment_requests (
     has_schedule_conflict BOOLEAN DEFAULT false,
     conflict_details JSONB, -- Details of detected conflicts
 
+    -- Waitlist management
+    waitlist_position INTEGER, -- Position in waitlist (NULL if not waitlisted)
+
     -- Metadata
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -47,6 +50,8 @@ CREATE INDEX idx_enrollment_requests_class ON enrollment_requests(class_instance
 CREATE INDEX idx_enrollment_requests_guardian ON enrollment_requests(guardian_id);
 CREATE INDEX idx_enrollment_requests_status ON enrollment_requests(status);
 CREATE INDEX idx_enrollment_requests_requested_at ON enrollment_requests(requested_at DESC);
+CREATE INDEX idx_enrollment_requests_waitlist ON enrollment_requests(class_instance_id, waitlist_position)
+    WHERE status = 'waitlist';
 
 -- ============================================================================
 -- ENROLLMENT HISTORY TABLE
