@@ -2,9 +2,13 @@
 // Get single choreography note with formations and version history
 
 import { getSupabaseClient } from '../../utils/supabase'
+import { requireRole } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // Require authentication and role (teacher, staff, or admin)
+    // RLS policies will further restrict access to only owned resources
+    await requireRole(event, ['teacher', 'staff', 'admin'])
     const client = getSupabaseClient()
     const id = getRouterParam(event, 'id')
 

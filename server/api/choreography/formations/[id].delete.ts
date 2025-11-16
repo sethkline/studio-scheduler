@@ -2,9 +2,12 @@
 // Delete formation
 
 import { getSupabaseClient } from '../../../utils/supabase'
+import { requireRole, requireChoreographyNoteAccess } from '../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // Require authentication and role (teacher, staff, or admin)
+    await requireRole(event, ['teacher', 'staff', 'admin'])
     const client = getSupabaseClient()
     const id = getRouterParam(event, 'id')
 
@@ -14,6 +17,23 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Formation ID is required'
       })
     }
+
+    // Fetch existing formation to get choreography note ID
+    const { data: existingFormation, error: fetchError } = await client
+      .from('choreography_formations')
+      .select('choreography_note_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (fetchError || !existingFormation) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Formation not found'
+      })
+    }
+
+    // Verify user has access to the choreography note
+    await requireChoreographyNoteAccess(event, existingFormation.choreography_note_id)
 
     const { error } = await client
       .from('choreography_formations')

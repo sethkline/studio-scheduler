@@ -2,9 +2,12 @@
 // Create new choreography note
 
 import { getSupabaseClient } from '../../utils/supabase'
+import { requireRole, requireTeacherAccess, verifyClassInstance } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // Require authentication and role (teacher, staff, or admin)
+    const profile = await requireRole(event, ['teacher', 'staff', 'admin'])
     const client = getSupabaseClient()
     const body = await readBody(event)
 
@@ -16,14 +19,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get current user ID from auth
-    const authHeader = getHeader(event, 'authorization')
-    let userId = null
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '')
-      const { data: { user } } = await client.auth.getUser(token)
-      userId = user?.id
-    }
+    // Verify class instance exists
+    await verifyClassInstance(body.class_instance_id)
+
+    // Verify user has permission to create choreography for this teacher
+    // Teachers can only create for themselves, staff/admin can create for anyone
+    await requireTeacherAccess(event, body.teacher_id)
 
     const choreographyData = {
       class_instance_id: body.class_instance_id,
@@ -35,8 +36,8 @@ export default defineEventHandler(async (event) => {
       music_artist: body.music_artist || null,
       music_link: body.music_link || null,
       counts_notation: body.counts_notation || null,
-      created_by: userId,
-      updated_by: userId
+      created_by: profile.user_id,
+      updated_by: profile.user_id
     }
 
     const { data, error } = await client

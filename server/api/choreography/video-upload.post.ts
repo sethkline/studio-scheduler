@@ -2,9 +2,12 @@
 // Upload choreography video to Supabase Storage
 
 import { getSupabaseClient } from '../../utils/supabase'
+import { requireRole, requireChoreographyNoteAccess } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // Require authentication and role (teacher, staff, or admin)
+    await requireRole(event, ['teacher', 'staff', 'admin'])
     const client = getSupabaseClient()
     const formData = await readMultipartFormData(event)
 
@@ -32,6 +35,9 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Choreography ID is required'
       })
     }
+
+    // Verify user has access to this choreography note
+    await requireChoreographyNoteAccess(event, choreographyId)
 
     // Validate file type (videos only)
     const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm']

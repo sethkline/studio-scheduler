@@ -2,9 +2,12 @@
 // Create new formation for a choreography note
 
 import { getSupabaseClient } from '../../../utils/supabase'
+import { requireRole, requireChoreographyNoteAccess } from '../../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // Require authentication and role (teacher, staff, or admin)
+    await requireRole(event, ['teacher', 'staff', 'admin'])
     const client = getSupabaseClient()
     const body = await readBody(event)
 
@@ -15,6 +18,9 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Missing required fields: choreography_note_id, formation_name'
       })
     }
+
+    // Verify user has access to the choreography note
+    await requireChoreographyNoteAccess(event, body.choreography_note_id)
 
     const formationData = {
       choreography_note_id: body.choreography_note_id,

@@ -2,9 +2,12 @@
 // Update choreography note (version history is automatically created via trigger)
 
 import { getSupabaseClient } from '../../utils/supabase'
+import { requireRole } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // Require authentication and role (teacher, staff, or admin)
+    const profile = await requireRole(event, ['teacher', 'staff', 'admin'])
     const client = getSupabaseClient()
     const id = getRouterParam(event, 'id')
     const body = await readBody(event)
@@ -16,18 +19,40 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get current user ID from auth
-    const authHeader = getHeader(event, 'authorization')
-    let userId = null
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '')
-      const { data: { user } } = await client.auth.getUser(token)
-      userId = user?.id
+    // Fetch existing choreography note to verify ownership
+    const { data: existingNote, error: fetchError } = await client
+      .from('choreography_notes')
+      .select('teacher_id')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !existingNote) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Choreography note not found'
+      })
+    }
+
+    // Verify user has permission to update this choreography note
+    // Teachers can only update their own, staff/admin can update any
+    if (profile.user_role === 'teacher') {
+      const { data: teacher } = await client
+        .from('teachers')
+        .select('id')
+        .eq('user_id', profile.user_id)
+        .maybeSingle()
+
+      if (!teacher || teacher.id !== existingNote.teacher_id) {
+        throw createError({
+          statusCode: 403,
+          statusMessage: 'Forbidden - You can only update your own choreography notes'
+        })
+      }
     }
 
     // Build update object with only provided fields
     const updateData: any = {
-      updated_by: userId
+      updated_by: profile.user_id
     }
 
     if (body.title !== undefined) updateData.title = body.title
