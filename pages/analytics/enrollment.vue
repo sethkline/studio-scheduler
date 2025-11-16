@@ -225,7 +225,7 @@ async function loadEnrollmentData() {
 
 function handleDateRangeChange(newRange: any) {
   dateRange.value = newRange
-  loadRevenueData()
+  loadEnrollmentData()
 }
 
 function handleExport(format: string) {

@@ -250,11 +250,13 @@ const trendDatasets = computed(() => [
   }
 ])
 
-const sourceLabels = computed(() => ['Ticket Sales', 'Tuition', 'Other'])
+const sourceLabels = computed(() => ['Ticket Sales', 'Tuition', 'Merchandise', 'Recital Fees', 'Other'])
 
 const sourceData = computed(() => [
   revenueData.value?.revenueBySource?.tickets / 100 || 0,
   revenueData.value?.revenueBySource?.tuition / 100 || 0,
+  revenueData.value?.revenueBySource?.merchandise / 100 || 0,
+  revenueData.value?.revenueBySource?.recitalFee / 100 || 0,
   revenueData.value?.revenueBySource?.other / 100 || 0
 ])
 
@@ -265,7 +267,7 @@ const topClassLabels = computed(() => {
 const topClassDatasets = computed(() => [
   {
     label: 'Revenue',
-    data: revenueData.value?.topClasses?.map((c: any) => c.revenue / 100) || []
+    data: revenueData.value?.topClasses?.map((c: any) => (c.revenue || 0) / 100) || []
   }
 ])
 
