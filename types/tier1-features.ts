@@ -761,23 +761,116 @@ export interface BulkUploadInput {
 }
 
 // ============================================================
-// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 6)
+// PERFORMER CONFIRMATION (Tier 1 Feature #3)
 // ============================================================
 
-export type ConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'expired'
+export type ConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'waitlist'
+export type OptOutCategory = 'schedule_conflict' | 'cost' | 'injury' | 'other'
+export type EligibilityRuleType = 'attendance' | 'payment' | 'age' | 'enrollment' | 'custom'
+export type ParticipationRequestType = 'initial' | 'reminder' | 'final_notice'
 
-export interface PerformerConfirmation {
+export interface RecitalPerformerConfirmation {
   id: string
+  recital_id: string
   student_id: string
-  recital_show_id: string
+  recital_performance_id: string
+  guardian_id?: string
   status: ConfirmationStatus
-  confirmed_at?: string
-  declined_at?: string
-  confirmed_by_guardian_id?: string
-  confirmation_code?: string
+  confirmation_date?: string
+  decline_reason?: string
+  opt_out_category?: OptOutCategory
   notes?: string
+  reminder_sent_count: number
+  last_reminder_sent?: string
+  confirmation_deadline?: string
+  is_eligible: boolean
+  eligibility_notes?: string
   created_at: string
   updated_at: string
+  // Related data (joined)
+  student?: any
+  guardian?: any
+  performance?: any
+}
+
+export interface RecitalEligibilityRule {
+  id: string
+  recital_id: string
+  rule_name: string
+  rule_type: EligibilityRuleType
+  description?: string
+  is_active: boolean
+  is_blocking: boolean
+  configuration: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface RecitalParticipationRequest {
+  id: string
+  recital_id: string
+  student_id: string
+  guardian_id?: string
+  request_type: ParticipationRequestType
+  sent_via: 'email' | 'sms' | 'portal'
+  sent_at: string
+  opened_at?: string
+  clicked_at?: string
+  responded_at?: string
+  created_at: string
+}
+
+export interface ConfirmationStatusSummary {
+  total_performers: number
+  confirmed: number
+  declined: number
+  pending: number
+  confirmation_rate: number
+  deadline?: string
+  days_until_deadline?: number
+}
+
+export interface ConfirmationStatusByClass {
+  class_name: string
+  total: number
+  confirmed: number
+  pending: number
+  declined: number
+}
+
+export interface ConfirmationStatusByPerformance {
+  performance_id: string
+  performance_name: string
+  confirmed_count: number
+  pending_count: number
+}
+
+export interface PendingConfirmation {
+  student_id: string
+  student_name: string
+  guardian_name?: string
+  guardian_email?: string
+  performances: string[]
+  reminders_sent: number
+  last_reminder?: string
+}
+
+export interface PerformerConfirmationOverview {
+  summary: ConfirmationStatusSummary
+  by_class: ConfirmationStatusByClass[]
+  by_performance: ConfirmationStatusByPerformance[]
+  pending_confirmations: PendingConfirmation[]
+}
+
+export interface EligibilityCheckResult {
+  eligible: number
+  ineligible: number
+  details: {
+    student_id: string
+    student_name: string
+    class_name: string
+    reason: string
+  }[]
 }
 
 // ============================================================
