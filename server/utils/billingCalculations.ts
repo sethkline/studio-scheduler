@@ -1,9 +1,8 @@
 /**
  * Billing Calculation Utilities
- * Core logic for calculating tuition, discounts, and generating invoices
+ * UPDATED: Integrates with unified payment system
+ * Uses: tuition_invoices, payment_transactions, payment_plans
  */
-
-import type { Database } from '~/types/supabase'
 
 interface EnrollmentWithClass {
   id: string
@@ -25,34 +24,13 @@ interface TuitionPlan {
   id: string
   name: string
   plan_type: 'per_class' | 'monthly' | 'semester' | 'annual'
-  base_price: number
-  registration_fee: number
-  costume_fee: number
-  recital_fee: number
+  base_price_in_cents: number
+  registration_fee_in_cents: number
+  costume_fee_in_cents: number
+  recital_fee_in_cents: number
   class_definition_id: string | null
   class_level_id: string | null
   dance_style_id: string | null
-}
-
-interface PricingRule {
-  id: string
-  name: string
-  discount_type: 'percentage' | 'fixed_amount'
-  discount_scope: string
-  discount_percentage: number | null
-  discount_amount: number | null
-  min_classes: number
-  applies_to_class_number: number | null
-  requires_sibling: boolean
-}
-
-interface FamilyDiscount {
-  id: string
-  student_id: string
-  pricing_rule: PricingRule
-  is_scholarship: boolean
-  scholarship_amount: number | null
-  scholarship_percentage: number | null
 }
 
 interface LineItem {
@@ -76,6 +54,7 @@ interface BillingCalculationResult {
 
 /**
  * Calculate monthly tuition for a student
+ * UPDATED: Uses unified payment system tables
  */
 export async function calculateStudentMonthlyTuition(
   studentId: string,
@@ -141,8 +120,8 @@ export async function calculateStudentMonthlyTuition(
     lineItems.push({
       description: `${enrollment.class_instance.class_definition.name} - Monthly Tuition`,
       quantity: 1,
-      unit_price_in_cents: Math.round(tuitionPlan.base_price * 100),
-      amount_in_cents: Math.round(tuitionPlan.base_price * 100),
+      unit_price_in_cents: tuitionPlan.base_price_in_cents,
+      amount_in_cents: tuitionPlan.base_price_in_cents,
       enrollment_id: enrollment.id,
       tuition_plan_id: tuitionPlan.id,
       discount_amount_in_cents: 0,
@@ -172,6 +151,7 @@ export async function calculateStudentMonthlyTuition(
 
 /**
  * Apply all applicable discounts to line items
+ * UPDATED: Uses pricing_rules and family_discounts tables
  */
 async function applyDiscounts(
   studentId: string,
@@ -186,14 +166,19 @@ async function applyDiscounts(
   const appliedDiscounts: string[] = []
   const updatedLineItems = [...lineItems]
 
-  // Get student's parent to check for siblings
-  const { data: student } = await client
+  // Get student's guardian to check for siblings
+  const { data: studentData } = await client
     .from('students')
-    .select('id, parent_id')
+    .select(`
+      id,
+      student_guardian_relationships!inner(
+        guardian:guardians!inner(id)
+      )
+    `)
     .eq('id', studentId)
     .single()
 
-  if (!student) {
+  if (!studentData || !studentData.student_guardian_relationships?.[0]?.guardian) {
     return {
       lineItemsWithDiscounts: updatedLineItems,
       totalDiscountInCents: 0,
@@ -201,7 +186,7 @@ async function applyDiscounts(
     }
   }
 
-  const parentId = student.parent_id
+  const guardianId = studentData.student_guardian_relationships[0].guardian.id
 
   // 1. Apply multi-class discount (if multiple classes)
   if (lineItems.length > 1) {
@@ -224,11 +209,13 @@ async function applyDiscounts(
           const discountAmount =
             multiClassRule.discount_type === 'percentage'
               ? Math.round((item.unit_price_in_cents * (multiClassRule.discount_percentage || 0)) / 100)
-              : Math.round((multiClassRule.discount_amount || 0) * 100)
+              : (multiClassRule.discount_amount_in_cents || 0)
 
           item.discount_amount_in_cents = Math.max(item.discount_amount_in_cents, discountAmount)
           item.discount_description = multiClassRule.name
-          appliedDiscounts.push(multiClassRule.name)
+          if (!appliedDiscounts.includes(multiClassRule.name)) {
+            appliedDiscounts.push(multiClassRule.name)
+          }
         }
       })
     }
@@ -236,10 +223,10 @@ async function applyDiscounts(
 
   // 2. Apply sibling discount (if multiple students in family)
   const { data: siblings } = await client
-    .from('students')
-    .select('id')
-    .eq('parent_id', parentId)
-    .neq('id', studentId)
+    .from('student_guardian_relationships')
+    .select('student_id')
+    .eq('guardian_id', guardianId)
+    .neq('student_id', studentId)
 
   if (siblings && siblings.length > 0) {
     const { data: siblingRule } = await client
@@ -254,11 +241,11 @@ async function applyDiscounts(
 
     if (siblingRule) {
       // Apply sibling discount to all classes (take highest discount)
-      updatedLineItems.forEach((item, index) => {
+      updatedLineItems.forEach((item) => {
         const discountAmount =
           siblingRule.discount_type === 'percentage'
             ? Math.round((item.unit_price_in_cents * (siblingRule.discount_percentage || 0)) / 100)
-            : Math.round((siblingRule.discount_amount || 0) * 100)
+            : (siblingRule.discount_amount_in_cents || 0)
 
         if (discountAmount > item.discount_amount_in_cents) {
           item.discount_amount_in_cents = discountAmount
@@ -292,8 +279,8 @@ async function applyDiscounts(
           // Apply scholarship
           if (discount.scholarship_percentage) {
             discountAmount = Math.round((item.unit_price_in_cents * discount.scholarship_percentage) / 100)
-          } else if (discount.scholarship_amount) {
-            discountAmount = Math.round(discount.scholarship_amount * 100)
+          } else if (discount.scholarship_amount_in_cents) {
+            discountAmount = discount.scholarship_amount_in_cents
           }
 
           // Scholarships stack with other discounts
@@ -311,7 +298,7 @@ async function applyDiscounts(
           discountAmount =
             discount.pricing_rule.discount_type === 'percentage'
               ? Math.round((item.unit_price_in_cents * (discount.pricing_rule.discount_percentage || 0)) / 100)
-              : Math.round((discount.pricing_rule.discount_amount || 0) * 100)
+              : (discount.pricing_rule.discount_amount_in_cents || 0)
 
           if (discountAmount > item.discount_amount_in_cents) {
             item.discount_amount_in_cents = discountAmount
@@ -335,30 +322,31 @@ async function applyDiscounts(
 }
 
 /**
- * Calculate monthly tuition for a family (all students under a parent)
+ * Calculate monthly tuition for a family (all students under a guardian)
+ * UPDATED: Uses guardian-student relationships
  */
 export async function calculateFamilyMonthlyTuition(
-  parentUserId: string,
+  guardianId: string,
   billingDate: string
 ): Promise<{
   [studentId: string]: BillingCalculationResult
 }> {
   const client = getSupabaseClient()
 
-  // Get all students for this parent
-  const { data: students, error } = await client
-    .from('students')
-    .select('id')
-    .eq('parent_id', parentUserId)
+  // Get all students for this guardian
+  const { data: relationships, error } = await client
+    .from('student_guardian_relationships')
+    .select('student_id')
+    .eq('guardian_id', guardianId)
 
-  if (error || !students || students.length === 0) {
+  if (error || !relationships || relationships.length === 0) {
     return {}
   }
 
   const results: { [studentId: string]: BillingCalculationResult } = {}
 
-  for (const student of students) {
-    results[student.id] = await calculateStudentMonthlyTuition(student.id, billingDate)
+  for (const rel of relationships) {
+    results[rel.student_id] = await calculateStudentMonthlyTuition(rel.student_id, billingDate)
   }
 
   return results
@@ -375,9 +363,8 @@ export async function generateInvoiceNumber(): Promise<string> {
 
   // Get the count of tuition invoices for this month
   const { count, error } = await client
-    .from('ticket_orders')
+    .from('tuition_invoices')
     .select('*', { count: 'exact', head: true })
-    .eq('order_type', 'tuition')
     .like('invoice_number', `INV-${yearMonth}-%`)
 
   if (error) {

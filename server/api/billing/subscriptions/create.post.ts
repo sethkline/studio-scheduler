@@ -1,6 +1,7 @@
 /**
  * POST /api/billing/subscriptions/create
  * Create a Stripe Subscription for recurring monthly tuition billing
+ * UPDATED: Uses unified payment system with payment_plans and guardian relationships
  */
 
 import Stripe from 'stripe'
@@ -36,27 +37,50 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Verify student belongs to parent
+    // Verify student and get guardian relationship
     const { data: student, error: studentError } = await client
       .from('students')
-      .select('id, first_name, last_name, parent_id')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        student_guardian_relationships!inner(
+          guardian:guardians!inner(
+            id,
+            user_id
+          )
+        )
+      `)
       .eq('id', body.student_id)
-      .eq('parent_id', user.id)
       .single()
 
     if (studentError || !student) {
       throw createError({
         statusCode: 404,
-        message: 'Student not found or does not belong to this parent',
+        message: 'Student not found',
       })
     }
+
+    // Verify user is the guardian
+    const guardianRelationship = student.student_guardian_relationships?.find(
+      (rel: any) => rel.guardian.user_id === user.id
+    )
+
+    if (!guardianRelationship) {
+      throw createError({
+        statusCode: 403,
+        message: 'You are not authorized to manage this student',
+      })
+    }
+
+    const guardianId = guardianRelationship.guardian.id
 
     // Get payment method
     const { data: paymentMethod, error: pmError } = await client
       .from('payment_methods')
       .select('*')
       .eq('id', body.payment_method_id)
-      .eq('parent_user_id', user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (pmError || !paymentMethod) {
@@ -175,40 +199,43 @@ export default defineEventHandler(async (event) => {
       },
     })
 
-    // Create or update billing schedule
-    const { data: existingSchedule } = await client
-      .from('billing_schedules')
+    // Create payment plan for recurring tuition
+    const { data: existingPlan } = await client
+      .from('payment_plans')
       .select('id')
-      .eq('parent_user_id', user.id)
+      .eq('guardian_id', guardianId)
       .eq('student_id', student.id)
+      .eq('plan_type', 'tuition')
+      .eq('status', 'active')
       .single()
 
-    const scheduleData = {
-      parent_user_id: user.id,
+    const planData = {
+      guardian_id: guardianId,
       student_id: student.id,
-      payment_method_id: paymentMethod.id,
+      plan_type: 'tuition' as const,
+      total_amount_in_cents: monthlyAmountInCents,
+      frequency: 'monthly' as const,
+      installment_amount_in_cents: monthlyAmountInCents,
       stripe_subscription_id: subscription.id,
       stripe_price_id: price.id,
-      is_active: true,
-      billing_day: billingDay,
+      payment_method_id: paymentMethod.id,
+      status: 'active' as const,
+      start_date: anchorDate.toISOString().split('T')[0],
+      next_payment_date: anchorDate.toISOString().split('T')[0],
       autopay_discount_percentage: autopayDiscount,
-      next_billing_date: anchorDate.toISOString().split('T')[0],
-      retry_count: 0,
-      last_failure_date: null,
-      last_failure_reason: null,
     }
 
-    if (existingSchedule) {
-      // Update existing schedule
+    if (existingPlan) {
+      // Update existing plan
       await client
-        .from('billing_schedules')
-        .update(scheduleData)
-        .eq('id', existingSchedule.id)
+        .from('payment_plans')
+        .update(planData)
+        .eq('id', existingPlan.id)
     } else {
-      // Create new schedule
+      // Create new plan
       await client
-        .from('billing_schedules')
-        .insert(scheduleData)
+        .from('payment_plans')
+        .insert(planData)
     }
 
     // Update payment method to mark as autopay enabled

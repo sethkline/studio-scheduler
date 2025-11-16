@@ -1,7 +1,7 @@
 /**
- * POST /api/billing/jobs/generate-monthly-invoices
+ * POST /api/billing/jobs/generate-monthly-invoices-v2
  * Generate monthly tuition invoices for all families with active enrollments
- * REVISED: Uses enrollment-based calculation and integrates with ticket_orders
+ * UPDATED: Uses unified payment system (tuition_invoices) and guardian relationships
  */
 
 import { calculateFamilyMonthlyTuition, generateInvoiceNumber } from '~/server/utils/billingCalculations'
@@ -27,15 +27,20 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Get all unique parents with active enrollments
+    // Get all unique guardians with active enrollments
     const { data: activeEnrollments, error: enrollmentsError } = await client
       .from('enrollments')
       .select(`
         student:students!inner(
           id,
-          parent_id,
           first_name,
-          last_name
+          last_name,
+          student_guardian_relationships!inner(
+            guardian:guardians!inner(
+              id,
+              user_id
+            )
+          )
         )
       `)
       .eq('status', 'active')
@@ -51,37 +56,48 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Get unique parent IDs
-    const parentIds = new Set<string>()
+    // Get unique guardian IDs
+    const guardianIds = new Set<string>()
     activeEnrollments.forEach((enrollment: any) => {
-      if (enrollment.student?.parent_id) {
-        parentIds.add(enrollment.student.parent_id)
+      const relationships = enrollment.student?.student_guardian_relationships
+      if (relationships && relationships.length > 0) {
+        guardianIds.add(relationships[0].guardian.id)
       }
     })
 
     // Process each family
-    for (const parentId of parentIds) {
+    for (const guardianId of guardianIds) {
       try {
         results.families_processed++
 
-        // Get parent profile
-        const { data: parent } = await client
-          .from('profiles')
-          .select('user_id, full_name, email')
-          .eq('user_id', parentId)
+        // Get guardian with user profile
+        const { data: guardian } = await client
+          .from('guardians')
+          .select(`
+            id,
+            user_id,
+            profile:profiles!inner(
+              user_id,
+              full_name,
+              email
+            )
+          `)
+          .eq('id', guardianId)
           .single()
 
-        if (!parent) {
+        if (!guardian || !guardian.profile) {
           results.errors.push({
-            parent_id: parentId,
-            error: 'Parent profile not found',
+            guardian_id: guardianId,
+            error: 'Guardian profile not found',
           })
           results.invoices_failed++
           continue
         }
 
+        const profile = guardian.profile
+
         // Calculate tuition for all students in family
-        const familyTuition = await calculateFamilyMonthlyTuition(parentId, billingDate)
+        const familyTuition = await calculateFamilyMonthlyTuition(guardianId, billingDate)
 
         // Combine all line items from all students
         const allLineItems: any[] = []
@@ -103,7 +119,7 @@ export default defineEventHandler(async (event) => {
 
         if (allLineItems.length === 0) {
           results.errors.push({
-            parent_id: parentId,
+            guardian_id: guardianId,
             error: 'No billable items found',
           })
           results.invoices_failed++
@@ -112,7 +128,7 @@ export default defineEventHandler(async (event) => {
 
         if (dryRun) {
           console.log('DRY RUN - Would create invoice:', {
-            parent: parent.full_name,
+            guardian: profile.full_name,
             line_items: allLineItems.length,
             subtotal_in_cents: allLineItems.reduce((sum, item) => sum + item.amount_in_cents, 0),
             discount_total_in_cents: familyDiscountInCents,
@@ -130,18 +146,20 @@ export default defineEventHandler(async (event) => {
         const dueDate = new Date(billingDate)
         dueDate.setDate(dueDate.getDate() + 14) // Due in 14 days
 
-        // Create invoice (using ticket_orders table with order_type='tuition')
+        // Create tuition invoice (using unified payment system)
         const { data: invoice, error: invoiceError } = await client
-          .from('ticket_orders')
+          .from('tuition_invoices')
           .insert({
-            order_type: 'tuition',
-            parent_user_id: parentId,
+            guardian_id: guardianId,
             invoice_number: invoiceNumber,
-            customer_name: parent.full_name,
-            email: parent.email,
-            total_amount_in_cents: familyTotalInCents,
-            payment_status: 'pending',
+            invoice_date: issueDate,
             due_date: dueDate.toISOString().split('T')[0],
+            subtotal_in_cents: allLineItems.reduce((sum, item) => sum + item.amount_in_cents, 0),
+            discount_total_in_cents: familyDiscountInCents,
+            tax_total_in_cents: 0,
+            total_amount_in_cents: familyTotalInCents,
+            amount_paid_in_cents: 0,
+            status: 'pending',
             notes: `Monthly tuition invoice - ${appliedDiscounts.length > 0 ? 'Discounts applied: ' + appliedDiscounts.join(', ') : 'No discounts'}`,
           })
           .select()
@@ -149,7 +167,7 @@ export default defineEventHandler(async (event) => {
 
         if (invoiceError) {
           results.errors.push({
-            parent_id: parentId,
+            guardian_id: guardianId,
             error: `Failed to create invoice: ${invoiceError.message}`,
           })
           results.invoices_failed++
@@ -158,7 +176,7 @@ export default defineEventHandler(async (event) => {
 
         // Create line items
         const lineItemsData = allLineItems.map((item) => ({
-          order_id: invoice.id,
+          invoice_id: invoice.id,
           description: item.description,
           quantity: item.quantity,
           unit_price_in_cents: item.unit_price_in_cents,
@@ -170,14 +188,14 @@ export default defineEventHandler(async (event) => {
         }))
 
         const { error: lineItemsError } = await client
-          .from('order_line_items')
+          .from('tuition_invoice_line_items')
           .insert(lineItemsData)
 
         if (lineItemsError) {
           // Rollback: delete the invoice if line items fail
-          await client.from('ticket_orders').delete().eq('id', invoice.id)
+          await client.from('tuition_invoices').delete().eq('id', invoice.id)
           results.errors.push({
-            parent_id: parentId,
+            guardian_id: guardianId,
             error: `Failed to create line items: ${lineItemsError.message}`,
           })
           results.invoices_failed++
@@ -191,8 +209,8 @@ export default defineEventHandler(async (event) => {
               ...invoice,
               line_items: lineItemsData,
             },
-            parentEmail: parent.email,
-            parentName: parent.full_name,
+            parentEmail: profile.email,
+            parentName: profile.full_name,
           })
         } catch (emailError) {
           console.error('Failed to send invoice email:', emailError)
@@ -204,7 +222,7 @@ export default defineEventHandler(async (event) => {
 
       } catch (error: any) {
         results.errors.push({
-          parent_id: parentId,
+          guardian_id: guardianId,
           error: error.message,
         })
         results.invoices_failed++

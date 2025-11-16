@@ -2,6 +2,8 @@
  * POST /api/webhooks/stripe
  * Handle Stripe webhook events for subscriptions and payments
  *
+ * UPDATED: Uses unified payment system (tuition_invoices, payment_transactions)
+ *
  * SECURITY FEATURES:
  * - Webhook signature verification
  * - Idempotency checks to prevent duplicate processing
@@ -89,7 +91,8 @@ export default defineEventHandler(async (event) => {
 
 /**
  * Handle successful invoice payment (from subscription)
- * IDEMPOTENT: Checks for existing order by payment_intent_id
+ * IDEMPOTENT: Checks for existing payment_transaction by stripe_payment_intent_id
+ * UPDATED: Uses payment_plans and payment_transactions from unified system
  */
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const client = getSupabaseClient()
@@ -107,105 +110,108 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   }
 
   // IDEMPOTENCY CHECK: Check if we already processed this payment
-  const { data: existingOrder } = await client
-    .from('ticket_orders')
-    .select('id, invoice_number')
-    .eq('payment_intent_id', paymentIntentId)
-    .eq('order_type', 'tuition')
+  const { data: existingTransaction } = await client
+    .from('payment_transactions')
+    .select('id, confirmation_number')
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .eq('transaction_type', 'tuition')
     .single()
 
-  if (existingOrder) {
-    console.log(`Payment already processed for payment_intent ${paymentIntentId}, order ${existingOrder.invoice_number}`)
+  if (existingTransaction) {
+    console.log(`Payment already processed for payment_intent ${paymentIntentId}, transaction ${existingTransaction.confirmation_number}`)
     return // Already processed, skip
   }
 
-  // Find billing schedule by subscription ID
-  const { data: schedule } = await client
-    .from('billing_schedules')
-    .select('*')
+  // Find payment plan by subscription ID
+  const { data: paymentPlan } = await client
+    .from('payment_plans')
+    .select(`
+      *,
+      guardian:guardians!inner(
+        id,
+        user_id,
+        profile:profiles!inner(
+          user_id,
+          full_name,
+          email
+        )
+      )
+    `)
     .eq('stripe_subscription_id', subscriptionId)
+    .eq('plan_type', 'tuition')
     .single()
 
-  if (!schedule) {
-    console.error('Billing schedule not found for subscription:', subscriptionId)
+  if (!paymentPlan) {
+    console.error('Payment plan not found for subscription:', subscriptionId)
     return
   }
 
-  // Get parent details
-  const { data: parent } = await client
-    .from('profiles')
-    .select('full_name, email')
-    .eq('user_id', schedule.parent_user_id)
-    .single()
+  const guardian = paymentPlan.guardian
+  const profile = guardian.profile
 
-  if (!parent) {
-    console.error('Parent profile not found:', schedule.parent_user_id)
-    return
-  }
-
-  // Generate invoice number
+  // Generate invoice number (confirmation number)
   const { generateInvoiceNumber } = await import('~/server/utils/billingCalculations')
-  const invoiceNumber = await generateInvoiceNumber()
+  const confirmationNumber = await generateInvoiceNumber()
 
-  // Create order record for this payment
-  const { data: order, error: orderError } = await client
-    .from('ticket_orders')
+  // Create payment transaction record
+  const { data: transaction, error: transactionError } = await client
+    .from('payment_transactions')
     .insert({
-      order_type: 'tuition',
-      parent_user_id: schedule.parent_user_id,
-      student_id: schedule.student_id,
-      invoice_number: invoiceNumber,
-      customer_name: parent.full_name || '',
-      email: parent.email || '',
-      total_amount_in_cents: invoice.amount_paid,
-      payment_status: 'completed',
-      payment_intent_id: paymentIntentId,
+      transaction_type: 'tuition',
+      guardian_id: guardian.id,
+      student_id: paymentPlan.student_id,
+      amount_in_cents: invoice.amount_paid,
       payment_method: invoice.default_payment_method as string || null,
-      notes: `Auto-pay subscription payment${schedule.autopay_discount_percentage > 0 ? ` - ${schedule.autopay_discount_percentage}% discount applied` : ''}`,
+      stripe_payment_intent_id: paymentIntentId,
+      status: 'completed',
+      confirmation_number: confirmationNumber,
+      notes: `Auto-pay subscription payment${paymentPlan.autopay_discount_percentage > 0 ? ` - ${paymentPlan.autopay_discount_percentage}% discount applied` : ''}`,
     })
     .select()
     .single()
 
-  if (orderError) {
-    console.error('Failed to create order:', orderError)
+  if (transactionError) {
+    console.error('Failed to create payment transaction:', transactionError)
     return
   }
 
-  // Update billing schedule
-  await client
-    .from('billing_schedules')
-    .update({
-      last_billing_date: new Date().toISOString().split('T')[0],
-      retry_count: 0,
-      last_failure_date: null,
-      last_failure_reason: null,
-    })
-    .eq('id', schedule.id)
+  // Update payment plan's next payment date
+  const nextPaymentDate = new Date()
+  nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1)
 
-  // Send receipt email (idempotent - only if order was just created)
+  await client
+    .from('payment_plans')
+    .update({
+      next_payment_date: nextPaymentDate.toISOString().split('T')[0],
+      last_payment_date: new Date().toISOString().split('T')[0],
+    })
+    .eq('id', paymentPlan.id)
+
+  // Send receipt email (idempotent - only if transaction was just created)
   const { sendPaymentReceiptEmail } = await import('~/server/utils/emailTemplates')
   try {
     await sendPaymentReceiptEmail({
       payment: {
         amount: invoice.amount_paid / 100,
-        confirmation_number: invoiceNumber,
+        confirmation_number: confirmationNumber,
         payment_date: new Date().toISOString(),
       },
-      invoice: order,
-      parentEmail: parent.email || '',
-      parentName: parent.full_name || '',
+      invoice: transaction,
+      parentEmail: profile.email || '',
+      parentName: profile.full_name || '',
     })
   } catch (emailError) {
     console.error('Failed to send receipt email:', emailError)
     // Don't fail webhook processing if email fails
   }
 
-  console.log(`Successfully processed invoice.paid for subscription ${subscriptionId}, order ${invoiceNumber}`)
+  console.log(`Successfully processed invoice.paid for subscription ${subscriptionId}, transaction ${confirmationNumber}`)
 }
 
 /**
  * Handle failed invoice payment (from subscription)
  * IDEMPOTENT: Uses update operations, safe for retries
+ * UPDATED: Uses payment_plans from unified system
  */
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const client = getSupabaseClient()
@@ -216,66 +222,69 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     return
   }
 
-  // Find billing schedule
-  const { data: schedule } = await client
-    .from('billing_schedules')
+  // Find payment plan
+  const { data: paymentPlan } = await client
+    .from('payment_plans')
     .select('*')
     .eq('stripe_subscription_id', subscriptionId)
+    .eq('plan_type', 'tuition')
     .single()
 
-  if (!schedule) {
-    console.error('Billing schedule not found for subscription:', subscriptionId)
+  if (!paymentPlan) {
+    console.error('Payment plan not found for subscription:', subscriptionId)
     return
   }
 
-  // Update retry count (idempotent - just sets current state)
-  const newRetryCount = schedule.retry_count + 1
+  // Update payment plan with failure information
   const maxRetries = 3
+  const currentRetries = (paymentPlan.retry_count || 0) + 1
 
   await client
-    .from('billing_schedules')
+    .from('payment_plans')
     .update({
-      retry_count: newRetryCount,
+      retry_count: currentRetries,
       last_failure_date: new Date().toISOString(),
       last_failure_reason: invoice.last_finalization_error?.message || 'Payment failed',
-      is_active: newRetryCount >= maxRetries ? false : schedule.is_active,
+      status: currentRetries >= maxRetries ? 'suspended' : paymentPlan.status,
     })
-    .eq('id', schedule.id)
+    .eq('id', paymentPlan.id)
 
-  console.log(`Invoice payment failed for subscription ${subscriptionId}, retry count: ${newRetryCount}/${maxRetries}`)
+  console.log(`Invoice payment failed for subscription ${subscriptionId}, retry count: ${currentRetries}/${maxRetries}`)
 
-  // TODO: Send failure notification email to parent
+  // TODO: Send failure notification email to guardian
   // Should include idempotency check to avoid sending duplicate emails
 }
 
 /**
  * Handle subscription updated
  * IDEMPOTENT: Uses update operations, safe for retries
+ * UPDATED: Uses payment_plans from unified system
  */
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const client = getSupabaseClient()
 
-  const { data: schedule } = await client
-    .from('billing_schedules')
-    .select('id, is_active')
+  const { data: paymentPlan } = await client
+    .from('payment_plans')
+    .select('id, status')
     .eq('stripe_subscription_id', subscription.id)
+    .eq('plan_type', 'tuition')
     .single()
 
-  if (!schedule) {
-    console.log(`Billing schedule not found for subscription ${subscription.id}, skipping`)
+  if (!paymentPlan) {
+    console.log(`Payment plan not found for subscription ${subscription.id}, skipping`)
     return
   }
 
-  const newActiveStatus = subscription.status === 'active'
+  const newStatus = subscription.status === 'active' ? 'active' : 'suspended'
 
   // Only update if status actually changed
-  if (schedule.is_active !== newActiveStatus) {
+  if (paymentPlan.status !== newStatus) {
     await client
-      .from('billing_schedules')
+      .from('payment_plans')
       .update({
-        is_active: newActiveStatus,
+        status: newStatus,
       })
-      .eq('id', schedule.id)
+      .eq('id', paymentPlan.id)
 
     console.log(`Subscription ${subscription.id} updated, status: ${subscription.status}`)
   }
@@ -284,27 +293,29 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 /**
  * Handle subscription deleted/cancelled
  * IDEMPOTENT: Uses update operations, safe for retries
+ * UPDATED: Uses payment_plans from unified system
  */
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const client = getSupabaseClient()
 
-  const { data: schedule } = await client
-    .from('billing_schedules')
+  const { data: paymentPlan } = await client
+    .from('payment_plans')
     .select('id')
     .eq('stripe_subscription_id', subscription.id)
+    .eq('plan_type', 'tuition')
     .single()
 
-  if (!schedule) {
-    console.log(`Billing schedule not found for subscription ${subscription.id}, skipping`)
+  if (!paymentPlan) {
+    console.log(`Payment plan not found for subscription ${subscription.id}, skipping`)
     return
   }
 
   await client
-    .from('billing_schedules')
+    .from('payment_plans')
     .update({
-      is_active: false,
+      status: 'cancelled',
     })
-    .eq('id', schedule.id)
+    .eq('id', paymentPlan.id)
 
   console.log(`Subscription ${subscription.id} deleted/cancelled`)
 }
