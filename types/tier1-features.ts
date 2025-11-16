@@ -615,7 +615,153 @@ export interface BulkCreateShiftsInput {
 }
 
 // ============================================================
-// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 5)
+// MEDIA GALLERY & PHOTO SHARING (Tier 1 Feature 5)
+// ============================================================
+
+export type MediaType = 'photo' | 'video'
+export type MediaPrivacy = 'public' | 'parents_only' | 'private'
+
+export interface MediaAlbum {
+  id: string
+  recital_show_id: string
+  name: string
+  description?: string
+  cover_photo_url?: string
+  privacy: MediaPrivacy
+  is_featured: boolean
+  photo_count: number
+  video_count: number
+  created_by_user_id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MediaItem {
+  id: string
+  album_id: string
+  recital_show_id: string
+  media_type: MediaType
+  file_url: string
+  thumbnail_url?: string
+  title?: string
+  caption?: string
+  privacy: MediaPrivacy
+  file_size_bytes: number
+  width?: number
+  height?: number
+  duration_seconds?: number // For videos
+  uploaded_by_user_id: string
+  uploaded_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MediaTag {
+  id: string
+  media_item_id: string
+  student_id: string
+  tagged_by_user_id: string
+  created_at: string
+}
+
+export interface MediaComment {
+  id: string
+  media_item_id: string
+  user_id: string
+  comment: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MediaLike {
+  id: string
+  media_item_id: string
+  user_id: string
+  created_at: string
+}
+
+// Extended types with relations
+export interface AlbumWithStats extends MediaAlbum {
+  media_items?: MediaItem[]
+  total_items: number
+  recent_items?: MediaItem[]
+}
+
+export interface MediaItemWithDetails extends MediaItem {
+  album?: MediaAlbum
+  tags?: Array<{
+    id: string
+    student: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+  }>
+  comments?: Array<{
+    id: string
+    comment: string
+    user: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+    created_at: string
+  }>
+  likes_count: number
+  is_liked_by_current_user: boolean
+  uploaded_by: {
+    id: string
+    first_name: string
+    last_name: string
+  }
+}
+
+export interface MediaGallerySummary {
+  total_albums: number
+  total_photos: number
+  total_videos: number
+  total_items: number
+  recent_uploads_count: number
+  featured_albums_count: number
+}
+
+// Form types for create/edit
+export interface CreateAlbumInput {
+  recital_show_id: string
+  name: string
+  description?: string
+  privacy: MediaPrivacy
+  is_featured?: boolean
+}
+
+export interface UpdateAlbumInput extends Partial<CreateAlbumInput> {
+  id: string
+}
+
+export interface UploadMediaInput {
+  album_id: string
+  recital_show_id: string
+  media_type: MediaType
+  title?: string
+  caption?: string
+  privacy: MediaPrivacy
+  file: File
+}
+
+export interface TagStudentInput {
+  media_item_id: string
+  student_ids: string[]
+}
+
+export interface BulkUploadInput {
+  album_id: string
+  recital_show_id: string
+  privacy: MediaPrivacy
+  files: File[]
+}
+
+// ============================================================
+// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 6)
 // ============================================================
 
 export type ConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'expired'
