@@ -320,7 +320,156 @@ export interface RefundPaymentInput {
 }
 
 // ============================================================
-// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 3)
+// TASKS & CHECKLIST (Tier 1 Feature 3)
+// ============================================================
+
+export type TaskStatus = 'not-started' | 'in-progress' | 'completed' | 'blocked' | 'cancelled'
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
+export type TaskCategory = 'venue' | 'costumes' | 'tech' | 'marketing' | 'admin' | 'rehearsal' | 'performance' | 'other'
+
+export interface RecitalTask {
+  id: string
+  recital_show_id: string
+  title: string
+  description?: string
+  category: TaskCategory
+  status: TaskStatus
+  priority: TaskPriority
+  assigned_to_user_id?: string
+  assigned_to_role?: 'admin' | 'staff' | 'teacher' | 'parent' | 'volunteer'
+  due_date?: string // ISO date
+  completed_at?: string // ISO timestamp
+  completed_by_user_id?: string
+  is_template: boolean
+  parent_task_id?: string // For subtasks
+  depends_on_task_id?: string // Task dependency
+  estimated_hours?: number
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskTemplate {
+  id: string
+  name: string
+  description?: string
+  category: TaskCategory
+  priority: TaskPriority
+  estimated_hours?: number
+  default_days_before_show?: number // When to schedule relative to show date
+  is_public: boolean // Available to all users
+  created_by_user_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskTemplateItem {
+  id: string
+  template_id: string
+  title: string
+  description?: string
+  category: TaskCategory
+  priority: TaskPriority
+  order_index: number
+  estimated_hours?: number
+  default_assigned_to_role?: 'admin' | 'staff' | 'teacher' | 'parent' | 'volunteer'
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskComment {
+  id: string
+  task_id: string
+  user_id: string
+  comment: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskAttachment {
+  id: string
+  task_id: string
+  file_name: string
+  file_url: string
+  file_size_bytes: number
+  file_type: string
+  uploaded_by_user_id: string
+  created_at: string
+  updated_at: string
+}
+
+// Extended types with relations
+export interface TaskWithDetails extends RecitalTask {
+  assigned_to_user?: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+  }
+  completed_by_user?: {
+    id: string
+    first_name: string
+    last_name: string
+  }
+  parent_task?: RecitalTask
+  depends_on_task?: RecitalTask
+  subtasks?: RecitalTask[]
+  comments?: TaskComment[]
+  attachments?: TaskAttachment[]
+}
+
+export interface TaskListSummary {
+  total_tasks: number
+  not_started: number
+  in_progress: number
+  completed: number
+  blocked: number
+  overdue: number
+  due_this_week: number
+  completion_rate: number
+}
+
+export interface TasksByCategory {
+  category: TaskCategory
+  tasks: RecitalTask[]
+  completion_rate: number
+}
+
+// Form types for create/edit
+export interface CreateTaskInput {
+  recital_show_id: string
+  title: string
+  description?: string
+  category: TaskCategory
+  priority: TaskPriority
+  assigned_to_user_id?: string
+  assigned_to_role?: 'admin' | 'staff' | 'teacher' | 'parent' | 'volunteer'
+  due_date?: string
+  parent_task_id?: string
+  depends_on_task_id?: string
+  estimated_hours?: number
+  notes?: string
+}
+
+export interface UpdateTaskInput extends Partial<CreateTaskInput> {
+  id: string
+  status?: TaskStatus
+}
+
+export interface CreateTaskFromTemplateInput {
+  recital_show_id: string
+  template_id: string
+  show_date: string // To calculate due dates
+  assigned_to_user_id?: string
+}
+
+export interface BulkUpdateTaskStatusInput {
+  task_ids: string[]
+  status: TaskStatus
+}
+
+// ============================================================
+// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 4)
 // ============================================================
 
 export type ConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'expired'
