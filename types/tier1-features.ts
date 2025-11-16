@@ -1002,24 +1002,127 @@ export interface CampaignAnalytics {
 }
 
 // ============================================================
-// SHOW-DAY CHECK-IN (Planned - Tier 1 Feature 5)
+// SHOW-DAY CHECK-IN (Tier 1 Feature #5)
 // ============================================================
 
-export type CheckInType = 'arrival' | 'dressing_room' | 'backstage' | 'on_deck' | 'on_stage'
-export type CheckInStatus = 'checked_in' | 'checked_out' | 'no_show'
+export type CheckInMethod = 'manual' | 'qr_code' | 'barcode' | 'name_search'
+export type ArrivalStatus = 'on_time' | 'early' | 'late' | 'very_late'
+export type PerformanceStatus = 'upcoming' | 'on_deck' | 'on_stage' | 'completed'
+export type QuickChangeStatus = 'planned' | 'in_progress' | 'completed' | 'issue'
+export type AlertType = 'missing_student' | 'missing_costume' | 'injury' | 'equipment' | 'delay' | 'other'
+export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical'
+export type AgeGroup = 'young' | 'middle' | 'teen' | 'adult' | 'all'
 
 export interface ShowDayCheckIn {
   id: string
-  student_id: string
   recital_show_id: string
-  check_in_type: CheckInType
+  student_id: string
   check_in_time: string
+  checked_in_by?: string
+  check_in_method: CheckInMethod
+  dressing_room_id?: string
+  arrival_status: ArrivalStatus
+  has_all_costumes: boolean
+  missing_items?: string
+  guardian_present: boolean
+  guardian_contact?: string
+  notes?: string
+  is_ready: boolean
   check_out_time?: string
-  status: CheckInStatus
-  checked_in_by_staff_id?: string
+  checked_out_by?: string
+  created_at: string
+  updated_at: string
+  // Related data (joined)
+  student?: any
+  dressing_room?: DressingRoom
+  staff?: any
+}
+
+export interface DressingRoom {
+  id: string
+  recital_show_id: string
+  room_name: string
+  room_number?: string
+  capacity: number
+  age_group: AgeGroup
+  notes?: string
+  assigned_staff?: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  // Related data
+  checked_in_count?: number
+}
+
+export interface PerformerLineup {
+  id: string
+  recital_show_id: string
+  recital_performance_id: string
+  performance_order: number
+  performance_status: PerformanceStatus
+  scheduled_time?: string
+  actual_start_time?: string
+  actual_end_time?: string
+  all_performers_ready: boolean
+  missing_performers?: string[]
+  notes?: string
+  updated_by?: string
+  updated_at: string
+  // Related data
+  performance?: any
+  missing_students?: any[]
+}
+
+export interface QuickChangeAlert {
+  id: string
+  recital_show_id: string
+  student_id: string
+  from_performance_id: string
+  to_performance_id: string
+  time_between_minutes: number
+  is_critical: boolean
+  assigned_helper?: string
+  quick_change_location?: string
+  status: QuickChangeStatus
   notes?: string
   created_at: string
   updated_at: string
+  // Related data
+  student?: any
+  from_performance?: any
+  to_performance?: any
+  helper?: any
+}
+
+export interface ShowDayAlert {
+  id: string
+  recital_show_id: string
+  alert_type: AlertType
+  severity: AlertSeverity
+  title: string
+  description: string
+  affected_students?: string[]
+  affected_performances?: string[]
+  is_resolved: boolean
+  created_by: string
+  resolved_by?: string
+  resolved_at?: string
+  resolution_notes?: string
+  created_at: string
+  updated_at: string
+  // Related data
+  creator?: any
+  resolver?: any
+}
+
+export interface CheckInSummary {
+  total_students: number
+  checked_in: number
+  not_checked_in: number
+  on_time: number
+  late: number
+  missing_costumes: number
+  ready_for_performance: number
 }
 
 // ============================================================
