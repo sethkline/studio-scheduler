@@ -874,40 +874,131 @@ export interface EligibilityCheckResult {
 }
 
 // ============================================================
-// EMAIL CAMPAIGNS (Planned - Tier 1 Feature 4)
+// EMAIL CAMPAIGNS (Tier 1 Feature #4)
 // ============================================================
 
-export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled'
-export type EmailStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed'
+export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled'
+export type EmailRecipientStatus = 'queued' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed' | 'unsubscribed'
+export type TargetAudience = 'all_parents' | 'all_staff' | 'specific_class' | 'specific_students' | 'custom_filter'
+export type TemplateCategory = 'recital_announcement' | 'reminder' | 'update' | 'emergency' | 'general'
+export type RecipientType = 'parent' | 'student' | 'staff' | 'teacher'
+export type UnsubscribeScope = 'all' | 'recital_updates' | 'marketing'
 
 export interface EmailCampaign {
   id: string
-  recital_show_id?: string
-  name: string
-  subject: string
-  body_html: string
-  body_text?: string
+  recital_id?: string
+  campaign_name: string
+  subject_line: string
+  from_name: string
+  from_email: string
+  reply_to_email: string
+  email_body_html: string
+  email_body_text?: string
+  template_id?: string
+  target_audience: TargetAudience
+  filter_criteria?: Record<string, any>
   status: CampaignStatus
-  scheduled_at?: string
+  schedule_send_at?: string
   sent_at?: string
+  total_recipients: number
+  sent_count: number
+  delivered_count: number
+  opened_count: number
+  clicked_count: number
+  bounced_count: number
+  failed_count: number
+  unsubscribed_count: number
+  has_attachments: boolean
+  is_urgent: boolean
+  created_by: string
+  sent_by?: string
   created_at: string
   updated_at: string
+  // Related data (joined)
+  template?: EmailTemplate
+  recipients?: EmailCampaignRecipient[]
+  attachments?: EmailCampaignAttachment[]
 }
 
-export interface CampaignRecipient {
+export interface EmailCampaignRecipient {
   id: string
   campaign_id: string
-  email: string
+  recipient_type: RecipientType
+  profile_id?: string
   guardian_id?: string
-  status: EmailStatus
+  email_address: string
+  recipient_name: string
+  personalization_data?: Record<string, any>
+  status: EmailRecipientStatus
+  email_provider_id?: string
   sent_at?: string
   delivered_at?: string
   opened_at?: string
   clicked_at?: string
   bounced_at?: string
-  error_message?: string
+  bounce_reason?: string
+  failed_at?: string
+  failure_reason?: string
+  open_count: number
+  click_count: number
+  unsubscribed_at?: string
   created_at: string
   updated_at: string
+}
+
+export interface EmailTemplate {
+  id: string
+  template_name: string
+  template_category: TemplateCategory
+  subject_line: string
+  body_html: string
+  body_text?: string
+  available_merge_tags: string[]
+  preview_text?: string
+  is_system_template: boolean
+  is_active: boolean
+  thumbnail_url?: string
+  created_by?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailCampaignAttachment {
+  id: string
+  campaign_id: string
+  file_name: string
+  file_path: string
+  file_size: number
+  file_type: string
+  uploaded_by: string
+  uploaded_at: string
+}
+
+export interface EmailUnsubscribe {
+  id: string
+  email_address: string
+  profile_id?: string
+  guardian_id?: string
+  unsubscribed_from: UnsubscribeScope
+  unsubscribe_reason?: string
+  unsubscribed_at: string
+  ip_address?: string
+}
+
+export interface CampaignAnalytics {
+  campaign_id: string
+  total_recipients: number
+  sent_count: number
+  delivered_count: number
+  opened_count: number
+  clicked_count: number
+  bounced_count: number
+  failed_count: number
+  unsubscribed_count: number
+  delivery_rate: number
+  open_rate: number
+  click_rate: number
+  bounce_rate: number
 }
 
 // ============================================================
