@@ -86,14 +86,29 @@ export default defineEventHandler(async (event) => {
         })
       }
     } else if (profile?.user_role === 'parent') {
-      const { data: guardianship } = await client
+      // Get guardian record for this user
+      const { data: guardian } = await client
         .from('guardians')
-        .select('student_id')
-        .eq('guardian_id', user.id)
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!guardian) {
+        throw createError({
+          statusCode: 403,
+          statusMessage: 'Guardian profile not found'
+        })
+      }
+
+      // Check if this guardian has access to this student
+      const { data: relationship } = await client
+        .from('student_guardian_relationships')
+        .select('id')
+        .eq('guardian_id', guardian.id)
         .eq('student_id', evaluation.student_id)
         .single()
 
-      if (!guardianship) {
+      if (!relationship) {
         throw createError({
           statusCode: 403,
           statusMessage: 'Permission denied'

@@ -73,13 +73,33 @@ export default defineEventHandler(async (event) => {
       // Teachers can only see their own evaluations
       dbQuery = dbQuery.eq('teacher_id', user.id)
     } else if (profile?.user_role === 'parent') {
-      // Parents can only see their children's evaluations
-      const { data: guardianships } = await client
+      // Get guardian record for this user
+      const { data: guardian } = await client
         .from('guardians')
-        .select('student_id')
-        .eq('guardian_id', user.id)
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
 
-      const studentIds = guardianships?.map(g => g.student_id) || []
+      if (!guardian) {
+        // Parent profile not found, return empty
+        return {
+          evaluations: [],
+          pagination: {
+            page,
+            limit,
+            totalItems: 0,
+            totalPages: 0
+          }
+        }
+      }
+
+      // Get all student IDs this guardian has access to
+      const { data: relationships } = await client
+        .from('student_guardian_relationships')
+        .select('student_id')
+        .eq('guardian_id', guardian.id)
+
+      const studentIds = relationships?.map(r => r.student_id) || []
       if (studentIds.length > 0) {
         dbQuery = dbQuery.in('student_id', studentIds)
       } else {
