@@ -74,6 +74,13 @@ const quickLinks = computed(() => [
     color: 'bg-teal-100 text-teal-700'
   },
   {
+    label: 'Fees & Payments',
+    description: 'Track fees and payments',
+    icon: 'pi pi-dollar',
+    to: `/recitals/${props.recitalId}/fees/payments`,
+    color: 'bg-emerald-100 text-emerald-700'
+  },
+  {
     label: 'Tasks & Checklist',
     description: 'Manage preparation tasks',
     icon: 'pi pi-check-square',
