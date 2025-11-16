@@ -19,206 +19,113 @@ export default defineEventHandler(async (event) => {
     const endDate = query.endDate as string || format(new Date(), 'yyyy-MM-dd')
 
     // ============================================================================
-    // GET ALL TEACHERS WITH THEIR CLASSES
+    // GET TEACHER METRICS - Using analytics_enrollment_stats view
     // ============================================================================
 
+    const { data: classStats, error: classStatsError } = await client
+      .from('analytics_enrollment_stats')
+      .select('*')
+      .not('teacher_name', 'is', null)
+
+    if (classStatsError) throw classStatsError
+
+    // Get teacher details for hourly rates
     const { data: teachers, error: teachersError } = await client
       .from('teachers')
-      .select(`
-        id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        hourly_rate,
-        created_at
-      `)
-      .order('last_name')
+      .select('id, first_name, last_name, email, phone, hourly_rate')
 
     if (teachersError) throw teachersError
 
-    // Get all active classes
-    const { data: classes, error: classesError } = await client
-      .from('class_instances')
-      .select(`
-        id,
-        teacher_id,
-        status,
-        class_definition:class_definition_id (
-          id,
-          name,
-          duration,
-          max_students,
-          dance_style:dance_style_id (name)
-        ),
-        schedule_classes (
-          id,
-          day_of_week,
-          start_time,
-          end_time,
-          schedule:schedule_id (
-            name,
-            start_date,
-            end_date
-          )
-        )
-      `)
-      .eq('status', 'active')
-
-    if (classesError) throw classesError
-
-    // Get all enrollments
-    const classIds = classes?.map(c => c.id) || []
-    const { data: enrollments, error: enrollmentsError } = await client
-      .from('enrollments')
-      .select('class_instance_id, student_id, status')
-      .in('class_instance_id', classIds)
-      .eq('status', 'active')
-
-    if (enrollmentsError) throw enrollmentsError
-
-    // Count enrollments per class
-    const enrollmentMap = new Map()
-    enrollments?.forEach(enrollment => {
-      const classId = enrollment.class_instance_id
-      const students = enrollmentMap.get(classId) || new Set()
-      students.add(enrollment.student_id)
-      enrollmentMap.set(classId, students)
+    // Create a map of teacher names to details
+    const teacherDetailsMap = new Map()
+    teachers?.forEach(teacher => {
+      const name = `${teacher.first_name} ${teacher.last_name}`
+      teacherDetailsMap.set(name, teacher)
     })
 
-    // Get revenue per class
-    const { data: revenueData, error: revenueError } = await client
-      .from('invoice_items')
-      .select('class_instance_id, total_price_in_cents')
-      .in('class_instance_id', classIds)
-      .eq('item_type', 'tuition')
-
-    const revenueMap = new Map()
-    if (!revenueError && revenueData) {
-      revenueData.forEach(item => {
-        const classId = item.class_instance_id
-        const existing = revenueMap.get(classId) || 0
-        revenueMap.set(classId, existing + (item.total_price_in_cents || 0))
-      })
-    }
-
-    // Get attendance records
-    const { data: attendanceRecords, error: attendanceError } = await client
-      .from('attendance_records')
-      .select('class_instance_id, status')
-      .in('class_instance_id', classIds)
-      .gte('attendance_date', startDate)
-      .lte('attendance_date', endDate)
-
-    const attendanceMap = new Map()
-    if (!attendanceError && attendanceRecords) {
-      attendanceRecords.forEach(record => {
-        const classId = record.class_instance_id
-        const existing = attendanceMap.get(classId) || { total: 0, present: 0 }
-        attendanceMap.set(classId, {
-          total: existing.total + 1,
-          present: existing.present + (record.status === 'present' ? 1 : 0)
-        })
-      })
-    }
-
     // ============================================================================
-    // CALCULATE TEACHER METRICS
+    // CALCULATE TEACHER METRICS - Aggregate from analytics view
     // ============================================================================
 
-    const teacherMetrics = teachers?.map(teacher => {
-      // Get classes taught by this teacher
-      const teacherClasses = classes?.filter(c => c.teacher_id === teacher.id) || []
+    const teacherStatsMap = new Map()
 
-      // Calculate total teaching hours
-      let totalMinutes = 0
-      const timeSlots = new Set()
+    ;(classStats || []).forEach(cls => {
+      const teacherName = cls.teacher_name
+      if (!teacherName) return
 
-      teacherClasses.forEach(cls => {
-        cls.schedule_classes?.forEach(schedule => {
-          const startTime = new Date(`2000-01-01 ${schedule.start_time}`)
-          const endTime = new Date(`2000-01-01 ${schedule.end_time}`)
-          const minutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60)
-          totalMinutes += minutes
-          timeSlots.add(`${schedule.day_of_week} ${schedule.start_time}`)
-        })
+      const existing = teacherStatsMap.get(teacherName) || {
+        classesTaught: 0,
+        totalEnrolled: 0,
+        totalCapacity: 0,
+        totalRevenue: 0,
+        totalBilled: 0,
+        attendanceRateSum: 0,
+        attendanceRateCount: 0
+      }
+
+      teacherStatsMap.set(teacherName, {
+        classesTaught: existing.classesTaught + 1,
+        totalEnrolled: existing.totalEnrolled + (cls.active_enrollments || 0),
+        totalCapacity: existing.totalCapacity + (cls.max_students || 0),
+        totalRevenue: existing.totalRevenue + (cls.total_tuition_collected_cents || 0),
+        totalBilled: existing.totalBilled + (cls.total_tuition_billed_cents || 0),
+        attendanceRateSum: existing.attendanceRateSum + (cls.attendance_rate_percentage || 0),
+        attendanceRateCount: existing.attendanceRateCount + (cls.attendance_rate_percentage !== null ? 1 : 0)
       })
+    })
 
-      // Calculate students taught
-      const studentSet = new Set()
-      teacherClasses.forEach(cls => {
-        const students = enrollmentMap.get(cls.id)
-        if (students) {
-          students.forEach(studentId => studentSet.add(studentId))
-        }
-      })
+    const teacherMetrics = Array.from(teacherStatsMap.entries()).map(([teacherName, stats]) => {
+      const teacherDetails = teacherDetailsMap.get(teacherName)
+      const hourlyRate = teacherDetails?.hourly_rate || 50 // Default $50/hr
 
-      // Calculate total revenue generated
-      let totalRevenue = 0
-      teacherClasses.forEach(cls => {
-        totalRevenue += revenueMap.get(cls.id) || 0
-      })
+      // Estimate teaching hours (assuming 1-hour classes)
+      const hoursPerWeek = stats.classesTaught * 1 // 1 hour per class
+      const totalTeachingHours = hoursPerWeek * 12 // 12 weeks per term
 
-      // Calculate average class size
-      let totalEnrolled = 0
-      let totalCapacity = 0
-      teacherClasses.forEach(cls => {
-        totalEnrolled += enrollmentMap.get(cls.id)?.size || 0
-        totalCapacity += cls.class_definition?.max_students || 0
-      })
-      const avgClassSize = teacherClasses.length > 0 ? totalEnrolled / teacherClasses.length : 0
-
-      // Calculate utilization (% of available hours)
-      // Assuming max 40 hours per week, 52 weeks per year
-      const hoursPerWeek = totalMinutes / 60
-      const maxHoursPerWeek = 40
-      const utilization = (hoursPerWeek / maxHoursPerWeek) * 100
-
-      // Calculate attendance rate for teacher's classes
-      let teacherAttendanceTotal = 0
-      let teacherAttendancePresent = 0
-      teacherClasses.forEach(cls => {
-        const attendance = attendanceMap.get(cls.id)
-        if (attendance) {
-          teacherAttendanceTotal += attendance.total
-          teacherAttendancePresent += attendance.present
-        }
-      })
-      const attendanceRate = teacherAttendanceTotal > 0
-        ? (teacherAttendancePresent / teacherAttendanceTotal) * 100
+      // Calculate metrics
+      const avgClassSize = stats.classesTaught > 0 ? stats.totalEnrolled / stats.classesTaught : 0
+      const utilization = (hoursPerWeek / 40) * 100 // % of 40-hour work week
+      const attendanceRate = stats.attendanceRateCount > 0
+        ? stats.attendanceRateSum / stats.attendanceRateCount
+        : null
+      const retentionRate = stats.totalCapacity > 0
+        ? (stats.totalEnrolled / stats.totalCapacity) * 100
         : null
 
-      // Calculate student retention for this teacher
-      // (using current active enrollments as a proxy)
-      const retentionRate = totalCapacity > 0 ? (totalEnrolled / totalCapacity) * 100 : null
+      // Revenue and payroll
+      const revenueGenerated = stats.totalRevenue / 100
+      const estimatedPayroll = hoursPerWeek * hourlyRate * 12 // 12 weeks per term
+      const netContribution = revenueGenerated - estimatedPayroll
 
-      // Calculate estimated payroll cost
-      const hourlyRate = teacher.hourly_rate || 50 // Default to $50/hr if not set
-      const weeksPerTerm = 12 // Typical term length
-      const estimatedPayroll = (hoursPerWeek * hourlyRate * weeksPerTerm)
+      // Collection rate
+      const collectionRate = stats.totalBilled > 0
+        ? (stats.totalRevenue / stats.totalBilled) * 100
+        : 100
 
       return {
-        teacherId: teacher.id,
-        teacherName: `${teacher.first_name} ${teacher.last_name}`,
-        email: teacher.email,
-        phone: teacher.phone,
+        teacherId: teacherDetails?.id || null,
+        teacherName,
+        email: teacherDetails?.email || null,
+        phone: teacherDetails?.phone || null,
         hourlyRate,
-        classesTaught: teacherClasses.length,
-        timeSlots: timeSlots.size,
-        totalTeachingMinutes: totalMinutes,
-        totalTeachingHours: Math.round(totalMinutes / 60 * 100) / 100,
+        classesTaught: stats.classesTaught,
+        timeSlots: stats.classesTaught, // Approximation
+        totalTeachingMinutes: totalTeachingHours * 60,
+        totalTeachingHours: Math.round(totalTeachingHours * 100) / 100,
         hoursPerWeek: Math.round(hoursPerWeek * 100) / 100,
         utilization: Math.round(utilization * 100) / 100,
-        studentsTaught: studentSet.size,
-        totalEnrolled,
+        studentsTaught: stats.totalEnrolled, // Approximation (could be lower if students are in multiple classes)
+        totalEnrolled: stats.totalEnrolled,
         avgClassSize: Math.round(avgClassSize * 100) / 100,
-        revenueGenerated: totalRevenue / 100,
+        revenueGenerated: Math.round(revenueGenerated * 100) / 100,
+        billed: Math.round((stats.totalBilled / 100) * 100) / 100,
+        collectionRate: Math.round(collectionRate * 100) / 100,
         estimatedPayroll: Math.round(estimatedPayroll * 100) / 100,
-        netContribution: (totalRevenue / 100) - estimatedPayroll,
+        netContribution: Math.round(netContribution * 100) / 100,
         attendanceRate: attendanceRate !== null ? Math.round(attendanceRate * 100) / 100 : null,
         retentionRate: retentionRate !== null ? Math.round(retentionRate * 100) / 100 : null
       }
-    }) || []
+    })
 
     // ============================================================================
     // WORKLOAD DISTRIBUTION ANALYSIS

@@ -41,94 +41,92 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // TOTAL REVENUE METRICS
+    // TOTAL REVENUE METRICS - Using analytics_daily_revenue view
     // ============================================================================
 
-    // Current period totals
-    const { data: currentRevenue, error: revenueError } = await client
-      .from('payments')
-      .select('amount_in_cents, refund_amount_in_cents, payment_method, created_at')
-      .eq('payment_status', 'completed')
-      .gte('payment_date', startDate)
-      .lte('payment_date', endDate)
+    // Get daily revenue data for the period
+    const { data: dailyRevenue, error: revenueError } = await client
+      .from('analytics_daily_revenue')
+      .select('*')
+      .gte('revenue_date', startDate)
+      .lte('revenue_date', endDate)
 
     if (revenueError) throw revenueError
 
-    // Calculate totals
-    const totalRevenue = currentRevenue.reduce((sum, p) => sum + (p.amount_in_cents || 0), 0)
-    const totalRefunds = currentRevenue.reduce((sum, p) => sum + (p.refund_amount_in_cents || 0), 0)
-    const netRevenue = totalRevenue - totalRefunds
+    // Calculate period totals from daily aggregates
+    const totalRevenue = (dailyRevenue || []).reduce((sum, d) => sum + (d.total_revenue_cents || 0), 0)
+    const totalRefunds = (dailyRevenue || []).reduce((sum, d) => sum + (d.total_refunds_cents || 0), 0)
+    const netRevenue = (dailyRevenue || []).reduce((sum, d) => sum + (d.net_revenue_cents || 0), 0)
 
     // Month totals
     const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd')
     const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd')
     const { data: monthRevenue } = await client
-      .from('payments')
-      .select('amount_in_cents, refund_amount_in_cents')
-      .eq('payment_status', 'completed')
-      .gte('payment_date', monthStart)
-      .lte('payment_date', monthEnd)
+      .from('analytics_daily_revenue')
+      .select('net_revenue_cents')
+      .gte('revenue_date', monthStart)
+      .lte('revenue_date', monthEnd)
 
-    const monthTotal = (monthRevenue || []).reduce((sum, p) => sum + (p.amount_in_cents || 0) - (p.refund_amount_in_cents || 0), 0)
+    const monthTotal = (monthRevenue || []).reduce((sum, d) => sum + (d.net_revenue_cents || 0), 0)
 
     // Quarter totals
     const quarterStart = format(startOfQuarter(new Date()), 'yyyy-MM-dd')
     const quarterEnd = format(endOfQuarter(new Date()), 'yyyy-MM-dd')
     const { data: quarterRevenue } = await client
-      .from('payments')
-      .select('amount_in_cents, refund_amount_in_cents')
-      .eq('payment_status', 'completed')
-      .gte('payment_date', quarterStart)
-      .lte('payment_date', quarterEnd)
+      .from('analytics_daily_revenue')
+      .select('net_revenue_cents')
+      .gte('revenue_date', quarterStart)
+      .lte('revenue_date', quarterEnd)
 
-    const quarterTotal = (quarterRevenue || []).reduce((sum, p) => sum + (p.amount_in_cents || 0) - (p.refund_amount_in_cents || 0), 0)
+    const quarterTotal = (quarterRevenue || []).reduce((sum, d) => sum + (d.net_revenue_cents || 0), 0)
 
     // Year totals
     const yearStart = format(startOfYear(new Date()), 'yyyy-MM-dd')
     const yearEnd = format(endOfYear(new Date()), 'yyyy-MM-dd')
     const { data: yearRevenue } = await client
-      .from('payments')
-      .select('amount_in_cents, refund_amount_in_cents')
-      .eq('payment_status', 'completed')
-      .gte('payment_date', yearStart)
-      .lte('payment_date', yearEnd)
+      .from('analytics_daily_revenue')
+      .select('net_revenue_cents')
+      .gte('revenue_date', yearStart)
+      .lte('revenue_date', yearEnd)
 
-    const yearTotal = (yearRevenue || []).reduce((sum, p) => sum + (p.amount_in_cents || 0) - (p.refund_amount_in_cents || 0), 0)
-
-    // ============================================================================
-    // REVENUE BY SOURCE
-    // ============================================================================
-
-    // Revenue breakdown by source (tickets vs tuition)
-    const { data: ticketRevenue } = await client
-      .from('payments')
-      .select('amount_in_cents, refund_amount_in_cents')
-      .eq('payment_status', 'completed')
-      .not('order_id', 'is', null)
-      .gte('payment_date', startDate)
-      .lte('payment_date', endDate)
-
-    const { data: tuitionRevenue } = await client
-      .from('payments')
-      .select('amount_in_cents, refund_amount_in_cents')
-      .eq('payment_status', 'completed')
-      .not('invoice_id', 'is', null)
-      .gte('payment_date', startDate)
-      .lte('payment_date', endDate)
-
-    const ticketTotal = (ticketRevenue || []).reduce((sum, p) => sum + (p.amount_in_cents || 0) - (p.refund_amount_in_cents || 0), 0)
-    const tuitionTotal = (tuitionRevenue || []).reduce((sum, p) => sum + (p.amount_in_cents || 0) - (p.refund_amount_in_cents || 0), 0)
-    const otherTotal = netRevenue - ticketTotal - tuitionTotal
+    const yearTotal = (yearRevenue || []).reduce((sum, d) => sum + (d.net_revenue_cents || 0), 0)
 
     // ============================================================================
-    // REVENUE TRENDS OVER TIME
+    // REVENUE BY SOURCE - Using analytics_revenue_by_type view
     // ============================================================================
 
-    // Build time series data based on period
+    // Get revenue by type (tickets, tuition, merchandise, etc.)
+    const startMonth = format(new Date(startDate), 'yyyy-MM')
+    const endMonth = format(new Date(endDate), 'yyyy-MM')
+
+    const { data: revenueByType } = await client
+      .from('analytics_revenue_by_type')
+      .select('*')
+      .gte('month', startMonth)
+      .lte('month', endMonth)
+
+    // Aggregate by payment type
+    const revenueByTypeMap = (revenueByType || []).reduce((acc, row) => {
+      const type = row.payment_type || 'other'
+      acc[type] = (acc[type] || 0) + (row.net_revenue_cents || 0)
+      return acc
+    }, {} as Record<string, number>)
+
+    const ticketTotal = revenueByTypeMap['ticket_order'] || 0
+    const tuitionTotal = revenueByTypeMap['tuition'] || 0
+    const merchandiseTotal = revenueByTypeMap['merchandise'] || 0
+    const recitalFeeTotal = revenueByTypeMap['recital_fee'] || 0
+    const otherTotal = (revenueByTypeMap['other'] || 0) + (revenueByTypeMap['studio_credit'] || 0)
+
+    // ============================================================================
+    // REVENUE TRENDS OVER TIME - Using daily revenue data
+    // ============================================================================
+
+    // Build time series data based on period from daily revenue
     const trendsMap = new Map()
 
-    currentRevenue.forEach(payment => {
-      const date = new Date(payment.created_at)
+    ;(dailyRevenue || []).forEach(day => {
+      const date = new Date(day.revenue_date)
       let key: string
 
       if (period === 'month') {
@@ -139,11 +137,12 @@ export default defineEventHandler(async (event) => {
         key = format(date, 'yyyy')
       }
 
-      const existing = trendsMap.get(key) || { revenue: 0, refunds: 0, count: 0 }
+      const existing = trendsMap.get(key) || { revenue: 0, refunds: 0, netRevenue: 0, count: 0 }
       trendsMap.set(key, {
-        revenue: existing.revenue + (payment.amount_in_cents || 0),
-        refunds: existing.refunds + (payment.refund_amount_in_cents || 0),
-        count: existing.count + 1
+        revenue: existing.revenue + (day.total_revenue_cents || 0),
+        refunds: existing.refunds + (day.total_refunds_cents || 0),
+        netRevenue: existing.netRevenue + (day.net_revenue_cents || 0),
+        count: existing.count + (day.transaction_count || 0)
       })
     })
 
@@ -151,12 +150,12 @@ export default defineEventHandler(async (event) => {
       period,
       revenue: data.revenue,
       refunds: data.refunds,
-      netRevenue: data.revenue - data.refunds,
+      netRevenue: data.netRevenue,
       transactionCount: data.count
     })).sort((a, b) => a.period.localeCompare(b.period))
 
     // ============================================================================
-    // YEAR-OVER-YEAR COMPARISON
+    // YEAR-OVER-YEAR COMPARISON - Using analytics_daily_revenue view
     // ============================================================================
 
     let yearAgoComparison = null
@@ -166,13 +165,12 @@ export default defineEventHandler(async (event) => {
       const yearAgoEnd = format(subYears(new Date(endDate), 1), 'yyyy-MM-dd')
 
       const { data: yearAgoRevenue } = await client
-        .from('payments')
-        .select('amount_in_cents, refund_amount_in_cents')
-        .eq('payment_status', 'completed')
-        .gte('payment_date', yearAgoStart)
-        .lte('payment_date', yearAgoEnd)
+        .from('analytics_daily_revenue')
+        .select('net_revenue_cents')
+        .gte('revenue_date', yearAgoStart)
+        .lte('revenue_date', yearAgoEnd)
 
-      const yearAgoTotal = (yearAgoRevenue || []).reduce((sum, p) => sum + (p.amount_in_cents || 0) - (p.refund_amount_in_cents || 0), 0)
+      const yearAgoTotal = (yearAgoRevenue || []).reduce((sum, d) => sum + (d.net_revenue_cents || 0), 0)
       const percentChange = yearAgoTotal > 0 ? ((netRevenue - yearAgoTotal) / yearAgoTotal) * 100 : 0
 
       yearAgoComparison = {
@@ -184,79 +182,44 @@ export default defineEventHandler(async (event) => {
     }
 
     // ============================================================================
-    // TOP REVENUE-GENERATING CLASSES
+    // TOP REVENUE-GENERATING CLASSES - Using analytics_enrollment_stats view
     // ============================================================================
 
-    const { data: classRevenue, error: classRevenueError } = await client
-      .from('invoice_items')
-      .select(`
-        total_price_in_cents,
-        class_instance:class_instance_id (
-          id,
-          class_definition:class_definition_id (
-            name,
-            dance_style:dance_style_id (name)
-          )
-        )
-      `)
-      .eq('item_type', 'tuition')
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
+    const { data: classStats, error: classStatsError } = await client
+      .from('analytics_enrollment_stats')
+      .select('class_name, dance_style, total_tuition_collected_cents')
+      .not('total_tuition_collected_cents', 'is', null)
+      .order('total_tuition_collected_cents', { ascending: false })
+      .limit(10)
 
-    if (classRevenueError) throw classRevenueError
+    if (classStatsError) throw classStatsError
 
-    // Aggregate by class
-    const classRevenueMap = new Map()
-    classRevenue?.forEach(item => {
-      if (!item.class_instance) return
-
-      const className = item.class_instance.class_definition?.name || 'Unknown Class'
-      const danceStyle = item.class_instance.class_definition?.dance_style?.name || 'Unknown'
-      const key = `${className} (${danceStyle})`
-
-      const existing = classRevenueMap.get(key) || 0
-      classRevenueMap.set(key, existing + (item.total_price_in_cents || 0))
-    })
-
-    const topClasses = Array.from(classRevenueMap.entries())
-      .map(([name, revenue]) => ({ className: name, revenue }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10)
+    const topClasses = (classStats || []).map(cls => ({
+      className: `${cls.class_name} (${cls.dance_style})`,
+      revenue: cls.total_tuition_collected_cents || 0
+    }))
 
     // ============================================================================
-    // TEACHER REVENUE CONTRIBUTION
+    // TEACHER REVENUE CONTRIBUTION - Using analytics_enrollment_stats view
     // ============================================================================
 
-    const { data: teacherRevenue, error: teacherRevenueError } = await client
-      .from('invoice_items')
-      .select(`
-        total_price_in_cents,
-        class_instance:class_instance_id (
-          teacher:teacher_id (
-            id,
-            first_name,
-            last_name
-          )
-        )
-      `)
-      .eq('item_type', 'tuition')
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
+    const { data: teacherStats, error: teacherStatsError } = await client
+      .from('analytics_enrollment_stats')
+      .select('teacher_name, total_tuition_collected_cents')
+      .not('teacher_name', 'is', null)
+      .not('total_tuition_collected_cents', 'is', null)
 
-    if (teacherRevenueError) throw teacherRevenueError
+    if (teacherStatsError) throw teacherStatsError
 
     // Aggregate by teacher
     const teacherRevenueMap = new Map()
-    teacherRevenue?.forEach(item => {
-      if (!item.class_instance?.teacher) return
+    ;(teacherStats || []).forEach(cls => {
+      const teacherName = cls.teacher_name
+      const existing = teacherRevenueMap.get(teacherName) || { name: teacherName, revenue: 0, classes: 0 }
 
-      const teacherId = item.class_instance.teacher.id
-      const teacherName = `${item.class_instance.teacher.first_name} ${item.class_instance.teacher.last_name}`
-
-      const existing = teacherRevenueMap.get(teacherId) || { name: teacherName, revenue: 0, classes: 0 }
-      teacherRevenueMap.set(teacherId, {
+      teacherRevenueMap.set(teacherName, {
         name: existing.name,
-        revenue: existing.revenue + (item.total_price_in_cents || 0),
+        revenue: existing.revenue + (cls.total_tuition_collected_cents || 0),
         classes: existing.classes + 1
       })
     })
@@ -265,39 +228,49 @@ export default defineEventHandler(async (event) => {
       .sort((a, b) => b.revenue - a.revenue)
 
     // ============================================================================
-    // OUTSTANDING REVENUE (UNPAID INVOICES)
+    // OUTSTANDING REVENUE - Using analytics_outstanding_balances view
     // ============================================================================
 
-    const { data: unpaidInvoices, error: unpaidError } = await client
-      .from('invoices')
-      .select('total_amount_in_cents, amount_paid_in_cents, status')
-      .in('status', ['sent', 'partially_paid', 'overdue'])
+    const { data: outstandingBalances, error: outstandingError } = await client
+      .from('analytics_outstanding_balances')
+      .select('total_balance_cents, overdue_balance_cents, parent_name')
 
-    if (unpaidError) throw unpaidError
+    if (outstandingError) throw outstandingError
 
-    const outstandingRevenue = (unpaidInvoices || []).reduce(
-      (sum, inv) => sum + (inv.total_amount_in_cents - inv.amount_paid_in_cents),
+    const outstandingRevenue = (outstandingBalances || []).reduce(
+      (sum, b) => sum + (b.total_balance_cents || 0),
       0
     )
 
-    const overdueRevenue = (unpaidInvoices || [])
-      .filter(inv => inv.status === 'overdue')
-      .reduce((sum, inv) => sum + (inv.total_amount_in_cents - inv.amount_paid_in_cents), 0)
+    const overdueRevenue = (outstandingBalances || []).reduce(
+      (sum, b) => sum + (b.overdue_balance_cents || 0),
+      0
+    )
+
+    const invoiceCount = (outstandingBalances || []).length
 
     // ============================================================================
-    // REFUND IMPACT
+    // REFUND IMPACT - Using analytics_refund_summary view
     // ============================================================================
 
-    const refundsByMethod = currentRevenue.reduce((acc, p) => {
-      const method = p.payment_method || 'unknown'
-      const refund = p.refund_amount_in_cents || 0
-      acc[method] = (acc[method] || 0) + refund
+    const { data: refundSummary, error: refundError } = await client
+      .from('analytics_refund_summary')
+      .select('*')
+      .gte('refund_month', startMonth)
+      .lte('refund_month', endMonth)
+
+    // Aggregate refunds by payment method
+    const refundsByMethod = (refundSummary || []).reduce((acc, r) => {
+      const method = r.payment_method || 'unknown'
+      acc[method] = (acc[method] || 0) + (r.total_refund_cents || 0)
       return acc
     }, {} as Record<string, number>)
 
     // ============================================================================
     // RETURN RESPONSE
     // ============================================================================
+
+    const totalTransactionCount = (dailyRevenue || []).reduce((sum, d) => sum + (d.transaction_count || 0), 0)
 
     const result = {
       dateRange: {
@@ -309,7 +282,7 @@ export default defineEventHandler(async (event) => {
         revenue: totalRevenue,
         refunds: totalRefunds,
         netRevenue,
-        transactionCount: currentRevenue.length,
+        transactionCount: totalTransactionCount,
         month: monthTotal,
         quarter: quarterTotal,
         year: yearTotal
@@ -317,6 +290,8 @@ export default defineEventHandler(async (event) => {
       revenueBySource: {
         tickets: ticketTotal,
         tuition: tuitionTotal,
+        merchandise: merchandiseTotal,
+        recitalFee: recitalFeeTotal,
         other: otherTotal
       },
       trends,
@@ -326,7 +301,7 @@ export default defineEventHandler(async (event) => {
       outstanding: {
         total: outstandingRevenue,
         overdue: overdueRevenue,
-        invoiceCount: unpaidInvoices?.length || 0
+        invoiceCount: invoiceCount
       },
       refunds: {
         total: totalRefunds,

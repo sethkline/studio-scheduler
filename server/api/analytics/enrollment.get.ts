@@ -167,51 +167,44 @@ export default defineEventHandler(async (event) => {
       .map(([ageGroup, count]) => ({ ageGroup, count }))
 
     // ============================================================================
-    // CLASS CAPACITY UTILIZATION
+    // CLASS CAPACITY UTILIZATION - Using analytics_enrollment_stats view
     // ============================================================================
 
     const { data: capacityData, error: capacityError } = await client
-      .from('class_instances')
-      .select(`
-        id,
-        status,
-        class_definition:class_definition_id (
-          id,
-          name,
-          max_students,
-          dance_style:dance_style_id (name)
-        ),
-        enrollments:enrollments(count)
-      `)
-      .eq('status', 'active')
+      .from('analytics_enrollment_stats')
+      .select('class_name, dance_style, active_enrollments, max_students, available_spots, waitlist_count')
+      .not('max_students', 'is', null)
+      .order('active_enrollments', { ascending: false })
 
     if (capacityError) throw capacityError
 
-    const classCapacity = capacityData?.map(cls => {
-      const maxStudents = cls.class_definition?.max_students || 0
-      const enrolled = cls.enrollments?.[0]?.count || 0
+    const classCapacity = (capacityData || []).map(cls => {
+      const maxStudents = cls.max_students || 0
+      const enrolled = cls.active_enrollments || 0
       const utilization = maxStudents > 0 ? (enrolled / maxStudents) * 100 : 0
 
       return {
-        classId: cls.id,
-        className: cls.class_definition?.name || 'Unknown',
-        danceStyle: cls.class_definition?.dance_style?.name || 'Unknown',
+        classId: cls.class_name, // Using class name as ID since view doesn't have class_instance_id
+        className: cls.class_name || 'Unknown',
+        danceStyle: cls.dance_style || 'Unknown',
         maxStudents,
         enrolled,
-        available: maxStudents - enrolled,
+        available: cls.available_spots || 0,
+        waitlistCount: cls.waitlist_count || 0,
         utilizationPercent: Math.round(utilization * 100) / 100
       }
     }).sort((a, b) => b.utilizationPercent - a.utilizationPercent)
 
     // ============================================================================
-    // WAITLIST SIZES (if waitlist table exists)
+    // WAITLIST SIZES - From analytics_enrollment_stats view
     // ============================================================================
 
-    // Note: Waitlist feature not yet implemented
-    // This is a placeholder for future implementation
+    const totalWaitlisted = classCapacity.reduce((sum, cls) => sum + (cls.waitlistCount || 0), 0)
+    const classesWithWaitlist = classCapacity.filter(cls => (cls.waitlistCount || 0) > 0).length
+
     const waitlistSummary = {
-      totalWaitlisted: 0,
-      classesWithWaitlist: 0
+      totalWaitlisted,
+      classesWithWaitlist
     }
 
     // ============================================================================

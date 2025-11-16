@@ -311,73 +311,34 @@ export default defineEventHandler(async (event) => {
       .sort((a, b) => b.retentionRate - a.retentionRate)
 
     // ============================================================================
-    // AT-RISK STUDENTS (low attendance, late payments)
+    // AT-RISK STUDENTS - Using analytics views
     // ============================================================================
 
-    // Low attendance students (< 75% attendance in last 30 days)
-    const { data: recentAttendance, error: attendanceError } = await client
-      .from('attendance_records')
-      .select(`
-        student_id,
-        status,
-        student:student_id (
-          first_name,
-          last_name
-        )
-      `)
-      .gte('attendance_date', format(subMonths(new Date(), 1), 'yyyy-MM-dd'))
+    // Low attendance students (< 75% attendance) using analytics_enrollment_stats
+    const { data: classAttendance, error: attendanceError } = await client
+      .from('analytics_enrollment_stats')
+      .select('class_name, attendance_rate_percentage')
+      .not('attendance_rate_percentage', 'is', null)
+      .lt('attendance_rate_percentage', 75)
+      .order('attendance_rate_percentage', { ascending: true })
 
-    // Note: attendance_records table may not exist yet
-    const attendanceByStudent = new Map()
-    if (!attendanceError && recentAttendance) {
-      recentAttendance.forEach(record => {
-        const studentId = record.student_id
-        const studentName = `${record.student?.first_name} ${record.student?.last_name}`
+    const atRiskLowAttendance = (classAttendance || []).map(cls => ({
+      className: cls.class_name,
+      attendanceRate: cls.attendance_rate_percentage || 0
+    }))
 
-        const existing = attendanceByStudent.get(studentId) || {
-          name: studentName,
-          total: 0,
-          present: 0
-        }
+    // Students with overdue payments using analytics_outstanding_balances
+    const { data: overdueBalances, error: overdueError } = await client
+      .from('analytics_outstanding_balances')
+      .select('parent_name, overdue_balance_cents, days_overdue')
+      .gt('overdue_balance_cents', 0)
+      .order('days_overdue', { ascending: false })
 
-        attendanceByStudent.set(studentId, {
-          name: existing.name,
-          total: existing.total + 1,
-          present: existing.present + (record.status === 'present' ? 1 : 0)
-        })
-      })
-    }
-
-    const atRiskLowAttendance = Array.from(attendanceByStudent.values())
-      .map(student => ({
-        studentName: student.name,
-        totalClasses: student.total,
-        attended: student.present,
-        attendanceRate: student.total > 0 ? (student.present / student.total) * 100 : 0
-      }))
-      .filter(s => s.attendanceRate < 75 && s.totalClasses >= 4)
-      .sort((a, b) => a.attendanceRate - b.attendanceRate)
-
-    // Students with overdue payments
-    const { data: overdueInvoices, error: overdueError } = await client
-      .from('invoices')
-      .select(`
-        student:student_id (
-          id,
-          first_name,
-          last_name
-        ),
-        total_amount_in_cents,
-        amount_paid_in_cents,
-        due_date
-      `)
-      .eq('status', 'overdue')
-
-    const atRiskLatePayments = overdueInvoices?.map(invoice => ({
-      studentName: `${invoice.student?.first_name} ${invoice.student?.last_name}`,
-      amountDue: (invoice.total_amount_in_cents - invoice.amount_paid_in_cents) / 100,
-      daysOverdue: differenceInDays(new Date(), new Date(invoice.due_date))
-    })) || []
+    const atRiskLatePayments = (overdueBalances || []).map(balance => ({
+      parentName: balance.parent_name,
+      amountDue: (balance.overdue_balance_cents || 0) / 100,
+      daysOverdue: balance.days_overdue || 0
+    }))
 
     // ============================================================================
     // REASONS FOR WITHDRAWAL
