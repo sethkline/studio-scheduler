@@ -8,9 +8,8 @@ import { sendPaymentReceiptEmail } from '~/server/utils/emailTemplates'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const stripe = new Stripe(config.stripeSecretKey, {
-    apiVersion: '2024-11-20.acacia',
-  })
+  // Use default Stripe API version (matches existing ticket payment system)
+  const stripe = new Stripe(config.stripeSecretKey)
 
   const client = getSupabaseClient()
   const body = await readBody<{
