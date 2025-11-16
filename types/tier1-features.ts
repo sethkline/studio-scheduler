@@ -320,81 +320,809 @@ export interface RefundPaymentInput {
 }
 
 // ============================================================
-// PERFORMER CONFIRMATION (Planned - Tier 1 Feature 3)
+// TASKS & CHECKLIST (Tier 1 Feature 3)
 // ============================================================
 
-export type ConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'expired'
+export type TaskStatus = 'not-started' | 'in-progress' | 'completed' | 'blocked' | 'cancelled'
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
+export type TaskCategory = 'venue' | 'costumes' | 'tech' | 'marketing' | 'admin' | 'rehearsal' | 'performance' | 'other'
 
-export interface PerformerConfirmation {
+export interface RecitalTask {
   id: string
-  student_id: string
   recital_show_id: string
-  status: ConfirmationStatus
-  confirmed_at?: string
-  declined_at?: string
-  confirmed_by_guardian_id?: string
-  confirmation_code?: string
+  title: string
+  description?: string
+  category: TaskCategory
+  status: TaskStatus
+  priority: TaskPriority
+  assigned_to_user_id?: string
+  assigned_to_role?: 'admin' | 'staff' | 'teacher' | 'parent' | 'volunteer'
+  due_date?: string // ISO date
+  completed_at?: string // ISO timestamp
+  completed_by_user_id?: string
+  is_template: boolean
+  parent_task_id?: string // For subtasks
+  depends_on_task_id?: string // Task dependency
+  estimated_hours?: number
   notes?: string
   created_at: string
   updated_at: string
 }
 
-// ============================================================
-// EMAIL CAMPAIGNS (Planned - Tier 1 Feature 4)
-// ============================================================
-
-export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled'
-export type EmailStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed'
-
-export interface EmailCampaign {
+export interface TaskTemplate {
   id: string
-  recital_show_id?: string
   name: string
-  subject: string
-  body_html: string
-  body_text?: string
-  status: CampaignStatus
-  scheduled_at?: string
-  sent_at?: string
+  description?: string
+  category: TaskCategory
+  priority: TaskPriority
+  estimated_hours?: number
+  default_days_before_show?: number // When to schedule relative to show date
+  is_public: boolean // Available to all users
+  created_by_user_id?: string
   created_at: string
   updated_at: string
 }
 
-export interface CampaignRecipient {
+export interface TaskTemplateItem {
+  id: string
+  template_id: string
+  title: string
+  description?: string
+  category: TaskCategory
+  priority: TaskPriority
+  order_index: number
+  estimated_hours?: number
+  default_assigned_to_role?: 'admin' | 'staff' | 'teacher' | 'parent' | 'volunteer'
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskComment {
+  id: string
+  task_id: string
+  user_id: string
+  comment: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskAttachment {
+  id: string
+  task_id: string
+  file_name: string
+  file_url: string
+  file_size_bytes: number
+  file_type: string
+  uploaded_by_user_id: string
+  created_at: string
+  updated_at: string
+}
+
+// Extended types with relations
+export interface TaskWithDetails extends RecitalTask {
+  assigned_to_user?: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+  }
+  completed_by_user?: {
+    id: string
+    first_name: string
+    last_name: string
+  }
+  parent_task?: RecitalTask
+  depends_on_task?: RecitalTask
+  subtasks?: RecitalTask[]
+  comments?: TaskComment[]
+  attachments?: TaskAttachment[]
+}
+
+export interface TaskListSummary {
+  total_tasks: number
+  not_started: number
+  in_progress: number
+  completed: number
+  blocked: number
+  overdue: number
+  due_this_week: number
+  completion_rate: number
+}
+
+export interface TasksByCategory {
+  category: TaskCategory
+  tasks: RecitalTask[]
+  completion_rate: number
+}
+
+// Form types for create/edit
+export interface CreateTaskInput {
+  recital_show_id: string
+  title: string
+  description?: string
+  category: TaskCategory
+  priority: TaskPriority
+  assigned_to_user_id?: string
+  assigned_to_role?: 'admin' | 'staff' | 'teacher' | 'parent' | 'volunteer'
+  due_date?: string
+  parent_task_id?: string
+  depends_on_task_id?: string
+  estimated_hours?: number
+  notes?: string
+}
+
+export interface UpdateTaskInput extends Partial<CreateTaskInput> {
+  id: string
+  status?: TaskStatus
+}
+
+export interface CreateTaskFromTemplateInput {
+  recital_show_id: string
+  template_id: string
+  show_date: string // To calculate due dates
+  assigned_to_user_id?: string
+}
+
+export interface BulkUpdateTaskStatusInput {
+  task_ids: string[]
+  status: TaskStatus
+}
+
+// ============================================================
+// VOLUNTEER MANAGEMENT (Tier 1 Feature 4)
+// ============================================================
+
+export type VolunteerShiftStatus = 'open' | 'filled' | 'confirmed' | 'completed' | 'cancelled'
+export type VolunteerRole = 'usher' | 'ticket_scanner' | 'backstage' | 'dressing_room' | 'setup' | 'cleanup' | 'concessions' | 'photographer' | 'other'
+
+export interface VolunteerShift {
+  id: string
+  recital_show_id: string
+  role: VolunteerRole
+  title: string
+  description?: string
+  location?: string
+  date: string // ISO date
+  start_time: string // HH:MM
+  end_time: string // HH:MM
+  slots_total: number
+  slots_filled: number
+  status: VolunteerShiftStatus
+  requirements?: string // Special requirements or skills needed
+  created_at: string
+  updated_at: string
+}
+
+export interface VolunteerAssignment {
+  id: string
+  shift_id: string
+  volunteer_user_id: string
+  status: 'pending' | 'confirmed' | 'checked_in' | 'completed' | 'no_show' | 'cancelled'
+  signed_up_at: string
+  confirmed_at?: string
+  checked_in_at?: string
+  checked_out_at?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VolunteerAvailability {
+  id: string
+  user_id: string
+  recital_show_id: string
+  date: string // ISO date
+  start_time: string // HH:MM
+  end_time: string // HH:MM
+  preferred_roles?: VolunteerRole[]
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface VolunteerProfile {
+  id: string
+  user_id: string
+  phone?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  preferred_roles?: VolunteerRole[]
+  skills?: string[]
+  availability_notes?: string
+  total_hours_volunteered: number
+  total_shifts_completed: number
+  created_at: string
+  updated_at: string
+}
+
+// Extended types with relations
+export interface ShiftWithAssignments extends VolunteerShift {
+  assignments?: VolunteerAssignment[]
+  volunteers?: Array<{
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    status: string
+  }>
+}
+
+export interface AssignmentWithDetails extends VolunteerAssignment {
+  shift?: VolunteerShift
+  volunteer?: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    phone?: string
+  }
+}
+
+export interface VolunteerSummary {
+  total_shifts: number
+  open_shifts: number
+  filled_shifts: number
+  total_slots: number
+  filled_slots: number
+  fill_rate: number
+  total_volunteers: number
+  confirmed_volunteers: number
+  upcoming_shifts: number
+}
+
+export interface VolunteerSchedule {
+  volunteer_id: string
+  volunteer_name: string
+  shifts: ShiftWithAssignments[]
+  total_hours: number
+}
+
+// Form types for create/edit
+export interface CreateShiftInput {
+  recital_show_id: string
+  role: VolunteerRole
+  title: string
+  description?: string
+  location?: string
+  date: string
+  start_time: string
+  end_time: string
+  slots_total: number
+  requirements?: string
+}
+
+export interface UpdateShiftInput extends Partial<CreateShiftInput> {
+  id: string
+  status?: VolunteerShiftStatus
+}
+
+export interface SignUpForShiftInput {
+  shift_id: string
+  notes?: string
+}
+
+export interface BulkCreateShiftsInput {
+  recital_show_id: string
+  role: VolunteerRole
+  title: string
+  description?: string
+  location?: string
+  dates: string[] // Array of ISO dates
+  start_time: string
+  end_time: string
+  slots_per_shift: number
+  requirements?: string
+}
+
+// ============================================================
+// MEDIA GALLERY & PHOTO SHARING (Tier 1 Feature 5)
+// ============================================================
+
+export type MediaType = 'photo' | 'video'
+export type MediaPrivacy = 'public' | 'parents_only' | 'private'
+
+export interface MediaAlbum {
+  id: string
+  recital_show_id: string
+  name: string
+  description?: string
+  cover_photo_url?: string
+  privacy: MediaPrivacy
+  is_featured: boolean
+  photo_count: number
+  video_count: number
+  created_by_user_id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MediaItem {
+  id: string
+  album_id: string
+  recital_show_id: string
+  media_type: MediaType
+  file_url: string
+  thumbnail_url?: string
+  title?: string
+  caption?: string
+  privacy: MediaPrivacy
+  file_size_bytes: number
+  width?: number
+  height?: number
+  duration_seconds?: number // For videos
+  uploaded_by_user_id: string
+  uploaded_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MediaTag {
+  id: string
+  media_item_id: string
+  student_id: string
+  tagged_by_user_id: string
+  created_at: string
+}
+
+export interface MediaComment {
+  id: string
+  media_item_id: string
+  user_id: string
+  comment: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MediaLike {
+  id: string
+  media_item_id: string
+  user_id: string
+  created_at: string
+}
+
+// Extended types with relations
+export interface AlbumWithStats extends MediaAlbum {
+  media_items?: MediaItem[]
+  total_items: number
+  recent_items?: MediaItem[]
+}
+
+export interface MediaItemWithDetails extends MediaItem {
+  album?: MediaAlbum
+  tags?: Array<{
+    id: string
+    student: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+  }>
+  comments?: Array<{
+    id: string
+    comment: string
+    user: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+    created_at: string
+  }>
+  likes_count: number
+  is_liked_by_current_user: boolean
+  uploaded_by: {
+    id: string
+    first_name: string
+    last_name: string
+  }
+}
+
+export interface MediaGallerySummary {
+  total_albums: number
+  total_photos: number
+  total_videos: number
+  total_items: number
+  recent_uploads_count: number
+  featured_albums_count: number
+}
+
+// Form types for create/edit
+export interface CreateAlbumInput {
+  recital_show_id: string
+  name: string
+  description?: string
+  privacy: MediaPrivacy
+  is_featured?: boolean
+}
+
+export interface UpdateAlbumInput extends Partial<CreateAlbumInput> {
+  id: string
+}
+
+export interface UploadMediaInput {
+  album_id: string
+  recital_show_id: string
+  media_type: MediaType
+  title?: string
+  caption?: string
+  privacy: MediaPrivacy
+  file: File
+}
+
+export interface TagStudentInput {
+  media_item_id: string
+  student_ids: string[]
+}
+
+export interface BulkUploadInput {
+  album_id: string
+  recital_show_id: string
+  privacy: MediaPrivacy
+  files: File[]
+}
+
+// ============================================================
+// PERFORMER CONFIRMATION (Tier 1 Feature #3)
+// ============================================================
+
+export type ConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'waitlist'
+export type OptOutCategory = 'schedule_conflict' | 'cost' | 'injury' | 'other'
+export type EligibilityRuleType = 'attendance' | 'payment' | 'age' | 'enrollment' | 'custom'
+export type ParticipationRequestType = 'initial' | 'reminder' | 'final_notice'
+
+export interface RecitalPerformerConfirmation {
+  id: string
+  recital_id: string
+  student_id: string
+  recital_performance_id: string
+  guardian_id?: string
+  status: ConfirmationStatus
+  confirmation_date?: string
+  decline_reason?: string
+  opt_out_category?: OptOutCategory
+  notes?: string
+  reminder_sent_count: number
+  last_reminder_sent?: string
+  confirmation_deadline?: string
+  is_eligible: boolean
+  eligibility_notes?: string
+  created_at: string
+  updated_at: string
+  // Related data (joined)
+  student?: any
+  guardian?: any
+  performance?: any
+}
+
+export interface RecitalEligibilityRule {
+  id: string
+  recital_id: string
+  rule_name: string
+  rule_type: EligibilityRuleType
+  description?: string
+  is_active: boolean
+  is_blocking: boolean
+  configuration: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface RecitalParticipationRequest {
+  id: string
+  recital_id: string
+  student_id: string
+  guardian_id?: string
+  request_type: ParticipationRequestType
+  sent_via: 'email' | 'sms' | 'portal'
+  sent_at: string
+  opened_at?: string
+  clicked_at?: string
+  responded_at?: string
+  created_at: string
+}
+
+export interface ConfirmationStatusSummary {
+  total_performers: number
+  confirmed: number
+  declined: number
+  pending: number
+  confirmation_rate: number
+  deadline?: string
+  days_until_deadline?: number
+}
+
+export interface ConfirmationStatusByClass {
+  class_name: string
+  total: number
+  confirmed: number
+  pending: number
+  declined: number
+}
+
+export interface ConfirmationStatusByPerformance {
+  performance_id: string
+  performance_name: string
+  confirmed_count: number
+  pending_count: number
+}
+
+export interface PendingConfirmation {
+  student_id: string
+  student_name: string
+  guardian_name?: string
+  guardian_email?: string
+  performances: string[]
+  reminders_sent: number
+  last_reminder?: string
+}
+
+export interface PerformerConfirmationOverview {
+  summary: ConfirmationStatusSummary
+  by_class: ConfirmationStatusByClass[]
+  by_performance: ConfirmationStatusByPerformance[]
+  pending_confirmations: PendingConfirmation[]
+}
+
+export interface EligibilityCheckResult {
+  eligible: number
+  ineligible: number
+  details: {
+    student_id: string
+    student_name: string
+    class_name: string
+    reason: string
+  }[]
+}
+
+// ============================================================
+// EMAIL CAMPAIGNS (Tier 1 Feature #4)
+// ============================================================
+
+export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled'
+export type EmailRecipientStatus = 'queued' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed' | 'unsubscribed'
+export type TargetAudience = 'all_parents' | 'all_staff' | 'specific_class' | 'specific_students' | 'custom_filter'
+export type TemplateCategory = 'recital_announcement' | 'reminder' | 'update' | 'emergency' | 'general'
+export type RecipientType = 'parent' | 'student' | 'staff' | 'teacher'
+export type UnsubscribeScope = 'all' | 'recital_updates' | 'marketing'
+
+export interface EmailCampaign {
+  id: string
+  recital_id?: string
+  campaign_name: string
+  subject_line: string
+  from_name: string
+  from_email: string
+  reply_to_email: string
+  email_body_html: string
+  email_body_text?: string
+  template_id?: string
+  target_audience: TargetAudience
+  filter_criteria?: Record<string, any>
+  status: CampaignStatus
+  schedule_send_at?: string
+  sent_at?: string
+  total_recipients: number
+  sent_count: number
+  delivered_count: number
+  opened_count: number
+  clicked_count: number
+  bounced_count: number
+  failed_count: number
+  unsubscribed_count: number
+  has_attachments: boolean
+  is_urgent: boolean
+  created_by: string
+  sent_by?: string
+  created_at: string
+  updated_at: string
+  // Related data (joined)
+  template?: EmailTemplate
+  recipients?: EmailCampaignRecipient[]
+  attachments?: EmailCampaignAttachment[]
+}
+
+export interface EmailCampaignRecipient {
   id: string
   campaign_id: string
-  email: string
+  recipient_type: RecipientType
+  profile_id?: string
   guardian_id?: string
-  status: EmailStatus
+  email_address: string
+  recipient_name: string
+  personalization_data?: Record<string, any>
+  status: EmailRecipientStatus
+  email_provider_id?: string
   sent_at?: string
   delivered_at?: string
   opened_at?: string
   clicked_at?: string
   bounced_at?: string
-  error_message?: string
+  bounce_reason?: string
+  failed_at?: string
+  failure_reason?: string
+  open_count: number
+  click_count: number
+  unsubscribed_at?: string
   created_at: string
   updated_at: string
 }
 
+export interface EmailTemplate {
+  id: string
+  template_name: string
+  template_category: TemplateCategory
+  subject_line: string
+  body_html: string
+  body_text?: string
+  available_merge_tags: string[]
+  preview_text?: string
+  is_system_template: boolean
+  is_active: boolean
+  thumbnail_url?: string
+  created_by?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailCampaignAttachment {
+  id: string
+  campaign_id: string
+  file_name: string
+  file_path: string
+  file_size: number
+  file_type: string
+  uploaded_by: string
+  uploaded_at: string
+}
+
+export interface EmailUnsubscribe {
+  id: string
+  email_address: string
+  profile_id?: string
+  guardian_id?: string
+  unsubscribed_from: UnsubscribeScope
+  unsubscribe_reason?: string
+  unsubscribed_at: string
+  ip_address?: string
+}
+
+export interface CampaignAnalytics {
+  campaign_id: string
+  total_recipients: number
+  sent_count: number
+  delivered_count: number
+  opened_count: number
+  clicked_count: number
+  bounced_count: number
+  failed_count: number
+  unsubscribed_count: number
+  delivery_rate: number
+  open_rate: number
+  click_rate: number
+  bounce_rate: number
+}
+
 // ============================================================
-// SHOW-DAY CHECK-IN (Planned - Tier 1 Feature 5)
+// SHOW-DAY CHECK-IN (Tier 1 Feature #5)
 // ============================================================
 
-export type CheckInType = 'arrival' | 'dressing_room' | 'backstage' | 'on_deck' | 'on_stage'
-export type CheckInStatus = 'checked_in' | 'checked_out' | 'no_show'
+export type CheckInMethod = 'manual' | 'qr_code' | 'barcode' | 'name_search'
+export type ArrivalStatus = 'on_time' | 'early' | 'late' | 'very_late'
+export type PerformanceStatus = 'upcoming' | 'on_deck' | 'on_stage' | 'completed'
+export type QuickChangeStatus = 'planned' | 'in_progress' | 'completed' | 'issue'
+export type AlertType = 'missing_student' | 'missing_costume' | 'injury' | 'equipment' | 'delay' | 'other'
+export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical'
+export type AgeGroup = 'young' | 'middle' | 'teen' | 'adult' | 'all'
 
 export interface ShowDayCheckIn {
   id: string
-  student_id: string
   recital_show_id: string
-  check_in_type: CheckInType
+  student_id: string
   check_in_time: string
+  checked_in_by?: string
+  check_in_method: CheckInMethod
+  dressing_room_id?: string
+  arrival_status: ArrivalStatus
+  has_all_costumes: boolean
+  missing_items?: string
+  guardian_present: boolean
+  guardian_contact?: string
+  notes?: string
+  is_ready: boolean
   check_out_time?: string
-  status: CheckInStatus
-  checked_in_by_staff_id?: string
+  checked_out_by?: string
+  created_at: string
+  updated_at: string
+  // Related data (joined)
+  student?: any
+  dressing_room?: DressingRoom
+  staff?: any
+}
+
+export interface DressingRoom {
+  id: string
+  recital_show_id: string
+  room_name: string
+  room_number?: string
+  capacity: number
+  age_group: AgeGroup
+  notes?: string
+  assigned_staff?: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  // Related data
+  checked_in_count?: number
+}
+
+export interface PerformerLineup {
+  id: string
+  recital_show_id: string
+  recital_performance_id: string
+  performance_order: number
+  performance_status: PerformanceStatus
+  scheduled_time?: string
+  actual_start_time?: string
+  actual_end_time?: string
+  all_performers_ready: boolean
+  missing_performers?: string[]
+  notes?: string
+  updated_by?: string
+  updated_at: string
+  // Related data
+  performance?: any
+  missing_students?: any[]
+}
+
+export interface QuickChangeAlert {
+  id: string
+  recital_show_id: string
+  student_id: string
+  from_performance_id: string
+  to_performance_id: string
+  time_between_minutes: number
+  is_critical: boolean
+  assigned_helper?: string
+  quick_change_location?: string
+  status: QuickChangeStatus
   notes?: string
   created_at: string
   updated_at: string
+  // Related data
+  student?: any
+  from_performance?: any
+  to_performance?: any
+  helper?: any
+}
+
+export interface ShowDayAlert {
+  id: string
+  recital_show_id: string
+  alert_type: AlertType
+  severity: AlertSeverity
+  title: string
+  description: string
+  affected_students?: string[]
+  affected_performances?: string[]
+  is_resolved: boolean
+  created_by: string
+  resolved_by?: string
+  resolved_at?: string
+  resolution_notes?: string
+  created_at: string
+  updated_at: string
+  // Related data
+  creator?: any
+  resolver?: any
+}
+
+export interface CheckInSummary {
+  total_students: number
+  checked_in: number
+  not_checked_in: number
+  on_time: number
+  late: number
+  missing_costumes: number
+  ready_for_performance: number
 }
 
 // ============================================================
