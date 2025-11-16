@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../../../utils/supabase'
+import { generateStudentPhotoUrls } from '../../../utils/studentPhotos'
 
 export default defineEventHandler(async (event) => {
   const client = getSupabaseClient()
@@ -101,8 +102,11 @@ export default defineEventHandler(async (event) => {
 
     if (enrollmentsError) throw enrollmentsError
 
+    // Generate signed URLs for student photos (file paths stored in DB)
+    const studentWithUrls = await generateStudentPhotoUrls(client, student)
+
     return {
-      student,
+      student: studentWithUrls,
       guardians,
       enrollments: enrollments || [],
     }

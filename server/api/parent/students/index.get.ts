@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../../../utils/supabase'
+import { generateStudentPhotoUrlsBulk } from '../../../utils/studentPhotos'
 
 export default defineEventHandler(async (event) => {
   const client = getSupabaseClient()
@@ -52,9 +53,12 @@ export default defineEventHandler(async (event) => {
       },
     })) || []
 
+    // Generate signed URLs for student photos (file paths stored in DB)
+    const studentsWithUrls = await generateStudentPhotoUrlsBulk(client, students)
+
     return {
-      students,
-      total: students.length,
+      students: studentsWithUrls,
+      total: studentsWithUrls.length,
     }
   } catch (error: any) {
     console.error('Error fetching students:', error)

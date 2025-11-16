@@ -148,36 +148,59 @@ export default defineEventHandler(async (event) => {
         })
     ])
 
-    if (mainUpload.error) throw mainUpload.error
-    if (thumbUpload.error) {
-      // Log thumbnail error but don't fail the whole upload
-      console.error('Error uploading thumbnail:', thumbUpload.error)
+    // Both uploads must succeed - fail atomically if either fails
+    if (mainUpload.error) {
+      console.error('Error uploading main photo:', mainUpload.error)
+      throw createError({
+        statusCode: 500,
+        message: 'Failed to upload photo',
+      })
     }
 
-    // Get public URLs
-    const { data: mainUrlData } = client.storage.from('student-photos').getPublicUrl(mainFileName)
-    const { data: thumbUrlData } = client.storage.from('student-photos').getPublicUrl(thumbFileName)
+    if (thumbUpload.error) {
+      console.error('Error uploading thumbnail:', thumbUpload.error)
+      // Clean up the main photo since thumbnail failed
+      await client.storage.from('student-photos').remove([mainFileName])
+      throw createError({
+        statusCode: 500,
+        message: 'Failed to upload photo thumbnail',
+      })
+    }
 
-    const photoUrl = mainUrlData.publicUrl
-    const thumbnailUrl = thumbUrlData.publicUrl
+    // Store file paths (not URLs) in database for private bucket access
+    // Note: student-photos bucket should be configured as private
+    // Signed URLs will be generated on-demand when photos are accessed
+    const photoPath = mainFileName
+    const thumbnailPath = thumbFileName
 
-    // Update student record with both photo URLs
+    // Update student record with file paths (only if both uploads succeeded)
     const { data: updatedStudent, error: updateError } = await client
       .from('students')
       .update({
-        photo_url: photoUrl,
-        photo_thumbnail_url: thumbnailUrl
+        photo_url: photoPath,
+        photo_thumbnail_url: thumbnailPath
       })
       .eq('id', studentId)
       .select()
       .single()
 
-    if (updateError) throw updateError
+    if (updateError) {
+      // Clean up uploaded files if database update fails
+      await client.storage.from('student-photos').remove([mainFileName, thumbFileName])
+      throw updateError
+    }
+
+    // Generate signed URLs for immediate response (valid for 1 hour)
+    const expiresIn = 60 * 60 // 1 hour
+    const [mainUrlResult, thumbUrlResult] = await Promise.all([
+      client.storage.from('student-photos').createSignedUrl(photoPath, expiresIn),
+      client.storage.from('student-photos').createSignedUrl(thumbnailPath, expiresIn)
+    ])
 
     return {
       message: 'Photo uploaded and optimized successfully',
-      photo_url: photoUrl,
-      thumbnail_url: thumbnailUrl,
+      photo_url: mainUrlResult.data?.signedUrl || '',
+      thumbnail_url: thumbUrlResult.data?.signedUrl || '',
       student: updatedStudent,
     }
   } catch (error: any) {
