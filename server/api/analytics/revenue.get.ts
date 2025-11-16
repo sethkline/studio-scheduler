@@ -2,12 +2,20 @@
 import { getSupabaseClient } from '../../utils/supabase'
 import { format, startOfMonth, endOfMonth, subMonths, subYears, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns'
 import { analyticsCache, CACHE_TTL } from '../../utils/analyticsCache'
+import { requireFinancialAnalyticsAccess, logAccess } from '../../utils/auth'
 
 // Query timeout in milliseconds (10 seconds)
 const QUERY_TIMEOUT = 10000
 
 export default defineEventHandler(async (event) => {
   try {
+    // SECURITY: Require admin role for financial analytics
+    // Revenue data is sensitive and should only be accessible to admin
+    const profile = await requireFinancialAnalyticsAccess(event)
+
+    // Log access for auditing
+    logAccess(event, 'analytics/revenue', 'read', true)
+
     const client = getSupabaseClient()
     const query = getQuery(event)
 
@@ -17,8 +25,9 @@ export default defineEventHandler(async (event) => {
     const period = query.period as string || 'month' // month, quarter, year
     const compareYearAgo = query.compareYearAgo === 'true'
 
-    // Generate cache key
+    // Generate cache key (include user ID for security)
     const cacheKey = analyticsCache.constructor.generateKey('revenue', {
+      userId: profile.id,
       startDate,
       endDate,
       period,

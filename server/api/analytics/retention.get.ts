@@ -1,9 +1,16 @@
 // server/api/analytics/retention.get.ts
 import { getSupabaseClient } from '../../utils/supabase'
 import { format, subMonths, differenceInMonths, differenceInDays } from 'date-fns'
+import { requireAnalyticsAccess, logAccess } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // SECURITY: Require admin or staff role for retention analytics
+    const profile = await requireAnalyticsAccess(event)
+
+    // Log access for auditing
+    logAccess(event, 'analytics/retention', 'read', true)
+
     const client = getSupabaseClient()
     const query = getQuery(event)
 

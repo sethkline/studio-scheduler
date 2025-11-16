@@ -1,9 +1,16 @@
 // server/api/analytics/teacher-metrics.get.ts
 import { getSupabaseClient } from '../../utils/supabase'
 import { format, subMonths } from 'date-fns'
+import { requireAnalyticsAccess, logAccess } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // SECURITY: Require admin or staff role for teacher metrics analytics
+    const profile = await requireAnalyticsAccess(event)
+
+    // Log access for auditing
+    logAccess(event, 'analytics/teacher-metrics', 'read', true)
+
     const client = getSupabaseClient()
     const query = getQuery(event)
 

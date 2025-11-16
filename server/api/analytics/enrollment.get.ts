@@ -1,9 +1,16 @@
 // server/api/analytics/enrollment.get.ts
 import { getSupabaseClient } from '../../utils/supabase'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { requireAnalyticsAccess, logAccess } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    // SECURITY: Require admin or staff role for enrollment analytics
+    const profile = await requireAnalyticsAccess(event)
+
+    // Log access for auditing
+    logAccess(event, 'analytics/enrollment', 'read', true)
+
     const client = getSupabaseClient()
     const query = getQuery(event)
 
