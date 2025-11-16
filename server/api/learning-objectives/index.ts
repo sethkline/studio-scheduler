@@ -3,9 +3,16 @@
  * List learning objectives with filtering and pagination
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 import type { LearningObjectiveFilters } from '~/types/lesson-planning'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to view learning objectives
+  requirePermission(user, 'canViewLearningObjectives')
+
   const client = getSupabaseClient()
   const query = getQuery(event) as LearningObjectiveFilters
 

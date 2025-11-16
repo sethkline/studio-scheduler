@@ -3,9 +3,16 @@
  * Create a new learning objective
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 import type { CreateLearningObjectiveInput } from '~/types/lesson-planning'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to manage learning objectives (admin/staff only)
+  requirePermission(user, 'canManageLearningObjectives')
+
   const client = getSupabaseClient()
   const body = await readBody<CreateLearningObjectiveInput>(event)
 
@@ -31,12 +38,12 @@ export default defineEventHandler(async (event) => {
       sequence_order: body.sequence_order || 0,
       is_active: body.is_active !== undefined ? body.is_active : true
     })
-    .select(`
+    .select(\`
       *,
       dance_style:dance_styles(id, name, color),
       class_level:class_levels(id, name),
       class_definition:class_definitions(id, name)
-    `)
+    \`)
     .single()
 
   if (error) {

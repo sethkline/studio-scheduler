@@ -3,9 +3,16 @@
  * Update a lesson plan template
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 import type { UpdateLessonPlanTemplateInput } from '~/types/lesson-planning'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to manage templates
+  requirePermission(user, 'canManageLessonTemplates')
+
   const client = getSupabaseClient()
   const id = getRouterParam(event, 'id')
   const body = await readBody<UpdateLessonPlanTemplateInput>(event)
@@ -14,6 +21,31 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 400,
       statusMessage: 'Template ID is required'
+    })
+  }
+
+  // Fetch existing template to check ownership
+  const { data: existingTemplate, error: fetchError } = await client
+    .from('lesson_plan_templates')
+    .select('teacher_id')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !existingTemplate) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Template not found'
+    })
+  }
+
+  // Check authorization
+  const isAdminOrStaff = user.user_role === 'admin' || user.user_role === 'staff'
+  const isOwner = existingTemplate.teacher_id === user.teacher_id
+
+  if (!isAdminOrStaff && !isOwner) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - You can only update your own templates'
     })
   }
 
@@ -36,12 +68,12 @@ export default defineEventHandler(async (event) => {
     .from('lesson_plan_templates')
     .update(updateData)
     .eq('id', id)
-    .select(`
+    .select(\`
       *,
       teacher:teachers(id, first_name, last_name),
       dance_style:dance_styles(id, name, color),
       class_level:class_levels(id, name)
-    `)
+    \`)
     .single()
 
   if (error) {

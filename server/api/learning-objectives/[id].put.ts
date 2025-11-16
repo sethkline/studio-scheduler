@@ -3,9 +3,16 @@
  * Update a learning objective
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 import type { UpdateLearningObjectiveInput } from '~/types/lesson-planning'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to manage learning objectives (admin/staff only)
+  requirePermission(user, 'canManageLearningObjectives')
+
   const client = getSupabaseClient()
   const id = getRouterParam(event, 'id')
   const body = await readBody<UpdateLearningObjectiveInput>(event)
@@ -35,12 +42,12 @@ export default defineEventHandler(async (event) => {
     .from('learning_objectives')
     .update(updateData)
     .eq('id', id)
-    .select(`
+    .select(\`
       *,
       dance_style:dance_styles(id, name, color),
       class_level:class_levels(id, name),
       class_definition:class_definitions(id, name)
-    `)
+    \`)
     .single()
 
   if (error) {

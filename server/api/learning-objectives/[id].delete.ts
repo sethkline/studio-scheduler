@@ -3,8 +3,15 @@
  * Delete a learning objective
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to manage learning objectives (admin/staff only)
+  requirePermission(user, 'canManageLearningObjectives')
+
   const client = getSupabaseClient()
   const id = getRouterParam(event, 'id')
 

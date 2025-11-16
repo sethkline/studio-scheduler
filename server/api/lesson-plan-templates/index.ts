@@ -3,9 +3,16 @@
  * List lesson plan templates with filtering and pagination
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 import type { LessonPlanTemplateFilters } from '~/types/lesson-planning'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to view templates
+  requirePermission(user, 'canViewAllLessonTemplates')
+
   const client = getSupabaseClient()
   const query = getQuery(event) as LessonPlanTemplateFilters
 
@@ -17,15 +24,30 @@ export default defineEventHandler(async (event) => {
   // Build query
   let dbQuery = client
     .from('lesson_plan_templates')
-    .select(`
+    .select(\`
       *,
       teacher:teachers(id, first_name, last_name),
       dance_style:dance_styles(id, name, color),
       class_level:class_levels(id, name)
-    `, { count: 'exact' })
+    \`, { count: 'exact' })
+
+  // Teachers can see their own templates + public templates
+  // Admin/staff can see all templates
+  const isAdminOrStaff = user.user_role === 'admin' || user.user_role === 'staff'
+
+  if (!isAdminOrStaff && user.teacher_id) {
+    // Filter to own templates OR public templates
+    dbQuery = dbQuery.or(\`teacher_id.eq.\${user.teacher_id},is_public.eq.true\`)
+  }
 
   // Apply filters
   if (query.teacher_id) {
+    if (!isAdminOrStaff && query.teacher_id !== user.teacher_id) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden - Cannot view other teachers templates'
+      })
+    }
     dbQuery = dbQuery.eq('teacher_id', query.teacher_id)
   }
 
@@ -42,7 +64,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (query.search) {
-    dbQuery = dbQuery.or(`name.ilike.%${query.search}%,description.ilike.%${query.search}%`)
+    dbQuery = dbQuery.or(\`name.ilike.%\${query.search}%,description.ilike.%\${query.search}%\`)
   }
 
   // Sorting

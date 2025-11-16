@@ -3,9 +3,16 @@
  * Create a new lesson plan
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission, requireOwnerOrAdmin } from '~/server/utils/auth'
 import type { CreateLessonPlanInput } from '~/types/lesson-planning'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to manage lesson plans
+  requirePermission(user, 'canManageLessonPlans')
+
   const client = getSupabaseClient()
   const body = await readBody<CreateLessonPlanInput>(event)
 
@@ -16,6 +23,10 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Missing required fields: class_instance_id, teacher_id, lesson_date, title'
     })
   }
+
+  // Teachers can only create lesson plans for themselves
+  // Admin/staff can create for any teacher
+  requireOwnerOrAdmin(user, body.teacher_id, 'lesson plans')
 
   // Create lesson plan
   const { data, error } = await client

@@ -3,9 +3,16 @@
  * List lesson plans with filtering and pagination
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 import type { LessonPlanFilters } from '~/types/lesson-planning'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to view lesson plans
+  requirePermission(user, 'canManageLessonPlans')
+
   const client = getSupabaseClient()
   const query = getQuery(event) as LessonPlanFilters
 
@@ -40,12 +47,27 @@ export default defineEventHandler(async (event) => {
       )
     `, { count: 'exact' })
 
+  // Teachers can only see their own lesson plans unless they're admin/staff
+  const isAdminOrStaff = user.user_role === 'admin' || user.user_role === 'staff'
+
+  if (!isAdminOrStaff && user.teacher_id) {
+    // Restrict to own lesson plans
+    dbQuery = dbQuery.eq('teacher_id', user.teacher_id)
+  }
+
   // Apply filters
   if (query.class_instance_id) {
     dbQuery = dbQuery.eq('class_instance_id', query.class_instance_id)
   }
 
   if (query.teacher_id) {
+    // If non-admin tries to filter by different teacher, deny
+    if (!isAdminOrStaff && query.teacher_id !== user.teacher_id) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden - Cannot view other teachers lesson plans'
+      })
+    }
     dbQuery = dbQuery.eq('teacher_id', query.teacher_id)
   }
 

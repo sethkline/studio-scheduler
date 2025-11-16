@@ -3,8 +3,15 @@
  * Get a single lesson plan by ID with full details
  */
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requirePermission } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
+  // Authenticate user
+  const user = await requireAuth(event)
+
+  // Check permission to view lesson plans
+  requirePermission(user, 'canManageLessonPlans')
+
   const client = getSupabaseClient()
   const id = getRouterParam(event, 'id')
 
@@ -56,6 +63,17 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Failed to fetch lesson plan',
       data: error
+    })
+  }
+
+  // Check authorization: teachers can only view their own lessons, admin/staff can view all
+  const isAdminOrStaff = user.user_role === 'admin' || user.user_role === 'staff'
+  const isOwner = data.teacher_id === user.teacher_id
+
+  if (!isAdminOrStaff && !isOwner) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - You can only view your own lesson plans'
     })
   }
 
