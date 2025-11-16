@@ -6,20 +6,54 @@ import type { SendEmailRequest, EmailTemplateData } from '~/types/email'
 /**
  * POST /api/email/send
  * Send an email using a template or custom content
+ * REQUIRES: Admin or Staff role
  */
 export default defineEventHandler(async (event) => {
   try {
     const client = getSupabaseClient()
     const body = await readBody<SendEmailRequest>(event)
 
-    // Get current user
+    // SECURITY: Require authentication
     const authHeader = event.headers.get('authorization')
-    let userId: string | null = null
-
-    if (authHeader) {
-      const { data: { user } } = await client.auth.getUser(authHeader.replace('Bearer ', ''))
-      userId = user?.id || null
+    if (!authHeader) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Authentication required',
+      })
     }
+
+    // Get and verify current user
+    const { data: { user }, error: authError } = await client.auth.getUser(authHeader.replace('Bearer ', ''))
+
+    if (authError || !user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Invalid authentication',
+      })
+    }
+
+    // SECURITY: Check user role - only admin and staff can send emails
+    const { data: profile, error: profileError } = await client
+      .from('profiles')
+      .select('user_role')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !profile) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'User profile not found',
+      })
+    }
+
+    if (!['admin', 'staff'].includes(profile.user_role)) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Insufficient permissions. Admin or Staff role required to send emails.',
+      })
+    }
+
+    const userId = user.id
 
     // Check if this email should be scheduled
     if (body.scheduledFor) {

@@ -352,12 +352,19 @@ class EnhancedEmailService {
 
   /**
    * Verify webhook signature from Mailgun
+   * IMPORTANT: Uses MAILGUN_WEBHOOK_SIGNING_KEY, not MAILGUN_API_KEY
    */
   public verifyWebhookSignature(timestamp: string, token: string, signature: string): boolean {
     const crypto = require('crypto')
-    const apiKey = process.env.MAILGUN_API_KEY || ''
+    // SECURITY FIX: Use webhook signing key, NOT API key
+    const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY || process.env.MAILGUN_API_KEY || ''
 
-    const encodedToken = crypto.createHmac('sha256', apiKey).update(timestamp + token).digest('hex')
+    if (!signingKey) {
+      console.error('MAILGUN_WEBHOOK_SIGNING_KEY not configured')
+      return false
+    }
+
+    const encodedToken = crypto.createHmac('sha256', signingKey).update(timestamp + token).digest('hex')
 
     return encodedToken === signature
   }

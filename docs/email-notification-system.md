@@ -93,9 +93,31 @@ Set up a webhook in your Mailgun dashboard to track email events:
 - Bounced
 - Complained
 
+## Security & Authentication
+
+### API Authentication
+
+**IMPORTANT**: All email sending endpoints require authentication and admin/staff role:
+
+- ✅ **Required**: Valid Supabase authentication token
+- ✅ **Required**: User must have `admin` or `staff` role
+- ❌ **Blocked**: Anonymous requests
+- ❌ **Blocked**: Parent, teacher, or student roles
+
+This prevents spam, abuse, and unauthorized access to email templates.
+
+### Webhook Security
+
+Mailgun webhooks are verified using HMAC-SHA256 signature:
+- Uses `MAILGUN_WEBHOOK_SIGNING_KEY` (NOT the API key)
+- Rejects requests with invalid signatures
+- Prevents webhook spoofing attacks
+
 ## Usage
 
 ### Sending a Single Email
+
+**Note**: You must be authenticated as admin or staff to send emails.
 
 ```typescript
 const emailService = useEmailService()

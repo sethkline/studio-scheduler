@@ -25,6 +25,7 @@ Add these variables to your `.env` file:
 # Mailgun Configuration
 MAILGUN_API_KEY=key-your-mailgun-api-key
 MAILGUN_DOMAIN=mg.yourdomain.com
+MAILGUN_WEBHOOK_SIGNING_KEY=your-webhook-signing-key
 
 # Email Addresses
 MAIL_FROM_ADDRESS=noreply@yourdomain.com
@@ -33,6 +34,9 @@ MAIL_REPLY_TO_ADDRESS=support@yourdomain.com
 # Application URL (for unsubscribe links)
 MARKETING_SITE_URL=https://yourdomain.com
 ```
+
+**Important**: The `MAILGUN_WEBHOOK_SIGNING_KEY` is different from the API key. Find it in:
+- Mailgun Dashboard → Sending → Webhooks → "HTTP webhook signing key"
 
 ## Step 3: Database Migration
 
@@ -84,15 +88,20 @@ try {
 Set up webhooks to track email delivery and engagement:
 
 1. **Go to Mailgun Dashboard** → Sending → Webhooks
-2. **Add webhook URL**: `https://yourdomain.com/api/email/webhook`
-3. **Select events to track**:
+2. **Copy your webhook signing key**:
+   - Look for "HTTP webhook signing key" at the top of the page
+   - Copy this key and add it to your `.env` as `MAILGUN_WEBHOOK_SIGNING_KEY`
+3. **Add webhook URL**: `https://yourdomain.com/api/email/webhook`
+4. **Select events to track**:
    - ☑️ Delivered
    - ☑️ Opened
    - ☑️ Clicked
    - ☑️ Failed
    - ☑️ Bounced
    - ☑️ Complained (spam)
-4. **Save webhook configuration**
+5. **Save webhook configuration**
+
+**Security Note**: The webhook endpoint verifies all requests using the signing key to prevent spoofing.
 
 ## Step 6: Test Email Sending
 
