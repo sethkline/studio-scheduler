@@ -1,9 +1,15 @@
 // server/api/public/seat-reservations/[token].delete.ts
-import { getSupabaseClient } from '../../../utils/supabase'
 
+/**
+ * DELETE /api/public/seat-reservations/:token
+ * Cancel a seat reservation (public endpoint)
+ * Token acts as ownership proof - anyone with the token can cancel
+ * Uses RLS for data access
+ */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Use serverSupabaseClient which respects RLS policies
+    const client = await serverSupabaseClient(event)
     const token = getRouterParam(event, 'token')
     
     // Find the reservation

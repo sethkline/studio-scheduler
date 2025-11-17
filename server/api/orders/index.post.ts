@@ -1,7 +1,7 @@
 // server/api/orders/index.post.ts
 import { getSupabaseClient } from '../../utils/supabase';
 import { getStripeClient } from '../../utils/stripe';
-import { emailService } from '../../utils/email';
+import { sendTicketConfirmationEmail } from '../../utils/ticketEmail';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -129,32 +129,17 @@ export default defineEventHandler(async (event) => {
       .update({ is_active: false })
       .eq('id', reservation.id);
     
-    // Get show details for email
-    const { data: show, error: showError } = await client
-      .from('recital_shows')
-      .select('name, date, start_time, location')
-      .eq('id', reservation.recital_show_id)
-      .single();
-      
-    if (!showError && show) {
-      // Send confirmation email
-      emailService.sendTicketConfirmation(
-        body.email,
-        body.customer_name,
-        order.id,
-        seatIds.length,
-        show.name,
-        show.date,
-        show.start_time,
-        show.location,
-        paymentIntent.amount
-      ).catch(err => {
-        // Log error but don't fail the order
-        console.error('Failed to send confirmation email:', err);
-      });
-    } else {
-      console.error('Failed to fetch show details for email:', showError);
-    }
+    // Send confirmation email with PDF attachments
+    // Fire and forget - don't fail the order if email fails
+    // NOTE: Using service key client here is safe because:
+    // 1. We just created this order in this request after validating payment
+    // 2. Email is sent to the customer who just paid
+    // 3. This is a post-payment webhook, not a user-initiated request
+    sendTicketConfirmationEmail(client, order.id, {
+      includePdfAttachments: true
+    }).catch(err => {
+      console.error('Failed to send confirmation email:', err);
+    });
     
     return {
       message: 'Order created successfully',
