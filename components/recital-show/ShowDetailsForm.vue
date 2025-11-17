@@ -259,7 +259,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { Form } from '@primevue/forms';
 import { z } from 'zod';
