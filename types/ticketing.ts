@@ -582,3 +582,76 @@ export interface OrderDetails extends TicketOrder {
   payment_status: 'pending' | 'succeeded' | 'failed' | 'refunded'
   payment_intent_status?: string
 }
+
+/**
+ * Dashboard Analytics Types
+ */
+
+/**
+ * Show sales statistics
+ */
+export interface ShowSalesStats {
+  show_id: string
+  show_title: string
+  show_date: string
+  show_time: string
+  venue_name: string
+  total_tickets_sold: number
+  total_revenue_in_cents: number
+  total_seats: number
+  available_seats: number
+  reserved_seats: number
+  sold_seats: number
+  sold_percentage: number
+}
+
+/**
+ * Seat sales data for heat map
+ */
+export interface SeatSalesData {
+  seat_id: string
+  section_id: string
+  section_name: string
+  row_name: string
+  seat_number: string
+  status: 'available' | 'reserved' | 'sold' | 'held'
+  price_in_cents: number
+  x_position: number | null
+  y_position: number | null
+}
+
+/**
+ * Revenue breakdown
+ */
+export interface RevenueBreakdown {
+  total_revenue_in_cents: number
+  ticket_revenue_in_cents: number
+  upsell_revenue_in_cents: number
+  pending_revenue_in_cents: number
+  refunded_revenue_in_cents: number
+  total_orders: number
+  total_tickets_sold: number
+}
+
+/**
+ * Dashboard data response
+ */
+export interface DashboardData {
+  revenue_breakdown: RevenueBreakdown
+  show_sales_stats: ShowSalesStats[]
+  recent_orders: OrderWithDetails[]
+  upcoming_shows: ShowSalesStats[]
+  date_range: {
+    start_date: string
+    end_date: string
+  }
+}
+
+/**
+ * Dashboard filters
+ */
+export interface DashboardFilters {
+  date_from?: string
+  date_to?: string
+  show_id?: string
+}
