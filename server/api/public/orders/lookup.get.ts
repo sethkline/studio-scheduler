@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
       .from('ticket_orders')
       .select(`
         id,
+        order_number,
         customer_name,
         customer_email,
         customer_phone,
