@@ -205,3 +205,100 @@ export interface SeatAvailabilityStats {
   sold_seats: number
   held_seats: number
 }
+
+/**
+ * Seat map builder types
+ */
+
+/**
+ * Tool types for the seat map builder
+ */
+export type BuilderTool = 'select' | 'add-row' | 'add-seat' | 'delete' | 'pan'
+
+/**
+ * Seat node for the visual editor
+ */
+export interface SeatNode extends Seat {
+  // Visual state
+  isSelected?: boolean
+  isDragging?: boolean
+}
+
+/**
+ * Row template for bulk seat creation
+ */
+export interface RowTemplate {
+  row_name: string
+  section_id: string
+  seat_count: number
+  start_number: number
+  y_position: number
+  x_start: number
+  seat_spacing: number
+  price_zone_id: string | null
+  seat_type: 'regular' | 'ada' | 'house' | 'blocked'
+}
+
+/**
+ * Bulk seat creation input
+ */
+export interface BulkCreateSeatsInput {
+  venue_id: string
+  seats: CreateSeatInput[]
+}
+
+/**
+ * Single seat creation input
+ */
+export interface CreateSeatInput {
+  venue_id: string
+  section_id: string
+  row_name: string
+  seat_number: string
+  seat_type: 'regular' | 'ada' | 'house' | 'blocked'
+  price_zone_id: string | null
+  is_sellable: boolean
+  x_position: number | null
+  y_position: number | null
+}
+
+/**
+ * Seat update input
+ */
+export interface UpdateSeatInput {
+  row_name?: string
+  seat_number?: string
+  seat_type?: 'regular' | 'ada' | 'house' | 'blocked'
+  price_zone_id?: string | null
+  is_sellable?: boolean
+  x_position?: number | null
+  y_position?: number | null
+}
+
+/**
+ * Canvas viewport state
+ */
+export interface ViewportState {
+  scale: number
+  offsetX: number
+  offsetY: number
+}
+
+/**
+ * History action for undo/redo
+ */
+export interface HistoryAction {
+  type: 'create' | 'update' | 'delete' | 'bulk-create'
+  timestamp: number
+  data: any
+}
+
+/**
+ * Seat map data structure
+ */
+export interface SeatMapData {
+  venue_id: string
+  sections: VenueSection[]
+  price_zones: PriceZone[]
+  seats: Seat[]
+}
