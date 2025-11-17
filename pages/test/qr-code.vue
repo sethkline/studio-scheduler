@@ -1,8 +1,9 @@
 <script setup lang="ts">
 interface QRCodeResponse {
   success: boolean
-  token: string
-  isValid: boolean
+  data: string
+  isGeneratedToken: boolean
+  isValidToken: boolean
   qrCodeDataURL: string
   qrCodeSVG: string
   qrCodeSVGLength: number
@@ -10,22 +11,31 @@ interface QRCodeResponse {
 }
 
 const qrCode = ref('')
-const token = ref('')
+const encodedData = ref('')
+const customData = ref('')
+const isGeneratedToken = ref(false)
+const isValidToken = ref(false)
 const loading = ref(false)
 const error = ref('')
 const toast = useToast()
 
-const generateCode = async () => {
+const generateCode = async (useCustomData = false) => {
   loading.value = true
   error.value = ''
   try {
-    const response = await $fetch<QRCodeResponse>('/api/test/qr-code')
+    const params = useCustomData && customData.value
+      ? { data: customData.value }
+      : {}
+
+    const response = await $fetch<QRCodeResponse>('/api/test/qr-code', { params })
     qrCode.value = response.qrCodeDataURL
-    token.value = response.token
+    encodedData.value = response.data
+    isGeneratedToken.value = response.isGeneratedToken
+    isValidToken.value = response.isValidToken
     toast.add({
       severity: 'success',
       summary: 'Success',
-      detail: 'QR code generated successfully'
+      detail: response.message
     })
   } catch (err: any) {
     error.value = err.message || 'Failed to generate QR code'
@@ -48,6 +58,41 @@ onMounted(() => {
   <div class="p-6 max-w-2xl mx-auto">
     <h1 class="text-3xl font-bold mb-6 text-gray-900">QR Code Generator Test</h1>
 
+    <!-- Custom Data Input -->
+    <Card class="mb-4">
+      <template #content>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Test Custom Data (optional)
+            </label>
+            <InputText
+              v-model="customData"
+              placeholder="Enter custom data to encode (e.g., a URL, ticket ID, etc.)"
+              class="w-full"
+            />
+          </div>
+          <div class="flex gap-2">
+            <Button
+              label="Generate Token"
+              icon="pi pi-refresh"
+              @click="generateCode(false)"
+              :loading="loading"
+            />
+            <Button
+              label="Encode Custom Data"
+              icon="pi pi-qrcode"
+              severity="secondary"
+              @click="generateCode(true)"
+              :loading="loading"
+              :disabled="!customData"
+            />
+          </div>
+        </div>
+      </template>
+    </Card>
+
+    <!-- QR Code Display -->
     <Card>
       <template #content>
         <div class="text-center">
@@ -64,7 +109,7 @@ onMounted(() => {
             <Button
               label="Try Again"
               icon="pi pi-refresh"
-              @click="generateCode"
+              @click="generateCode(false)"
             />
           </div>
 
@@ -80,19 +125,26 @@ onMounted(() => {
             </div>
 
             <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 class="text-sm font-semibold text-gray-700 mb-2">Token:</h3>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-gray-700">
+                  {{ isGeneratedToken ? 'Generated Token:' : 'Encoded Data:' }}
+                </h3>
+                <span
+                  v-if="isGeneratedToken"
+                  :class="[
+                    'text-xs px-2 py-1 rounded',
+                    isValidToken ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  ]"
+                >
+                  {{ isValidToken ? '✓ Valid Token' : 'Custom Data' }}
+                </span>
+              </div>
               <div class="text-sm text-gray-900 font-mono break-all">
-                {{ token }}
+                {{ encodedData }}
               </div>
             </div>
 
             <div class="flex gap-2 justify-center">
-              <Button
-                label="Generate New"
-                icon="pi pi-refresh"
-                @click="generateCode"
-                :loading="loading"
-              />
               <Button
                 label="Download"
                 icon="pi pi-download"
@@ -100,7 +152,8 @@ onMounted(() => {
                 @click="() => {
                   const link = document.createElement('a')
                   link.href = qrCode
-                  link.download = `qr-code-${token}.png`
+                  const filename = isGeneratedToken ? encodedData : 'custom-qr-code'
+                  link.download = `qr-code-${filename}.png`
                   link.click()
                 }"
                 :disabled="!qrCode"
@@ -122,6 +175,7 @@ onMounted(() => {
         <li>• Size: 300x300 pixels</li>
         <li>• Format: PNG (base64 data URL)</li>
         <li>• Use case: Ticket validation at events</li>
+        <li>• Can encode any arbitrary data (URLs, IDs, text, etc.)</li>
       </ul>
     </div>
   </div>
