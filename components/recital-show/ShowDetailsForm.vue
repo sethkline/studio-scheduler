@@ -31,23 +31,106 @@
 
         <div class="field">
           <label for="status" class="font-medium text-sm mb-1 block">Status*</label>
-          <Dropdown 
-            id="status" 
+          <Dropdown
+            id="status"
             name="status"
-            :options="statusOptions" 
-            optionLabel="label" 
+            :options="statusOptions"
+            optionLabel="label"
             optionValue="value"
-            class="w-full" 
-            aria-describedby="status-error" 
+            class="w-full"
+            aria-describedby="status-error"
           />
-          <Message 
-            v-if="$form.status?.invalid" 
-            severity="error" 
-            size="small" 
+          <Message
+            v-if="$form.status?.invalid"
+            severity="error"
+            size="small"
             variant="simple"
           >
             {{ $form.status.error?.message }}
           </Message>
+        </div>
+      </div>
+
+      <!-- Venue Selection -->
+      <div class="grid grid-cols-1 gap-4">
+        <div class="field">
+          <label for="venue_id" class="font-medium text-sm mb-1 block">Venue</label>
+          <Dropdown
+            id="venue_id"
+            name="venue_id"
+            :options="venues"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select a venue (optional)"
+            class="w-full"
+            :loading="loadingVenues"
+            showClear
+          />
+          <small class="text-gray-500 mt-1 block">
+            Select the venue where this show will be performed. Required for seat generation.
+          </small>
+        </div>
+      </div>
+
+      <!-- Venue Info Display (when venue is selected) -->
+      <div v-if="selectedVenue" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div class="flex items-start">
+          <i class="pi pi-map-marker text-blue-500 text-xl mr-3 mt-1"></i>
+          <div class="flex-1">
+            <h4 class="font-semibold text-blue-900 mb-2">{{ selectedVenue.name }}</h4>
+            <div class="text-sm text-blue-800 space-y-1">
+              <p v-if="selectedVenue.address">
+                <i class="pi pi-map text-xs mr-1"></i>
+                {{ selectedVenue.address }}
+                <span v-if="selectedVenue.city">, {{ selectedVenue.city }}</span>
+                <span v-if="selectedVenue.state">, {{ selectedVenue.state }}</span>
+                <span v-if="selectedVenue.zip_code"> {{ selectedVenue.zip_code }}</span>
+              </p>
+              <p v-if="selectedVenue.capacity">
+                <i class="pi pi-users text-xs mr-1"></i>
+                Capacity: {{ selectedVenue.capacity }} seats
+              </p>
+              <p v-if="selectedVenue.description" class="text-xs mt-2">
+                {{ selectedVenue.description }}
+              </p>
+            </div>
+
+            <!-- Seat Statistics (if seats exist) -->
+            <div v-if="seatStats.total > 0" class="mt-4 pt-4 border-t border-blue-300">
+              <h5 class="font-semibold text-blue-900 mb-2 text-sm">Seat Availability</h5>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-blue-900">{{ seatStats.total }}</div>
+                  <div class="text-xs text-blue-700">Total Seats</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-green-700">{{ seatStats.available }}</div>
+                  <div class="text-xs text-blue-700">Available</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-red-700">{{ seatStats.sold }}</div>
+                  <div class="text-xs text-blue-700">Sold</div>
+                </div>
+              </div>
+
+              <!-- Section Breakdown -->
+              <div v-if="sectionStats.length > 0" class="mt-3">
+                <div class="text-xs font-semibold text-blue-900 mb-2">By Section:</div>
+                <div class="space-y-1">
+                  <div
+                    v-for="section in sectionStats"
+                    :key="section.id"
+                    class="flex justify-between items-center text-xs bg-white/50 px-2 py-1 rounded"
+                  >
+                    <span class="font-medium">{{ section.name }}</span>
+                    <span class="text-blue-700">
+                      {{ section.available }}/{{ section.total }} available
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -169,10 +252,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { Form } from '@primevue/forms';
 import { z } from 'zod';
 import { zodResolver } from '@primevue/forms/resolvers/zod';
+import type { Venue } from '~/types';
 
 const props = defineProps({
   showData: {
@@ -182,10 +266,41 @@ const props = defineProps({
   saving: {
     type: Boolean,
     default: false
+  },
+  seatStats: {
+    type: Object,
+    default: () => ({ total: 0, available: 0, sold: 0 })
+  },
+  sectionStats: {
+    type: Array,
+    default: () => []
   }
 });
 
 const emit = defineEmits(['save', 'cancel']);
+
+// Composables
+const { listVenues } = useVenues();
+
+// State
+const venues = ref<Venue[]>([]);
+const loadingVenues = ref(false);
+
+// Load venues on mount
+onMounted(async () => {
+  await loadVenues();
+});
+
+async function loadVenues() {
+  loadingVenues.value = true;
+  try {
+    venues.value = await listVenues();
+  } catch (error) {
+    console.error('Error loading venues:', error);
+  } finally {
+    loadingVenues.value = false;
+  }
+}
 
 // Create a computed prop for form values to ensure they're reactive
 const formValues = computed(() => ({
@@ -195,8 +310,15 @@ const formValues = computed(() => ({
   end_time: props.showData.end_time || '',
   location: props.showData.location || '',
   description: props.showData.description || '',
-  status: props.showData.status || 'planning'
+  status: props.showData.status || 'planning',
+  venue_id: props.showData.venue_id || null
 }));
+
+// Computed property for selected venue
+const selectedVenue = computed(() => {
+  if (!props.showData.venue_id) return null;
+  return venues.value.find(v => v.id === props.showData.venue_id) || null;
+});
 
 // Status options
 const statusOptions = [
@@ -215,7 +337,8 @@ const generalFormSchema = z.object({
   end_time: z.string().optional(),
   location: z.string().min(1, "Location is required"),
   description: z.string().optional(),
-  status: z.string().min(1, "Status is required")
+  status: z.string().min(1, "Status is required"),
+  venue_id: z.string().nullable().optional()
 });
 
 // Create resolver
@@ -225,7 +348,7 @@ const generalFormResolver = zodResolver(generalFormSchema);
 function handleSubmit(event) {
   const { values, valid } = event;
   if (!valid) return;
-  
+
   // Create updated data object
   const updatedData = {
     name: values.name,
@@ -234,9 +357,10 @@ function handleSubmit(event) {
     end_time: values.end_time || null,
     location: values.location,
     description: values.description || '',
-    status: values.status
+    status: values.status,
+    venue_id: values.venue_id || null
   };
-  
+
   // Emit save event with updated data
   emit('save', updatedData);
 }

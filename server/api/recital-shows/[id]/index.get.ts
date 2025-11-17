@@ -27,9 +27,20 @@ export default defineEventHandler(async (event) => {
         pre_sale_start,
         pre_sale_end,
         can_sell_tickets,
+        venue_id,
         created_at,
         updated_at,
-        series:series_id (id, name, theme, year, season)
+        series:series_id (id, name, theme, year, season),
+        venue:venue_id (
+          id,
+          name,
+          address,
+          city,
+          state,
+          zip_code,
+          capacity,
+          description
+        )
       `)
       .eq('id', id)
       .single()
