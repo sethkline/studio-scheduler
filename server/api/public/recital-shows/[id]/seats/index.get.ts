@@ -1,9 +1,15 @@
 // server/api/public/recital-shows/[id]/seats/index.get.ts
-import { getSupabaseClient } from '../../../../../utils/supabase'
 
+/**
+ * Public endpoint to view seat availability for a show
+ * Uses serverSupabaseClient to respect RLS policies
+ * RLS policies allow public SELECT on show_seats, seats, venue_sections, price_zones
+ */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Use serverSupabaseClient which respects RLS policies
+    // This ensures public access is controlled by database RLS rules
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
 
     // Fetch show_seats with proper joins to get seat details
