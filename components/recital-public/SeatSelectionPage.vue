@@ -3,10 +3,28 @@
   <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="mb-6">
-      <div class="flex items-center mb-2">
-        <NuxtLink :to="`/public/recitals/${showId}`" class="text-primary-600 mr-2">
-          <i class="pi pi-arrow-left"></i> Back to Show Details
-        </NuxtLink>
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center">
+          <NuxtLink :to="`/public/recitals/${showId}`" class="text-primary-600 mr-2">
+            <i class="pi pi-arrow-left"></i> Back to Show Details
+          </NuxtLink>
+        </div>
+
+        <!-- Real-time Connection Status Badge -->
+        <div class="flex items-center gap-2">
+          <div v-if="isSubscribed && connectionStatus === 'connected'" class="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+            <i class="pi pi-circle-fill" style="font-size: 0.5rem"></i>
+            <span>Live updates active</span>
+          </div>
+          <div v-else-if="connectionStatus === 'reconnecting'" class="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full">
+            <i class="pi pi-spin pi-spinner" style="font-size: 0.5rem"></i>
+            <span>Reconnecting...</span>
+          </div>
+          <div v-else-if="connectionStatus === 'error'" class="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full">
+            <i class="pi pi-exclamation-triangle" style="font-size: 0.5rem"></i>
+            <span>Connection lost</span>
+          </div>
+        </div>
       </div>
       <h1 class="text-3xl font-bold">Ticket Selection</h1>
       <p v-if="show.name" class="text-gray-600 mt-1">
@@ -414,6 +432,108 @@ const reservationExpiring = ref(false);
 const { width } = useWindowSize();
 const isMobile = computed(() => width.value < 768);
 
+// Real-time seat updates
+const { isSubscribed, connectionStatus, reconnectAttempts, subscribe, unsubscribe } = useRealtimeSeats(showId.value);
+const showConnectionStatus = ref(false);
+const realtimeUpdateCount = ref(0);
+
+// Optimistic UI updates
+const optimisticSelections = ref(new Set()); // Track seats being selected optimistically
+const pendingSeatUpdates = ref(new Map()); // Track pending seat status updates
+
+// Handle real-time seat updates
+const handleSeatUpdate = (updatedSeat, eventType) => {
+  console.log('[SeatSelectionPage] Real-time seat update:', eventType, updatedSeat);
+
+  realtimeUpdateCount.value++;
+
+  if (eventType === 'UPDATE' || eventType === 'INSERT') {
+    // Find the seat in availableSeats
+    const index = availableSeats.value.findIndex(seat => seat.id === updatedSeat.id);
+
+    if (index !== -1) {
+      // Update existing seat
+      const oldStatus = availableSeats.value[index].status;
+      availableSeats.value[index] = { ...availableSeats.value[index], ...updatedSeat };
+
+      // If seat became unavailable, remove from selection
+      if (updatedSeat.status !== 'available' && selectedSeats.value.some(s => s.id === updatedSeat.id)) {
+        // Check if it's not our reservation
+        const reservationToken = localStorage.getItem('current_reservation_token');
+        const isOurReservation = updatedSeat.reserved_by === reservationToken;
+
+        if (!isOurReservation) {
+          // Remove from selection
+          selectedSeats.value = selectedSeats.value.filter(s => s.id !== updatedSeat.id);
+
+          // Show notification
+          useToast().add({
+            severity: 'warn',
+            summary: 'Seat No Longer Available',
+            detail: `Seat ${updatedSeat.row_name}-${updatedSeat.seat_number} was just taken by another customer.`,
+            life: 5000
+          });
+        }
+      }
+
+      // If seat became available, show notification (if previously sold/reserved)
+      if (oldStatus !== 'available' && updatedSeat.status === 'available') {
+        // Optionally show a subtle notification that a seat became available
+        console.log('[SeatSelectionPage] Seat became available:', updatedSeat.row_name, updatedSeat.seat_number);
+      }
+    } else if (updatedSeat.status === 'available') {
+      // New available seat, add to list
+      availableSeats.value.push(updatedSeat);
+    }
+  } else if (eventType === 'DELETE') {
+    // Remove seat from available seats
+    availableSeats.value = availableSeats.value.filter(seat => seat.id !== updatedSeat.id);
+
+    // Remove from selection if present
+    selectedSeats.value = selectedSeats.value.filter(seat => seat.id !== updatedSeat.id);
+  }
+};
+
+// Handle connection status changes
+const handleConnectionChange = (status) => {
+  console.log('[SeatSelectionPage] Connection status changed:', status);
+
+  if (status === 'connected') {
+    showConnectionStatus.value = false;
+
+    // If this is a reconnection, refresh seat data
+    if (reconnectAttempts.value > 0) {
+      useToast().add({
+        severity: 'success',
+        summary: 'Reconnected',
+        detail: 'Real-time updates reconnected. Refreshing seat data...',
+        life: 3000
+      });
+
+      // Refresh available seats after reconnection
+      fetchAvailableSeats();
+    }
+  } else if (status === 'reconnecting') {
+    showConnectionStatus.value = true;
+
+    useToast().add({
+      severity: 'warn',
+      summary: 'Connection Lost',
+      detail: 'Attempting to reconnect to real-time updates...',
+      life: 5000
+    });
+  } else if (status === 'error') {
+    showConnectionStatus.value = true;
+
+    useToast().add({
+      severity: 'error',
+      summary: 'Connection Error',
+      detail: 'Unable to maintain real-time updates. Please refresh the page.',
+      life: 10000
+    });
+  }
+};
+
 // Fetch show and seat data on mount
 onMounted(async () => {
   await fetchShowDetails();
@@ -426,6 +546,21 @@ onMounted(async () => {
 
   if (reservationToken) {
     await checkReservationStatus(reservationToken);
+  }
+
+  // Subscribe to real-time seat updates
+  console.log('[SeatSelectionPage] Subscribing to real-time seat updates for show:', showId.value);
+  subscribe(handleSeatUpdate, handleConnectionChange);
+});
+
+// Cleanup on unmount
+onUnmounted(() => {
+  console.log('[SeatSelectionPage] Component unmounting, unsubscribing from real-time updates');
+  unsubscribe();
+
+  // Stop reservation timer
+  if (reservationTimer.value) {
+    reservationTimer.value.stop();
   }
 });
 
@@ -987,6 +1122,7 @@ function toggleSeatSelection(seat) {
   if (index >= 0) {
     // Deselect seat
     selectedSeats.value.splice(index, 1);
+    optimisticSelections.value.delete(seat.id);
 
     // If no more seats selected, stop the timer
     if (selectedSeats.value.length === 0) {
@@ -1004,13 +1140,47 @@ function toggleSeatSelection(seat) {
       return;
     }
 
-    // Select seat
-    selectedSeats.value.push(seat);
+    // Check if seat is still available (real-time check)
+    const seatInAvailableList = availableSeats.value.find(s => s.id === seat.id);
+    if (seatInAvailableList && seatInAvailableList.status !== 'available') {
+      // Seat was just taken
+      useToast().add({
+        severity: 'error',
+        summary: 'Seat Unavailable',
+        detail: `Seat ${seat.row_name}-${seat.seat_number} is no longer available`,
+        life: 3000
+      });
+      return;
+    }
+
+    // Optimistically select seat
+    optimisticSelections.value.add(seat.id);
+
+    // Select seat with optimistic UI (immediate feedback)
+    selectedSeats.value.push({
+      ...seat,
+      _optimistic: true // Flag to indicate this is an optimistic selection
+    });
 
     // Start the timer if this is the first seat selected
     if (selectedSeats.value.length === 1) {
       startReservationTimer();
     }
+
+    // After a short delay, confirm the selection (simulate server response)
+    // In a real implementation, you would make an API call here to reserve the seat
+    setTimeout(() => {
+      optimisticSelections.value.delete(seat.id);
+
+      // Update the seat to remove the optimistic flag
+      const selectedIndex = selectedSeats.value.findIndex(s => s.id === seat.id);
+      if (selectedIndex !== -1) {
+        selectedSeats.value[selectedIndex] = {
+          ...selectedSeats.value[selectedIndex],
+          _optimistic: false
+        };
+      }
+    }, 300); // 300ms delay for visual feedback
   }
 }
 
@@ -1313,5 +1483,117 @@ function formatPrice(cents) {
 
 .custom-radio-input:focus + .custom-radio-label .custom-radio-button {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* Real-time update animations */
+@keyframes seatUpdate {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes seatTaken {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(0.9) rotate(-5deg);
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  75% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes seatAvailable {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Apply animation when seat status changes */
+.seat {
+  animation-duration: 0.3s;
+  animation-timing-function: ease-out;
+}
+
+.seat.selected {
+  animation: seatUpdate 0.3s ease-out;
+}
+
+.seat.unavailable {
+  animation: seatTaken 0.5s ease-out;
+}
+
+/* Optimistic selection state */
+.seat.optimistic {
+  background-color: #60a5fa;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Smooth transitions for all seat states */
+.seat {
+  transition: background-color 0.3s ease, color 0.3s ease, opacity 0.3s ease, transform 0.2s ease;
+}
+
+/* Real-time update indicator */
+.realtime-update-flash {
+  position: relative;
+}
+
+.realtime-update-flash::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  animation: flashIndicator 1s ease-out;
+}
+
+@keyframes flashIndicator {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
 }
 </style>
