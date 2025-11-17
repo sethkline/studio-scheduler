@@ -1,4 +1,6 @@
-import type {ClassDefinition, Teacher } from './index'
+import type { ClassDefinition, Teacher } from './index'
+import type { Venue } from './ticketing'
+
 export interface Recital {
   id: string;
   name: string;
@@ -39,10 +41,12 @@ export interface RecitalShow {
   volunteer_tickets_start_at?: string
   senior_tickets_start_at?: string
   general_tickets_start_at?: string
+  venue_id?: string | null
   created_at: string
   updated_at: string
   series?: RecitalSeries
   program?: RecitalProgram
+  venue?: Venue
 }
 
 export interface RecitalProgram {
