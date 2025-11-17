@@ -320,6 +320,48 @@ const refreshVenue = async () => {
           </template>
         </Card>
       </div>
+
+      <!-- Seat Map Builder -->
+      <Card v-if="venue" class="mt-6">
+        <template #content>
+          <div class="text-center py-8">
+            <i class="pi pi-th text-5xl text-blue-500 mb-4" />
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">
+              Seat Map Builder
+            </h3>
+            <p class="text-gray-600 mb-6">
+              Create and manage the visual seat layout for this venue
+            </p>
+
+            <!-- Requirements Check -->
+            <div
+              v-if="!venue.venue_sections || venue.venue_sections.length === 0 || !venue.price_zones || venue.price_zones.length === 0"
+              class="max-w-md mx-auto mb-6 bg-yellow-50 p-4 rounded-lg text-left"
+            >
+              <h4 class="font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+                <i class="pi pi-exclamation-triangle" />
+                Configuration Required
+              </h4>
+              <ul class="space-y-1 text-sm text-yellow-800">
+                <li v-if="!venue.venue_sections || venue.venue_sections.length === 0">
+                  • Add at least one section above
+                </li>
+                <li v-if="!venue.price_zones || venue.price_zones.length === 0">
+                  • Add at least one price zone above
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              label="Open Seat Map Builder"
+              icon="pi pi-external-link"
+              size="large"
+              :disabled="!venue.venue_sections || venue.venue_sections.length === 0 || !venue.price_zones || venue.price_zones.length === 0"
+              @click="router.push(`/admin/ticketing/venues/${venueId}/seat-map`)"
+            />
+          </div>
+        </template>
+      </Card>
     </form>
   </div>
 </template>
