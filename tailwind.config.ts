@@ -15,20 +15,39 @@ module.exports = {
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
-        
-        // Secondary colors
+
+        // Primary color shades
+        primary: {
+          DEFAULT: '#db2777',
+          50: '#fdf2f8',
+          100: '#fce7f3',
+          200: '#fbcfe8',
+          300: '#f9a8d4',
+          400: '#f472b6',
+          500: '#ec4899',
+          600: '#db2777',
+          700: '#be185d',
+          800: '#9d174d',
+          900: '#831843',
+          950: '#500724',
+          contrast: '#ffffff',
+          emphasis: '#be185d',
+        },
+
+        // Secondary color shades
         secondary: {
-          50: 'var(--secondary-50)',
-          100: 'var(--secondary-100)',
-          200: 'var(--secondary-200)',
-          300: 'var(--secondary-300)',
-          400: 'var(--secondary-400)',
-          500: 'var(--secondary-500)',
-          600: 'var(--secondary-600)',
-          700: 'var(--secondary-700)',
-          800: 'var(--secondary-800)',
-          900: 'var(--secondary-900)',
-          950: 'var(--secondary-950)',
+          DEFAULT: '#7c3aed',
+          50: '#f5f3ff',
+          100: '#ede9fe',
+          200: '#ddd6fe',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7c3aed',
+          700: '#6d28d9',
+          800: '#5b21b6',
+          900: '#4c1d95',
+          950: '#2e1065',
         },
 
         // Status colors

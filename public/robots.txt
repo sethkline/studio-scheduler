@@ -1,1 +1,32 @@
+# Allow all crawlers
+User-agent: *
 
+# Allow public pages
+Allow: /
+Allow: /about
+Allow: /classes
+Allow: /teachers
+Allow: /schedule
+Allow: /contact
+Allow: /pricing
+Allow: /gallery
+Allow: /blog/
+Allow: /public/recitals/
+
+# Block admin, parent portal, and API from search engines
+Disallow: /admin/
+Disallow: /parent/
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /register-parent
+Disallow: /onboarding
+Disallow: /profile
+Disallow: /unauthorized
+
+# Block checkout and ticket pages (prevent duplicate content)
+Disallow: /public/checkout/
+Disallow: /public/tickets/
+
+# Sitemap location
+Sitemap: https://yourdomain.com/sitemap.xml
