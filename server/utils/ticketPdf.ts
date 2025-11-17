@@ -20,9 +20,10 @@ export interface TicketPDFData {
 
 /**
  * Fetch complete ticket data from database
+ * @param client - Scoped Supabase client (respects RLS)
+ * @param ticketId - Ticket UUID
  */
-export async function fetchTicketData(ticketId: string): Promise<TicketPDFData> {
-  const client = getSupabaseClient()
+export async function fetchTicketData(client: any, ticketId: string): Promise<TicketPDFData> {
 
   // Fetch ticket with all related data
   const { data: ticket, error: ticketError } = await client
@@ -348,11 +349,13 @@ export async function generateTicketPDF(ticketData: TicketPDFData): Promise<Uint
 
 /**
  * Upload PDF to Supabase Storage
+ * Note: Uses service key for storage operations (no RLS on storage)
  * @param pdfBytes - PDF as Uint8Array
  * @param ticketId - Ticket ID for filename
  * @returns Public URL of the uploaded PDF
  */
 export async function uploadTicketPDF(pdfBytes: Uint8Array, ticketId: string): Promise<string> {
+  // Storage operations require service key (no RLS on storage)
   const client = getSupabaseClient()
   const fileName = `${ticketId}.pdf`
   const bucketName = 'ticket-pdfs'
@@ -389,9 +392,11 @@ export async function uploadTicketPDF(pdfBytes: Uint8Array, ticketId: string): P
 
 /**
  * Update ticket record with PDF URL
+ * @param client - Scoped Supabase client (respects RLS)
+ * @param ticketId - Ticket ID
+ * @param pdfUrl - PDF URL
  */
-export async function updateTicketWithPDF(ticketId: string, pdfUrl: string): Promise<void> {
-  const client = getSupabaseClient()
+export async function updateTicketWithPDF(client: any, ticketId: string, pdfUrl: string): Promise<void> {
 
   const { error } = await client
     .from('tickets')
@@ -411,32 +416,34 @@ export async function updateTicketWithPDF(ticketId: string, pdfUrl: string): Pro
 
 /**
  * Generate PDF for a ticket (complete workflow)
+ * @param client - Scoped Supabase client (respects RLS)
  * @param ticketId - Ticket ID
  * @returns PDF URL
  */
-export async function generateAndUploadTicketPDF(ticketId: string): Promise<string> {
-  // 1. Fetch ticket data
-  const ticketData = await fetchTicketData(ticketId)
+export async function generateAndUploadTicketPDF(client: any, ticketId: string): Promise<string> {
+  // 1. Fetch ticket data (uses scoped client)
+  const ticketData = await fetchTicketData(client, ticketId)
 
   // 2. Generate PDF
   const pdfBytes = await generateTicketPDF(ticketData)
 
-  // 3. Upload to storage
+  // 3. Upload to storage (uses service key)
   const pdfUrl = await uploadTicketPDF(pdfBytes, ticketId)
 
-  // 4. Update ticket record
-  await updateTicketWithPDF(ticketId, pdfUrl)
+  // 4. Update ticket record (uses scoped client)
+  await updateTicketWithPDF(client, ticketId, pdfUrl)
 
   return pdfUrl
 }
 
 /**
  * Get PDF for a ticket (generate if not exists)
+ * @param client - Scoped Supabase client (respects RLS)
+ * @param ticketId - Ticket ID
+ * @returns PDF URL
  */
-export async function getOrGenerateTicketPDF(ticketId: string): Promise<string> {
-  const client = getSupabaseClient()
-
-  // Check if PDF already exists
+export async function getOrGenerateTicketPDF(client: any, ticketId: string): Promise<string> {
+  // Check if PDF already exists (uses scoped client - respects RLS)
   const { data: ticket, error } = await client
     .from('tickets')
     .select('pdf_url, pdf_generated_at')
@@ -461,6 +468,6 @@ export async function getOrGenerateTicketPDF(ticketId: string): Promise<string> 
     }
   }
 
-  // Otherwise, generate new PDF
-  return await generateAndUploadTicketPDF(ticketId)
+  // Otherwise, generate new PDF (uses scoped client)
+  return await generateAndUploadTicketPDF(client, ticketId)
 }

@@ -1,10 +1,13 @@
 // server/api/tickets/[id]/pdf-url.get.ts
 
 import { getOrGenerateTicketPDF } from '~/server/utils/ticketPdf'
+import { requireTicketAccess } from '~/server/utils/auth'
 
 /**
  * Get ticket PDF URL (generates if not exists)
  * GET /api/tickets/:id/pdf-url
+ *
+ * Security: Requires authentication + (ticket owner OR admin/staff)
  *
  * Returns: { pdfUrl: string, ticketId: string }
  */
@@ -29,8 +32,15 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Check authentication and authorization
+    // Throws 401 if not authenticated, 403 if not owner/staff
+    await requireTicketAccess(event, ticketId)
+
+    // Get scoped Supabase client (respects RLS)
+    const client = await serverSupabaseClient(event)
+
     // Get or generate PDF URL
-    const pdfUrl = await getOrGenerateTicketPDF(ticketId)
+    const pdfUrl = await getOrGenerateTicketPDF(client, ticketId)
 
     return {
       success: true,

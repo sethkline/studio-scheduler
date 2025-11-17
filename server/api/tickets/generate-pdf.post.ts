@@ -1,10 +1,13 @@
 // server/api/tickets/generate-pdf.post.ts
 
 import { generateAndUploadTicketPDF } from '~/server/utils/ticketPdf'
+import { requireTicketAccess } from '~/server/utils/auth'
 
 /**
  * Generate PDF for a ticket
  * POST /api/tickets/generate-pdf
+ *
+ * Security: Requires authentication + (ticket owner OR admin/staff)
  *
  * Body: { ticketId: string }
  * Returns: { pdfUrl: string, ticketId: string }
@@ -31,8 +34,15 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Check authentication and authorization
+    // Throws 401 if not authenticated, 403 if not owner/staff
+    await requireTicketAccess(event, ticketId)
+
+    // Get scoped Supabase client (respects RLS)
+    const client = await serverSupabaseClient(event)
+
     // Generate and upload PDF
-    const pdfUrl = await generateAndUploadTicketPDF(ticketId)
+    const pdfUrl = await generateAndUploadTicketPDF(client, ticketId)
 
     return {
       success: true,

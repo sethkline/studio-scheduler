@@ -125,3 +125,66 @@ export async function requireRole(event: H3Event, roles: string[]) {
 
   return profile
 }
+
+/**
+ * Check if user owns a ticket (via order email)
+ * @param event - H3 event
+ * @param ticketId - Ticket UUID
+ * @returns True if user owns the ticket
+ */
+export async function checkTicketOwnership(
+  event: H3Event,
+  ticketId: string
+): Promise<boolean> {
+  const user = await getServerUser(event)
+  if (!user) return false
+
+  const client = await serverSupabaseClient(event)
+
+  // Get ticket with order email
+  const { data: ticket, error } = await client
+    .from('tickets')
+    .select('ticket_order:ticket_orders!inner(customer_email)')
+    .eq('id', ticketId)
+    .single()
+
+  if (error || !ticket) return false
+
+  return (ticket.ticket_order as any).customer_email.toLowerCase() === user.email?.toLowerCase()
+}
+
+/**
+ * Require ticket ownership or staff access
+ * Throws 401 if not authenticated, 403 if not owner/staff
+ * @param event - H3 event
+ * @param ticketId - Ticket UUID
+ * @returns User profile and access info
+ */
+export async function requireTicketAccess(event: H3Event, ticketId: string) {
+  const user = await requireAuth(event)
+  const profile = await getUserProfile(event)
+
+  if (!profile) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'User profile not found'
+    })
+  }
+
+  // Admin/staff can access any ticket
+  if (['admin', 'staff'].includes(profile.user_role)) {
+    return { user, profile, isStaff: true }
+  }
+
+  // Otherwise, must own the ticket
+  const isOwner = await checkTicketOwnership(event, ticketId)
+
+  if (!isOwner) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden - You do not have access to this ticket'
+    })
+  }
+
+  return { user, profile, isStaff: false }
+}

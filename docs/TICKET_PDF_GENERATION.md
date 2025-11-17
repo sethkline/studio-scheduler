@@ -80,7 +80,12 @@ The ticket PDF generation system creates printable, scannable tickets for recita
 
 **Purpose:** Manually trigger PDF generation for a specific ticket.
 
-**Security:** Open (will be secured in later stories)
+**Security:**
+- ✅ Requires authentication (must be logged in)
+- ✅ Requires authorization (must be ticket owner OR admin/staff)
+- ✅ Uses scoped Supabase client (respects RLS)
+- Returns 401 if not authenticated
+- Returns 403 if not authorized
 
 **Usage:**
 ```javascript
@@ -92,6 +97,13 @@ const { data } = await $fetch('/api/tickets/generate-pdf', {
 
 #### GET /api/tickets/[id]/download
 **Purpose:** Download ticket PDF file (generates if not exists)
+
+**Security:**
+- ✅ Requires authentication (must be logged in)
+- ✅ Requires authorization (must be ticket owner OR admin/staff)
+- ✅ Uses scoped Supabase client (respects RLS)
+- Returns 401 if not authenticated
+- Returns 403 if not authorized
 
 **Response:** PDF file (application/pdf)
 
@@ -122,6 +134,13 @@ const blob = await response.blob()
 ```
 
 **Purpose:** Get public URL for ticket PDF (generates if not exists)
+
+**Security:**
+- ✅ Requires authentication (must be logged in)
+- ✅ Requires authorization (must be ticket owner OR admin/staff)
+- ✅ Uses scoped Supabase client (respects RLS)
+- Returns 401 if not authenticated
+- Returns 403 if not authorized
 
 **Usage:**
 ```javascript
@@ -395,20 +414,40 @@ The migration `20251116_015_ticket_pdfs_storage.sql` will:
 
 ## Security Considerations
 
+### Authentication & Authorization ✅
+**All PDF endpoints are protected:**
+- ✅ **Authentication required:** Must be logged in
+- ✅ **Authorization required:** Must be ticket owner OR admin/staff
+- ✅ **Row-Level Security (RLS):** Uses scoped Supabase client
+- ❌ **No bypass:** Cannot access other users' tickets
+- ✅ **Ownership verification:** Checks ticket order email matches user email
+
+**Implementation:**
+- Uses `requireTicketAccess()` helper function
+- Throws 401 if not authenticated
+- Throws 403 if not authorized (not owner/staff)
+- All database queries use `serverSupabaseClient(event)` (respects RLS)
+- Only storage operations use service key (no RLS on storage)
+
 ### Public Access
-- PDFs are publicly accessible (required for email delivery)
-- Filenames are UUIDs (not guessable)
+- PDFs are publicly accessible via direct URL (required for email delivery)
+- Filenames are UUIDs (not guessable without authorization)
 - QR codes are unique and one-time use
+- Must be authenticated to get PDF URL in the first place
 
 ### Access Control
-- Only admin/staff can upload PDFs (via API)
-- Only admin/staff can update/delete PDFs
-- Public can only read PDFs
+- ✅ Only ticket owners and admin/staff can generate PDFs
+- ✅ Only ticket owners and admin/staff can download PDFs
+- ✅ Only ticket owners and admin/staff can view PDF URLs
+- ✅ Only admin/staff can upload PDFs to storage
+- ✅ Only admin can delete PDFs from storage
+- ✅ RLS policies enforced on all ticket/order queries
 
 ### Data Protection
 - No sensitive payment info in PDFs
-- Customer email/phone not displayed
+- Customer email/phone not displayed publicly
 - QR codes validated server-side (Story 5.4)
+- Database queries respect user ownership via RLS
 
 ## Performance Considerations
 

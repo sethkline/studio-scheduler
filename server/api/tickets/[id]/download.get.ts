@@ -2,12 +2,15 @@
 
 import { getOrGenerateTicketPDF, fetchTicketData } from '~/server/utils/ticketPdf'
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireTicketAccess } from '~/server/utils/auth'
 
 /**
  * Download ticket PDF
  * GET /api/tickets/:id/download
  *
- * Returns: PDF file or redirect to PDF URL
+ * Security: Requires authentication + (ticket owner OR admin/staff)
+ *
+ * Returns: PDF file
  */
 export default defineEventHandler(async (event) => {
   try {
@@ -30,16 +33,23 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Check authentication and authorization
+    // Throws 401 if not authenticated, 403 if not owner/staff
+    await requireTicketAccess(event, ticketId)
+
+    // Get scoped Supabase client (respects RLS)
+    const client = await serverSupabaseClient(event)
+
     // Get or generate PDF URL
-    const pdfUrl = await getOrGenerateTicketPDF(ticketId)
+    const pdfUrl = await getOrGenerateTicketPDF(client, ticketId)
 
     // Fetch ticket data for filename
-    const ticketData = await fetchTicketData(ticketId)
+    const ticketData = await fetchTicketData(client, ticketId)
     const fileName = `ticket-${ticketData.ticket.ticket_number}.pdf`
 
-    // Fetch the PDF from Supabase Storage
-    const client = getSupabaseClient()
-    const { data, error } = await client.storage
+    // Fetch the PDF from Supabase Storage (uses service key for storage)
+    const storageClient = getSupabaseClient()
+    const { data, error } = await storageClient.storage
       .from('ticket-pdfs')
       .download(`${ticketId}.pdf`)
 
