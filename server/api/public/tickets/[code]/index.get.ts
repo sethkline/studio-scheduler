@@ -1,62 +1,96 @@
-// server/api/public/tickets/[code].get.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
+// server/api/public/tickets/[code]/index.get.ts
+/**
+ * PUBLIC API - Get Ticket by Code
+ *
+ * SECURITY: ticket_code acts as authentication token (like QR code)
+ * Uses service client because RLS may not allow anonymous access to tickets
+ * NOTE: This is acceptable as ticket_code is a secret that proves ownership
+ */
 
 export default defineEventHandler(async (event) => {
+  const code = getRouterParam(event, 'code')
+
+  if (!code) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Ticket code is required'
+    })
+  }
+
   try {
+    // Use service client because anonymous users need to access tickets via code
+    // The ticket_code itself acts as the authentication mechanism
     const client = getSupabaseClient()
-    const code = getRouterParam(event, 'code')
-    
+
     // Get ticket details
     const { data: ticket, error: ticketError } = await client
       .from('tickets')
       .select(`
         id,
-        ticket_code,
-        price_in_cents,
-        is_valid,
-        has_checked_in,
-        check_in_time,
-        order:order_id (
+        ticket_number,
+        qr_code,
+        pdf_url,
+        scanned_at,
+        created_at,
+        ticket_order:ticket_orders!tickets_ticket_order_id_fkey (
           id,
+          order_number,
           customer_name,
-          email,
-          payment_status
+          customer_email,
+          status
         ),
-        seat:seat_id (
+        show_seat:show_seats!tickets_show_seat_id_fkey (
           id,
-          section,
-          row_name,
-          seat_number,
-          seat_type,
-          handicap_access,
-          show:recital_show_id (
+          price_in_cents,
+          seat:seats (
             id,
-            name,
-            date,
-            start_time,
-            location
+            row_name,
+            seat_number,
+            seat_type,
+            section:venue_sections (
+              id,
+              name
+            )
           )
         )
       `)
-      .eq('ticket_code', code)
-      .single()
-    
-    if (ticketError) throw ticketError
-    
+      .eq('qr_code', code)
+      .maybeSingle()
+
+    if (ticketError) {
+      console.error('Ticket fetch error:', ticketError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Failed to fetch ticket'
+      })
+    }
+
+    if (!ticket) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Ticket not found'
+      })
+    }
+
     // Check if payment is completed
-    if (ticket.order.payment_status !== 'completed') {
-      return createError({
+    if (ticket.ticket_order?.status !== 'paid') {
+      throw createError({
         statusCode: 400,
         statusMessage: 'Payment for this ticket has not been completed'
       })
     }
-    
+
     return {
-      ticket: ticket
+      ticket
     }
-  } catch (error) {
+  } catch (error: any) {
+    // If it's already a createError, re-throw it
+    if (error.statusCode) {
+      throw error
+    }
+
     console.error('Get ticket API error:', error)
-    return createError({
+    throw createError({
       statusCode: 500,
       statusMessage: 'Failed to fetch ticket'
     })
