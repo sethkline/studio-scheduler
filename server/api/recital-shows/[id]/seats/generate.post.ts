@@ -1,85 +1,99 @@
 // server/api/recital-shows/[id]/seats/generate.post.ts
-
 import { requireAdminOrStaff } from '../../../../utils/auth'
 
 /**
- * POST /api/recital-shows/[id]/seats/generate
- * Generates show_seats for a recital show based on its venue's seat map
- * Uses the database function generate_show_seats() to properly link seats
+ * POST /api/recital-shows/:id/seats/generate
+ * Generate show_seats from venue template using database function
  * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
-  // Require authentication - CRITICAL for security
-  await requireAdminOrStaff(event)
-
-  const client = await serverSupabaseClient(event)
-  const showId = getRouterParam(event, 'id')
-
-  if (!showId) {
-    throw createError({
-      statusCode: 400,
-      message: 'Show ID is required'
-    })
-  }
-
   try {
-    // Verify show exists and has a venue assigned
+    // Require admin or staff role
+    await requireAdminOrStaff(event)
+
+    const client = await serverSupabaseClient(event)
+    const id = getRouterParam(event, 'id')
+
+    // Validate show ID
+    if (!id || id.trim() === '') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Show ID is required'
+      })
+    }
+
+    // Check if show exists and has a venue assigned
     const { data: show, error: showError } = await client
       .from('recital_shows')
-      .select('id, venue_id, recital_series:recital_series_id(name)')
-      .eq('id', showId)
+      .select('id, name, venue_id')
+      .eq('id', id)
       .single()
 
-    if (showError || !show) {
+    if (showError) {
       throw createError({
         statusCode: 404,
-        message: 'Show not found'
+        statusMessage: 'Show not found'
       })
     }
 
     if (!show.venue_id) {
       throw createError({
         statusCode: 400,
-        message: 'Show does not have a venue assigned. Please assign a venue before generating seats.'
+        statusMessage: 'Show does not have a venue assigned. Please assign a venue before generating seats.'
       })
     }
 
-    // Call the database function to generate show_seats
-    // This function:
-    // 1. Gets all sellable seats from the venue's seat map
-    // 2. Creates show_seats records with proper seat_id references
-    // 3. Sets prices from the seats' price_zones
-    // 4. Handles duplicates gracefully with ON CONFLICT DO NOTHING
-    const { data, error } = await client.rpc('generate_show_seats', {
-      p_show_id: showId
-    })
+    // Check if seats already exist for this show
+    const { count: existingSeatsCount } = await client
+      .from('show_seats')
+      .select('*', { count: 'exact', head: true })
+      .eq('show_id', id)
 
-    if (error) {
+    if (existingSeatsCount && existingSeatsCount > 0) {
       throw createError({
-        statusCode: 400,
-        message: `Failed to generate seats: ${error.message}`
+        statusCode: 409,
+        statusMessage: `Show already has ${existingSeatsCount} seats. Delete existing seats before regenerating.`
+      })
+    }
+
+    // Call database function to generate seats from venue template
+    const { data, error: functionError } = await client
+      .rpc('generate_show_seats', { p_show_id: id })
+
+    if (functionError) {
+      console.error('Database function error:', functionError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: functionError.message || 'Failed to generate seats from venue template'
       })
     }
 
     const seatCount = data || 0
 
-    return {
-      success: true,
-      message: `Successfully generated ${seatCount} seats for the show`,
-      seat_count: seatCount,
-      show_id: showId
+    if (seatCount === 0) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'No seats were generated. The venue may not have any sellable seats defined.'
+      })
     }
-  } catch (error: any) {
-    // If it's already a createError, re-throw it
+
+    return {
+      message: `Successfully generated ${seatCount} seats from venue template`,
+      seat_count: seatCount,
+      show_id: id
+    }
+  } catch (error) {
+    console.error('Generate seats API error:', error)
+
+    // If it's already a createError, just throw it
     if (error.statusCode) {
       throw error
     }
 
-    // Otherwise wrap it
-    console.error('Generate seats API error:', error)
+    // Otherwise, wrap it
     throw createError({
       statusCode: 500,
-      message: `Failed to generate seats: ${error.message || 'Unknown error'}`
+      statusMessage: 'Failed to generate seats: ' + (error.message || 'Unknown error')
     })
   }
 })
