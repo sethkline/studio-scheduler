@@ -526,3 +526,59 @@ export interface StripeWebhookPayload {
     }
   }
 }
+
+/**
+ * Admin order list types
+ */
+
+/**
+ * Extended order with show and ticket details for admin list
+ */
+export interface OrderWithDetails extends TicketOrder {
+  show?: {
+    id: string
+    title: string
+    show_date: string
+    show_time: string
+  }
+  ticket_count: number
+  seat_numbers?: string
+}
+
+/**
+ * Order filter options for admin
+ */
+export interface OrderFilters {
+  show_id?: string
+  status?: TicketOrder['status'] | 'all'
+  date_from?: string
+  date_to?: string
+  search?: string // Search by customer name/email/order number
+  page?: number
+  limit?: number
+  sort_by?: 'created_at' | 'total_amount_in_cents' | 'customer_name'
+  sort_order?: 'asc' | 'desc'
+}
+
+/**
+ * Full order details for admin view
+ */
+export interface OrderDetails extends TicketOrder {
+  show: {
+    id: string
+    title: string
+    show_date: string
+    show_time: string
+    venue_name: string
+  }
+  tickets: Array<Ticket & {
+    show_seat: ShowSeat & {
+      seat: Seat & {
+        section?: VenueSection
+      }
+    }
+  }>
+  order_items: TicketOrderItem[]
+  payment_status: 'pending' | 'succeeded' | 'failed' | 'refunded'
+  payment_intent_status?: string
+}
