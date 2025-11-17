@@ -55,9 +55,9 @@ class EmailService {
   }
 
   public async sendTicketConfirmation(
-    email: string, 
-    customerName: string, 
-    orderId: string, 
+    email: string,
+    customerName: string,
+    orderId: string,
     ticketCount: number,
     showName: string,
     showDate: string,
@@ -77,11 +77,11 @@ class EmailService {
 
       const formatDate = (dateString: string): string => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        return date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
         });
       };
 
@@ -189,12 +189,12 @@ If you have any questions, please reply to this email.
     <h1>Thank You For Your Purchase!</h1>
     <p>Your tickets are ready to view and print.</p>
   </div>
-  
+
   <div class="ticket-info">
     <h2>Order #${orderId.substring(0, 8).toUpperCase()}</h2>
     <p>Hello ${customerName},</p>
     <p>Your purchase has been confirmed. Here are your order details:</p>
-    
+
     <div class="order-details">
       <div class="detail-row">
         <strong>Event:</strong>
@@ -221,16 +221,16 @@ If you have any questions, please reply to this email.
         <span>$${formatAmount(totalAmount)}</span>
       </div>
     </div>
-    
+
     <div style="text-align: center;">
       <a href="${viewTicketsUrl}" class="btn">View My Tickets</a>
     </div>
-    
+
     <p>You can view and print your tickets by clicking the button above or visiting <a href="${viewTicketsUrl}">${viewTicketsUrl}</a></p>
   </div>
-  
+
   <p>If you have any questions about your order, please contact us by replying to this email.</p>
-  
+
   <div class="footer">
     <p>This is an automated message. Please do not reply directly to this email.</p>
   </div>
@@ -240,7 +240,36 @@ If you have any questions, please reply to this email.
       };
 
       const result = await this.mailgun.messages.create(this.domain, message);
-      
+
+      console.log('Email sent successfully:', result);
+      return true;
+    } catch (error) {
+      console.error('Error sending email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generic method to send email with custom subject and HTML
+   */
+  public async sendEmail(options: { to: string; subject: string; html: string; text?: string }): Promise<boolean> {
+    if (!this.setup()) {
+      console.error('Email service not properly configured');
+      return false;
+    }
+
+    try {
+      const message = {
+        from: this.fromAddress,
+        to: options.to,
+        'h:Reply-To': this.replyToAddress,
+        subject: options.subject,
+        html: options.html,
+        text: options.text || options.html.replace(/<[^>]*>/g, ''), // Strip HTML for text fallback
+      };
+
+      const result = await this.mailgun.messages.create(this.domain, message);
+
       console.log('Email sent successfully:', result);
       return true;
     } catch (error) {
@@ -251,3 +280,10 @@ If you have any questions, please reply to this email.
 }
 
 export const emailService = EmailService.getInstance();
+
+/**
+ * Get the email service singleton instance
+ */
+export function getEmailService(): EmailService {
+  return EmailService.getInstance();
+}

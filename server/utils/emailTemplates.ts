@@ -34,14 +34,17 @@ export async function sendInvoiceEmail(data: InvoiceEmailData) {
 
   const { invoice, parentEmail, parentName } = data
 
+  // Format amounts from cents to dollars
+  const formatAmount = (amountInCents: number) => (amountInCents / 100).toFixed(2)
+
   // Format line items for email
   const lineItemsHtml = invoice.line_items
     .map((item: any) => `
       <tr>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${item.description}</td>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">$${item.unit_price.toFixed(2)}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">$${item.amount.toFixed(2)}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">$${formatAmount(item.unit_price_in_cents)}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">$${formatAmount(item.amount_in_cents)}</td>
       </tr>
     `)
     .join('')
@@ -72,7 +75,7 @@ export async function sendInvoiceEmail(data: InvoiceEmailData) {
           </tr>
           <tr>
             <td style="padding: 8px; font-weight: bold;">Issue Date:</td>
-            <td style="padding: 8px; text-align: right;">${new Date(invoice.issue_date).toLocaleDateString()}</td>
+            <td style="padding: 8px; text-align: right;">${new Date(invoice.invoice_date).toLocaleDateString()}</td>
           </tr>
           <tr>
             <td style="padding: 8px; font-weight: bold;">Due Date:</td>
@@ -99,17 +102,17 @@ export async function sendInvoiceEmail(data: InvoiceEmailData) {
         <table style="width: 100%; margin-top: 20px;">
           <tr>
             <td style="padding: 8px; text-align: right; font-weight: bold;">Subtotal:</td>
-            <td style="padding: 8px; text-align: right; width: 120px;">$${invoice.subtotal.toFixed(2)}</td>
+            <td style="padding: 8px; text-align: right; width: 120px;">$${formatAmount(invoice.subtotal_in_cents)}</td>
           </tr>
-          ${invoice.discount_total > 0 ? `
+          ${invoice.discount_total_in_cents > 0 ? `
           <tr>
             <td style="padding: 8px; text-align: right; color: #16a34a;">Discounts:</td>
-            <td style="padding: 8px; text-align: right; color: #16a34a;">-$${invoice.discount_total.toFixed(2)}</td>
+            <td style="padding: 8px; text-align: right; color: #16a34a;">-$${formatAmount(invoice.discount_total_in_cents)}</td>
           </tr>
           ` : ''}
           <tr style="border-top: 2px solid #e5e7eb;">
             <td style="padding: 8px; text-align: right; font-weight: bold; font-size: 1.1em;">Total Due:</td>
-            <td style="padding: 8px; text-align: right; font-weight: bold; font-size: 1.1em; color: #dc2626;">$${invoice.total_amount.toFixed(2)}</td>
+            <td style="padding: 8px; text-align: right; font-weight: bold; font-size: 1.1em; color: #dc2626;">$${formatAmount(invoice.total_amount_in_cents)}</td>
           </tr>
         </table>
       </div>
@@ -152,6 +155,9 @@ export async function sendPaymentReceiptEmail(data: PaymentReceiptData) {
   const emailService = getEmailService()
   const { payment, invoice, parentEmail, parentName } = data
 
+  // Format amounts from cents to dollars
+  const formatAmount = (amountInCents: number) => (amountInCents / 100).toFixed(2)
+
   const subject = `Payment Receipt - ${payment.confirmation_number}`
 
   const html = `
@@ -184,16 +190,16 @@ export async function sendPaymentReceiptEmail(data: PaymentReceiptData) {
           </tr>
           <tr>
             <td style="padding: 8px; font-weight: bold;">Amount Paid:</td>
-            <td style="padding: 8px; text-align: right; color: #10b981; font-weight: bold; font-size: 1.2em;">$${payment.amount.toFixed(2)}</td>
+            <td style="padding: 8px; text-align: right; color: #10b981; font-weight: bold; font-size: 1.2em;">$${typeof payment.amount === 'number' ? payment.amount.toFixed(2) : payment.amount}</td>
           </tr>
           ${invoice ? `
           <tr>
             <td style="padding: 8px; font-weight: bold;">Invoice Number:</td>
-            <td style="padding: 8px; text-align: right;">${invoice.invoice_number}</td>
+            <td style="padding: 8px; text-align: right;">${invoice.invoice_number || invoice.confirmation_number}</td>
           </tr>
           <tr>
             <td style="padding: 8px; font-weight: bold;">Remaining Balance:</td>
-            <td style="padding: 8px; text-align: right;">${invoice.amount_due <= 0 ? 'PAID IN FULL' : `$${invoice.amount_due.toFixed(2)}`}</td>
+            <td style="padding: 8px; text-align: right;">PAID IN FULL</td>
           </tr>
           ` : ''}
         </table>
@@ -224,6 +230,9 @@ export async function sendPaymentReminderEmail(data: ReminderEmailData) {
   const emailService = getEmailService()
   const config = useRuntimeConfig()
   const { invoice, parentEmail, parentName, reminderType, daysOverdue } = data
+
+  // Format amounts from cents to dollars
+  const formatAmount = (amountInCents: number) => (amountInCents / 100).toFixed(2)
 
   let subject = ''
   let urgencyColor = '#f59e0b'
@@ -285,12 +294,12 @@ export async function sendPaymentReminderEmail(data: ReminderEmailData) {
           </tr>
           <tr>
             <td style="padding: 8px; font-weight: bold;">Amount Due:</td>
-            <td style="padding: 8px; text-align: right; color: ${urgencyColor}; font-weight: bold; font-size: 1.3em;">$${invoice.amount_due.toFixed(2)}</td>
+            <td style="padding: 8px; text-align: right; color: ${urgencyColor}; font-weight: bold; font-size: 1.3em;">$${formatAmount(invoice.total_amount_in_cents - (invoice.amount_paid_in_cents || 0))}</td>
           </tr>
-          ${invoice.late_fee_applied > 0 ? `
+          ${invoice.late_fee_applied_in_cents && invoice.late_fee_applied_in_cents > 0 ? `
           <tr>
             <td style="padding: 8px; font-weight: bold;">Late Fees:</td>
-            <td style="padding: 8px; text-align: right; color: #dc2626;">$${invoice.late_fee_applied.toFixed(2)}</td>
+            <td style="padding: 8px; text-align: right; color: #dc2626;">$${formatAmount(invoice.late_fee_applied_in_cents)}</td>
           </tr>
           ` : ''}
         </table>
