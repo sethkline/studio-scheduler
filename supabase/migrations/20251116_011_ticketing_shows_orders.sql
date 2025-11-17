@@ -196,8 +196,30 @@ CREATE POLICY "Anyone can view show seats"
   TO public
   USING (true);
 
-CREATE POLICY "System can manage show seats"
-  ON show_seats FOR ALL
+CREATE POLICY "Admin and staff can insert show seats"
+  ON show_seats FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can update show seats"
+  ON show_seats FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can delete show seats"
+  ON show_seats FOR DELETE
   TO authenticated
   USING (
     EXISTS (
@@ -233,8 +255,30 @@ CREATE POLICY "Admin and staff can view all orders"
     )
   );
 
-CREATE POLICY "Admin and staff can manage orders"
-  ON ticket_orders FOR INSERT, UPDATE, DELETE
+CREATE POLICY "Admin and staff can insert orders"
+  ON ticket_orders FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can update orders"
+  ON ticket_orders FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can delete orders"
+  ON ticket_orders FOR DELETE
   TO authenticated
   USING (
     EXISTS (
@@ -263,8 +307,30 @@ CREATE POLICY "Customers can view their own tickets"
     )
   );
 
-CREATE POLICY "Admin and staff can manage tickets"
-  ON tickets FOR ALL
+CREATE POLICY "Admin and staff can insert tickets"
+  ON tickets FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can update tickets"
+  ON tickets FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can delete tickets"
+  ON tickets FOR DELETE
   TO authenticated
   USING (
     EXISTS (
@@ -293,8 +359,30 @@ CREATE POLICY "Customers can view their own order items"
     )
   );
 
-CREATE POLICY "Admin and staff can manage order items"
-  ON ticket_order_items FOR ALL
+CREATE POLICY "Admin and staff can insert order items"
+  ON ticket_order_items FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can update order items"
+  ON ticket_order_items FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.user_role IN ('admin', 'staff')
+    )
+  );
+
+CREATE POLICY "Admin and staff can delete order items"
+  ON ticket_order_items FOR DELETE
   TO authenticated
   USING (
     EXISTS (
