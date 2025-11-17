@@ -125,10 +125,19 @@ const handleSubmit = async () => {
 const handleCancel = () => {
   router.push('/admin/ticketing/venues')
 }
+
+// Refresh venue data after section/price zone changes
+const refreshVenue = async () => {
+  try {
+    venue.value = await getVenue(venueId)
+  } catch (error) {
+    console.error('Failed to refresh venue:', error)
+  }
+}
 </script>
 
 <template>
-  <div class="p-6 max-w-4xl mx-auto">
+  <div class="p-6 max-w-7xl mx-auto">
     <div class="mb-6">
       <Button
         icon="pi pi-arrow-left"
@@ -266,23 +275,6 @@ const handleCancel = () => {
               <small v-if="errors.description" class="p-error">{{ errors.description }}</small>
             </div>
 
-            <!-- Venue Details (Read-only) -->
-            <div v-if="venue" class="border-t pt-6">
-              <h3 class="text-lg font-semibold mb-4 text-gray-700">Additional Information</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span class="font-medium text-gray-600">Sections:</span>
-                  <span class="ml-2">{{ venue.venue_sections?.length || 0 }}</span>
-                </div>
-                <div>
-                  <span class="font-medium text-gray-600">Price Zones:</span>
-                  <span class="ml-2">{{ venue.price_zones?.length || 0 }}</span>
-                </div>
-              </div>
-              <p class="text-sm text-gray-500 mt-3">
-                To manage sections, price zones, and seats, save this form and use the venue management tools.
-              </p>
-            </div>
           </div>
         </template>
 
@@ -303,6 +295,31 @@ const handleCancel = () => {
           </div>
         </template>
       </Card>
+
+      <!-- Section and Price Zone Management -->
+      <div v-if="venue" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <!-- Section Manager -->
+        <Card>
+          <template #content>
+            <VenueSectionManager
+              :venue-id="venueId"
+              :sections="venue.venue_sections || []"
+              @refresh="refreshVenue"
+            />
+          </template>
+        </Card>
+
+        <!-- Price Zone Manager -->
+        <Card>
+          <template #content>
+            <VenuePriceZoneManager
+              :venue-id="venueId"
+              :price-zones="venue.price_zones || []"
+              @refresh="refreshVenue"
+            />
+          </template>
+        </Card>
+      </div>
     </form>
   </div>
 </template>
