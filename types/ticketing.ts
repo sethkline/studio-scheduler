@@ -410,3 +410,119 @@ export interface CheckReservationResponse {
   success: boolean
   reservation: ReservationDetails
 }
+
+/**
+ * Checkout & Payment types
+ */
+
+/**
+ * Customer info for checkout
+ */
+export interface CustomerInfo {
+  name: string
+  email: string
+  phone?: string
+}
+
+/**
+ * Create ticket order request
+ */
+export interface CreateTicketOrderRequest {
+  show_id: string
+  reservation_token: string
+  customer_name: string
+  customer_email: string
+  customer_phone?: string
+  upsell_items?: Array<{
+    upsell_item_id: string
+    quantity: number
+  }>
+}
+
+/**
+ * Create ticket order response
+ */
+export interface CreateTicketOrderResponse {
+  success: boolean
+  order: TicketOrder
+  message: string
+}
+
+/**
+ * Create payment intent request
+ */
+export interface CreatePaymentIntentRequest {
+  order_id: string
+}
+
+/**
+ * Create payment intent response
+ */
+export interface CreatePaymentIntentResponse {
+  success: boolean
+  client_secret: string
+  publishable_key: string
+  order: TicketOrder
+}
+
+/**
+ * Confirm payment request
+ */
+export interface ConfirmPaymentRequest {
+  order_id: string
+  payment_intent_id: string
+}
+
+/**
+ * Confirm payment response
+ */
+export interface ConfirmPaymentResponse {
+  success: boolean
+  message: string
+  order: TicketOrder
+  tickets: Ticket[]
+}
+
+/**
+ * Order summary for display
+ */
+export interface OrderSummary {
+  show_id: string
+  show_title: string
+  show_date: string
+  show_time: string
+  venue_name: string
+  seats: Array<{
+    id: string
+    section: string
+    row_name: string
+    seat_number: string
+    price_in_cents: number
+  }>
+  upsell_items?: Array<{
+    name: string
+    quantity: number
+    price_in_cents: number
+    total_price_in_cents: number
+  }>
+  subtotal_in_cents: number
+  fees_in_cents: number
+  total_in_cents: number
+  seat_count: number
+}
+
+/**
+ * Webhook payload for Stripe payment events
+ */
+export interface StripeWebhookPayload {
+  type: string
+  data: {
+    object: {
+      id: string
+      status: string
+      metadata?: Record<string, string>
+      amount: number
+      currency: string
+    }
+  }
+}
