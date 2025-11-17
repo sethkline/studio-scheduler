@@ -75,16 +75,29 @@ export interface Seat {
  */
 export interface ShowSeat {
   id: string
-  recital_show_id: string
+  show_id: string
   seat_id: string
   status: 'available' | 'reserved' | 'sold' | 'held'
+  price_in_cents: number
+  reserved_by: string | null
   reserved_until: string | null
-  ticket_order_id: string | null
   created_at: string
   updated_at: string
 
   // Relations
   seat?: Seat
+
+  // Flattened seat details (from API responses)
+  row_name?: string
+  seat_number?: string
+  seat_type?: 'regular' | 'ada' | 'house' | 'blocked'
+  section?: string
+  section_id?: string
+  section_type?: string
+  handicap_access?: boolean
+  price_zone_id?: string
+  price_zone_name?: string
+  price_zone_color?: string
 }
 
 /**
@@ -92,16 +105,15 @@ export interface ShowSeat {
  */
 export interface TicketOrder {
   id: string
-  order_number: string
-  recital_show_id: string
-  customer_email: string
+  show_id: string
   customer_name: string
+  customer_email: string
   customer_phone: string | null
-  subtotal_in_cents: number
-  fees_in_cents: number
-  total_in_cents: number
-  payment_status: 'pending' | 'completed' | 'failed' | 'refunded'
-  payment_intent_id: string | null
+  stripe_payment_intent_id: string | null
+  total_amount_in_cents: number
+  status: 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled'
+  order_number: string
+  notes: string | null
   created_at: string
   updated_at: string
 
@@ -115,12 +127,14 @@ export interface TicketOrder {
  */
 export interface Ticket {
   id: string
-  ticket_number: string
   ticket_order_id: string
   show_seat_id: string
   qr_code: string
-  status: 'valid' | 'used' | 'refunded'
+  ticket_number: string
+  pdf_url: string | null
+  pdf_generated_at: string | null
   scanned_at: string | null
+  scanned_by: string | null
   created_at: string
   updated_at: string
 
@@ -134,13 +148,12 @@ export interface Ticket {
 export interface TicketOrderItem {
   id: string
   ticket_order_id: string
-  item_type: 'ticket' | 'upsell'
-  ticket_id: string | null
-  upsell_item_id: string | null
+  item_type: 'ticket' | 'digital_download' | 'dvd' | 'merchandise'
+  item_name: string
   quantity: number
   price_in_cents: number
+  ticket_id: string | null
   created_at: string
-  updated_at: string
 }
 
 /**
@@ -148,13 +161,13 @@ export interface TicketOrderItem {
  */
 export interface UpsellItem {
   id: string
-  recital_show_id: string | null
   name: string
   description: string | null
   price_in_cents: number
-  item_type: 'physical' | 'digital'
+  item_type: 'digital_download' | 'dvd' | 'photo_package' | 'merchandise'
   max_quantity_per_order: number | null
   is_active: boolean
+  image_url: string | null
   created_at: string
   updated_at: string
 }
