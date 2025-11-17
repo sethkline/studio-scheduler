@@ -9,6 +9,7 @@ const emit = defineEmits<{
   addRow: []
   addSeat: []
   deleteSelected: []
+  importCsv: []
 }>()
 
 const store = useSeatMapBuilderStore()
@@ -110,6 +111,13 @@ const zoomPercentage = computed(() => {
             text
             severity="secondary"
             @click="handleAddRow"
+          />
+          <Button
+            icon="pi pi-upload"
+            label="Import CSV"
+            text
+            severity="secondary"
+            @click="emit('importCsv')"
           />
           <Button
             icon="pi pi-trash"
