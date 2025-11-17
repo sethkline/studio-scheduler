@@ -1,13 +1,14 @@
 // server/api/public/orders/lookup.get.ts
-import { getSupabaseClient } from '../../../utils/supabase'
+import { serverSupabaseClient } from '#supabase/server'
 
 /**
  * Public API endpoint to lookup ticket orders by email
  * Allows customers to find their orders without logging in
+ * Uses RLS-aware client for security
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    const client = await serverSupabaseClient(event)
     const query = getQuery(event)
 
     // Validate required fields

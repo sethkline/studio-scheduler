@@ -1,20 +1,32 @@
 // server/api/public/orders/[id]/resend-email.post.ts
+import { serverSupabaseClient } from '#supabase/server'
 import { getSupabaseClient } from '../../../../utils/supabase'
 import { sendTicketConfirmationEmail } from '../../../../utils/ticketEmail'
 
 /**
  * Public API endpoint to resend confirmation email for an order
- * Allows customers to request a new confirmation email
+ * Requires email verification to prevent unauthorized access
+ * Uses RLS-aware client for security checks, service client for email operations
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
+    const body = await readBody(event)
 
     if (!id) {
       throw createError({
         statusCode: 400,
         message: 'Order ID is required'
+      })
+    }
+
+    // SECURITY: Require email verification to prevent unauthorized access
+    const email = body.email as string
+    if (!email) {
+      throw createError({
+        statusCode: 401,
+        message: 'Email verification required. Please provide your email address.'
       })
     }
 
@@ -33,6 +45,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // SECURITY: Verify email matches order owner
+    if (order.customer_email.toLowerCase() !== email.toLowerCase()) {
+      throw createError({
+        statusCode: 403,
+        message: 'Unauthorized. Email does not match order owner.'
+      })
+    }
+
     // Only allow resending for paid orders
     if (order.status !== 'paid') {
       throw createError({
@@ -42,7 +62,10 @@ export default defineEventHandler(async (event) => {
     }
 
     // Send the confirmation email
-    const emailSent = await sendTicketConfirmationEmail(client, id, {
+    // NOTE: Use service client for email operations (PDF generation requires storage access)
+    // This is safe because we already verified email ownership above
+    const serviceClient = getSupabaseClient()
+    const emailSent = await sendTicketConfirmationEmail(serviceClient, id, {
       toEmail: order.customer_email,
       includePdfAttachments: true
     })

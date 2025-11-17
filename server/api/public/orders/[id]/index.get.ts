@@ -1,19 +1,30 @@
 // server/api/public/orders/[id]/index.get.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { serverSupabaseClient } from '#supabase/server'
 
 /**
  * Public API endpoint to get order details by ID
- * Allows customers to view their order without logging in
+ * Requires email verification to prevent unauthorized access
+ * Uses RLS-aware client for security
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
+    const query = getQuery(event)
 
     if (!id) {
       throw createError({
         statusCode: 400,
         message: 'Order ID is required'
+      })
+    }
+
+    // SECURITY: Require email verification to prevent unauthorized access
+    const email = query.email as string
+    if (!email) {
+      throw createError({
+        statusCode: 401,
+        message: 'Email verification required. Please provide your email address.'
       })
     }
 
@@ -83,6 +94,14 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: orderError.code === 'PGRST116' ? 404 : 500,
         message: orderError.code === 'PGRST116' ? 'Order not found' : 'Failed to fetch order'
+      })
+    }
+
+    // SECURITY: Verify email matches order owner
+    if (order.customer_email.toLowerCase() !== email.toLowerCase()) {
+      throw createError({
+        statusCode: 403,
+        message: 'Unauthorized. Email does not match order owner.'
       })
     }
 

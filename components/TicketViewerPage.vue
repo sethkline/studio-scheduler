@@ -168,8 +168,9 @@ const searchOrders = async () => {
 const viewOrderDetails = async (order: Order) => {
   loading.value = true
   try {
+    // SECURITY: Include email for verification
     const response = await $fetch<{ success: boolean; data: OrderDetail }>(
-      `/api/public/orders/${order.id}`
+      `/api/public/orders/${order.id}?email=${encodeURIComponent(email.value)}`
     )
 
     if (response.success) {
@@ -208,9 +209,15 @@ const resendConfirmationEmail = async () => {
 
   resendingEmail.value = true
   try {
+    // SECURITY: Include email for verification
     const response = await $fetch<{ success: boolean; message: string }>(
       `/api/public/orders/${selectedOrder.value.id}/resend-email`,
-      { method: 'POST' }
+      {
+        method: 'POST',
+        body: {
+          email: email.value
+        }
+      }
     )
 
     if (response.success) {
