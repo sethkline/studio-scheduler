@@ -1,10 +1,10 @@
 // server/api/ticket-orders/[id].get.ts
 
 import type { TicketOrder } from '~/types/ticketing'
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event): Promise<{ order: TicketOrder }> => {
-  const client = getSupabaseClient()
+  const client = await serverSupabaseClient(event)
 
   try {
     // Get order ID from route params
@@ -18,6 +18,10 @@ export default defineEventHandler(async (event): Promise<{ order: TicketOrder }>
     }
 
     // Fetch order with all related data
+    // RLS policies will automatically enforce ownership:
+    // - Anonymous users can view by session_id
+    // - Authenticated users can view by user_id or email
+    // - Admin/staff can view all
     const { data: order, error: orderError } = await client
       .from('ticket_orders')
       .select(`
@@ -70,6 +74,9 @@ export default defineEventHandler(async (event): Promise<{ order: TicketOrder }>
       .single()
 
     if (orderError || !order) {
+      // This will fail if:
+      // 1. Order doesn't exist
+      // 2. User doesn't have permission to view it (RLS)
       throw createError({
         statusCode: 404,
         statusMessage: 'Order not found'

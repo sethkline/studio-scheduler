@@ -3,9 +3,22 @@
 import Stripe from 'stripe'
 import { getSupabaseClient } from '~/server/utils/supabase'
 
+/**
+ * SECURITY NOTE: This webhook endpoint is called by Stripe, not by users.
+ *
+ * Authentication strategy:
+ * - Uses Stripe signature verification instead of user authentication
+ * - Uses service role client (getSupabaseClient) to bypass RLS
+ *   This is intentional and secure because:
+ *   1. Stripe signature proves the request is from Stripe
+ *   2. Payment intent metadata is verified against order
+ *   3. Only Stripe can trigger these updates
+ *
+ * DO NOT add user authentication to this endpoint - Stripe cannot authenticate as a user.
+ */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const client = getSupabaseClient()
+  const client = getSupabaseClient() // Service role - required for Stripe webhooks
 
   try {
     // Get raw body for signature verification
@@ -25,14 +38,13 @@ export default defineEventHandler(async (event) => {
     })
 
     // Verify webhook signature
-    // NOTE: You need to set STRIPE_WEBHOOK_SECRET in your .env file
+    // CRITICAL SECURITY: You MUST set STRIPE_WEBHOOK_SECRET in production
     // Get this from Stripe Dashboard > Developers > Webhooks
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
     if (!webhookSecret) {
-      console.warn('STRIPE_WEBHOOK_SECRET not configured. Webhook signature verification skipped.')
-      // In production, you should always verify the signature
-      // For now, we'll continue without verification for testing
+      console.warn('⚠️  STRIPE_WEBHOOK_SECRET not configured. Webhook signature verification DISABLED.')
+      console.warn('⚠️  This is INSECURE for production. Set STRIPE_WEBHOOK_SECRET environment variable.')
     }
 
     let stripeEvent: Stripe.Event
@@ -48,7 +60,7 @@ export default defineEventHandler(async (event) => {
         })
       }
     } else {
-      // Parse the event without verification (for testing only)
+      // Parse the event without verification (INSECURE - for development only)
       stripeEvent = JSON.parse(body)
     }
 

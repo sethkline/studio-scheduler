@@ -2,14 +2,23 @@
 
 import Stripe from 'stripe'
 import type { CreatePaymentIntentRequest, CreatePaymentIntentResponse } from '~/types/ticketing'
+import { serverSupabaseClient } from '#supabase/server'
+import { getReservationSessionId } from '~/server/utils/reservationSession'
 import { getSupabaseClient } from '~/server/utils/supabase'
 
 export default defineEventHandler(
   async (event): Promise<CreatePaymentIntentResponse> => {
     const config = useRuntimeConfig()
-    const client = getSupabaseClient()
+    const rlsClient = await serverSupabaseClient(event)
 
     try {
+      // Get session ID for ownership verification
+      const sessionId = await getReservationSessionId(event)
+
+      // Get user ID if authenticated
+      const { data: { user } } = await rlsClient.auth.getUser()
+      const userId = user?.id || null
+
       // Read request body
       const body = await readBody<CreatePaymentIntentRequest>(event)
       const { order_id } = body
@@ -21,8 +30,8 @@ export default defineEventHandler(
         })
       }
 
-      // Step 1: Get the ticket order
-      const { data: order, error: orderError } = await client
+      // Step 1: Get the ticket order and verify ownership using RLS client
+      const { data: order, error: orderError } = await rlsClient
         .from('ticket_orders')
         .select('*')
         .eq('id', order_id)
@@ -33,6 +42,32 @@ export default defineEventHandler(
           statusCode: 404,
           statusMessage: 'Order not found'
         })
+      }
+
+      // Verify ownership: session_id matches OR user_id matches OR admin/staff
+      const isOwner = order.session_id === sessionId || order.user_id === userId
+
+      if (!isOwner) {
+        // Check if user is admin/staff
+        if (userId) {
+          const { data: profile } = await rlsClient
+            .from('profiles')
+            .select('user_role')
+            .eq('id', userId)
+            .single()
+
+          if (!profile || !['admin', 'staff'].includes(profile.user_role)) {
+            throw createError({
+              statusCode: 403,
+              statusMessage: 'You do not have permission to access this order'
+            })
+          }
+        } else {
+          throw createError({
+            statusCode: 403,
+            statusMessage: 'You do not have permission to access this order'
+          })
+        }
       }
 
       // Check if order is in pending status
@@ -91,8 +126,9 @@ export default defineEventHandler(
         }
       })
 
-      // Step 4: Update order with payment intent ID
-      const { error: updateError } = await client
+      // Step 4: Update order with payment intent ID (use service role for this)
+      const serviceClient = getSupabaseClient()
+      const { error: updateError } = await serviceClient
         .from('ticket_orders')
         .update({
           stripe_payment_intent_id: paymentIntent.id,

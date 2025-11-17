@@ -1,12 +1,20 @@
 // server/api/ticket-orders/create.post.ts
 
 import type { CreateTicketOrderRequest, CreateTicketOrderResponse } from '~/types/ticketing'
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { serverSupabaseClient } from '#supabase/server'
+import { getReservationSessionId } from '~/server/utils/reservationSession'
 
 export default defineEventHandler(async (event): Promise<CreateTicketOrderResponse> => {
-  const client = getSupabaseClient()
+  const client = await serverSupabaseClient(event)
 
   try {
+    // Get session ID (works for both authenticated and anonymous users)
+    const sessionId = await getReservationSessionId(event)
+
+    // Get user ID if authenticated
+    const { data: { user } } = await client.auth.getUser()
+    const userId = user?.id || null
+
     // Read and validate request body
     const body = await readBody<CreateTicketOrderRequest>(event)
 
@@ -29,13 +37,14 @@ export default defineEventHandler(async (event): Promise<CreateTicketOrderRespon
       })
     }
 
-    // Step 1: Verify the reservation exists and is valid
+    // Step 1: Verify the reservation exists, is valid, and belongs to this session
     const { data: reservation, error: reservationError } = await client
       .from('seat_reservations')
       .select(`
         id,
         recital_show_id,
         reservation_token,
+        session_id,
         expires_at,
         is_active,
         reservation_seats (
@@ -52,6 +61,14 @@ export default defineEventHandler(async (event): Promise<CreateTicketOrderRespon
       throw createError({
         statusCode: 404,
         statusMessage: 'Reservation not found or expired'
+      })
+    }
+
+    // Verify this session owns the reservation
+    if (reservation.session_id !== sessionId) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'You do not have permission to use this reservation'
       })
     }
 
@@ -115,7 +132,7 @@ export default defineEventHandler(async (event): Promise<CreateTicketOrderRespon
       return sum + (seat.price_in_cents || 0)
     }, 0)
 
-    // Step 3: Generate order number
+    // Step 3: Generate order number using database function
     const { data: orderNumberData, error: orderNumberError } = await client
       .rpc('generate_order_number')
 
@@ -128,7 +145,7 @@ export default defineEventHandler(async (event): Promise<CreateTicketOrderRespon
 
     const orderNumber = orderNumberData
 
-    // Step 4: Create ticket order
+    // Step 4: Create ticket order with session tracking
     const { data: order, error: orderError } = await client
       .from('ticket_orders')
       .insert({
@@ -138,7 +155,9 @@ export default defineEventHandler(async (event): Promise<CreateTicketOrderRespon
         customer_phone: customer_phone || null,
         total_amount_in_cents: totalAmountInCents,
         status: 'pending',
-        order_number: orderNumber
+        order_number: orderNumber,
+        session_id: sessionId,
+        user_id: userId
       })
       .select()
       .single()
