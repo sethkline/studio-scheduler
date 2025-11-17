@@ -361,9 +361,9 @@ async function generateSeats() {
       detail: `Generated ${data.value.seat_count} seats for this show`,
       life: 3000
     });
-    
+
     // Refresh seat data
-    await fetchSeatCount();
+    await fetchSeatStatistics();
     
   } catch (err) {
     console.error('Error generating seats:', err);

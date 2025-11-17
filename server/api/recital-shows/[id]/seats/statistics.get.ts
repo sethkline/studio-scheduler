@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
     const { count: totalCount, error: totalError } = await client
       .from('show_seats')
       .select('*', { count: 'exact', head: true })
-      .eq('recital_show_id', id)
+      .eq('show_id', id)
 
     if (totalError) throw totalError
 
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
     const { count: availableCount, error: availableError } = await client
       .from('show_seats')
       .select('*', { count: 'exact', head: true })
-      .eq('recital_show_id', id)
+      .eq('show_id', id)
       .eq('status', 'available')
 
     if (availableError) throw availableError
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
     const { count: soldCount, error: soldError } = await client
       .from('show_seats')
       .select('*', { count: 'exact', head: true })
-      .eq('recital_show_id', id)
+      .eq('show_id', id)
       .eq('status', 'sold')
 
     if (soldError) throw soldError
@@ -66,7 +66,7 @@ export default defineEventHandler(async (event) => {
     const { count: reservedCount, error: reservedError } = await client
       .from('show_seats')
       .select('*', { count: 'exact', head: true })
-      .eq('recital_show_id', id)
+      .eq('show_id', id)
       .eq('status', 'reserved')
 
     if (reservedError) throw reservedError
@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
     const { count: heldCount, error: heldError } = await client
       .from('show_seats')
       .select('*', { count: 'exact', head: true })
-      .eq('recital_show_id', id)
+      .eq('show_id', id)
       .eq('status', 'held')
 
     if (heldError) throw heldError
@@ -92,7 +92,7 @@ export default defineEventHandler(async (event) => {
           )
         )
       `)
-      .eq('recital_show_id', id)
+      .eq('show_id', id)
     
     if (sectionError) throw sectionError
     
