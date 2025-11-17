@@ -201,9 +201,9 @@
         <div class="card sticky top-4">
           <div v-if="showReservationTimer" class="mb-4">
             <TicketReservationTimer
-              :duration="30"
-              :warningThreshold="5"
-              :criticalThreshold="2"
+              :duration="10"
+              :warningThreshold="3"
+              :criticalThreshold="1"
               @expire="handleReservationExpired"
               @warning="() => {}"
               @critical="() => {}"
@@ -276,7 +276,7 @@
               </div>
 
               <p class="text-xs text-gray-500 text-center">
-                Selected seats will be held for 30 minutes during checkout.
+                Selected seats will be held for 10 minutes during checkout.
               </p>
             </div>
           </div>
@@ -297,7 +297,7 @@
           <div class="flex items-center">
             <i class="pi pi-info-circle text-blue-500 mr-2"></i>
             <p class="text-sm">
-              Seats will be reserved for <strong>30 minutes</strong> after selecting "Proceed to Checkout"
+              Seats will be reserved for <strong>10 minutes</strong> after selecting "Proceed to Checkout"
             </p>
           </div>
         </div>
@@ -565,9 +565,9 @@ function startReservationTimer() {
 
   showReservationTimer.value = true;
 
-  // Create new timer (30 minutes default)
+  // Create new timer (10 minutes as per Story 4.2 requirements)
   reservationTimer.value = createReservationTimer(
-    30, // 30 minutes
+    10, // 10 minutes
     // On expire
     handleReservationExpired,
     // On update
