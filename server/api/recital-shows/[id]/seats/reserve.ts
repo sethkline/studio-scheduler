@@ -1,9 +1,14 @@
-import { getSupabaseClient } from '../../../../utils/supabase'
 import { randomBytes } from 'crypto'
 
+/**
+ * POST /api/recital-shows/:id/seats/reserve
+ * Reserve seats for a show (public endpoint)
+ * Uses RLS for data access
+ */
 export default defineEventHandler(async (event) => {
-  // Get supabase client
-  const client = getSupabaseClient()
+  // Use serverSupabaseClient which respects RLS policies
+  // This is a public endpoint, but RLS controls what can be accessed
+  const client = await serverSupabaseClient(event)
   const id = getRouterParam(event, 'id')
 
   

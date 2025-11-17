@@ -36,9 +36,10 @@ interface TicketEmailData {
 
 /**
  * Fetch all data needed for ticket confirmation email
+ * @param client - Supabase client (should be RLS-aware from serverSupabaseClient)
+ * @param orderId - Order ID to fetch data for
  */
-export async function fetchTicketEmailData(orderId: string): Promise<TicketEmailData> {
-  const client = getSupabaseClient();
+export async function fetchTicketEmailData(client: any, orderId: string): Promise<TicketEmailData> {
 
   // Fetch order with relations
   const { data: order, error: orderError } = await client
@@ -138,14 +139,18 @@ export async function fetchTicketEmailData(orderId: string): Promise<TicketEmail
 
 /**
  * Generate or retrieve PDFs for all tickets in an order
+ * NOTE: This uses service key client internally via getOrGenerateTicketPDF
+ * because PDF generation requires storage upload permissions
  */
 export async function ensureTicketPDFs(ticketIds: string[]): Promise<Map<string, string>> {
-  const client = getSupabaseClient();
+  // Use service key client for PDF generation/upload
+  // This is safe because we're not exposing any data - just generating PDFs
+  const serviceClient = getSupabaseClient();
   const pdfUrls = new Map<string, string>();
 
   for (const ticketId of ticketIds) {
     try {
-      const pdfUrl = await getOrGenerateTicketPDF(client, ticketId);
+      const pdfUrl = await getOrGenerateTicketPDF(serviceClient, ticketId);
       if (pdfUrl) {
         pdfUrls.set(ticketId, pdfUrl);
       }
@@ -636,8 +641,12 @@ This is an automated confirmation email.
 
 /**
  * Send ticket confirmation email with PDF attachments
+ * @param client - Supabase client (should be RLS-aware from serverSupabaseClient)
+ * @param orderId - Order ID to send email for
+ * @param options - Email options
  */
 export async function sendTicketConfirmationEmail(
+  client: any,
   orderId: string,
   options: {
     toEmail?: string; // Override recipient email (for resending)
@@ -659,8 +668,8 @@ export async function sendTicketConfirmationEmail(
     const mailgun = new Mailgun(formData);
     const mg = mailgun.client({ username: 'api', key: apiKey });
 
-    // Fetch email data
-    const emailData = await fetchTicketEmailData(orderId);
+    // Fetch email data using the provided client (RLS-aware)
+    const emailData = await fetchTicketEmailData(client, orderId);
 
     // Generate PDFs for all tickets
     const includePdfs = options.includePdfAttachments !== false;

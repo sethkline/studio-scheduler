@@ -131,7 +131,11 @@ export default defineEventHandler(async (event) => {
     
     // Send confirmation email with PDF attachments
     // Fire and forget - don't fail the order if email fails
-    sendTicketConfirmationEmail(order.id, {
+    // NOTE: Using service key client here is safe because:
+    // 1. We just created this order in this request after validating payment
+    // 2. Email is sent to the customer who just paid
+    // 3. This is a post-payment webhook, not a user-initiated request
+    sendTicketConfirmationEmail(client, order.id, {
       includePdfAttachments: true
     }).catch(err => {
       console.error('Failed to send confirmation email:', err);

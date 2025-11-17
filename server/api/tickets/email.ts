@@ -1,25 +1,32 @@
 // server/api/tickets/email.ts
-import { getSupabaseClient } from '../../utils/supabase';
 import { sendTicketConfirmationEmail } from '../../utils/ticketEmail';
 
+/**
+ * POST /api/tickets/email
+ * Resend ticket confirmation email (customer-facing)
+ * Validates email ownership before sending
+ * Uses RLS for data access
+ */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient();
+    // Use serverSupabaseClient which respects RLS
+    const client = await serverSupabaseClient(event);
     const body = await readBody(event);
-    
+
     // Get required fields
     const orderId = body.orderId;
     const originalEmail = body.email; // For verification
     const sendToEmail = body.sendToEmail; // Target email
-    
+
     if (!orderId || !originalEmail || !sendToEmail) {
-      return createError({
+      throw createError({
         statusCode: 400,
         statusMessage: 'Missing required fields'
       });
     }
-    
+
     // Validate that the original email matches the order
+    // RLS policies will ensure only accessible orders are returned
     const { data: order, error: orderError } = await client
       .from('ticket_orders')
       .select('id, customer_email')
@@ -28,34 +35,35 @@ export default defineEventHandler(async (event) => {
       .single();
 
     if (orderError || !order) {
-      return createError({
+      throw createError({
         statusCode: 404,
         statusMessage: 'Order not found for this email'
       });
     }
 
     // Send email using enhanced email service
-    const emailSent = await sendTicketConfirmationEmail(orderId, {
+    // Pass the RLS-aware client to the email function
+    const emailSent = await sendTicketConfirmationEmail(client, orderId, {
       toEmail: sendToEmail,
       includePdfAttachments: true
     });
 
     if (!emailSent) {
-      return createError({
+      throw createError({
         statusCode: 500,
         statusMessage: 'Failed to send email'
       });
     }
-    
+
     return {
       success: true,
       message: 'Tickets sent successfully'
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Email tickets error:', error);
-    return createError({
-      statusCode: 500,
-      statusMessage: 'Failed to send tickets email'
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Failed to send tickets email'
     });
   }
 });

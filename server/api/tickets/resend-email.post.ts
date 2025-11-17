@@ -1,35 +1,24 @@
 // server/api/tickets/resend-email.post.ts
-import { getSupabaseClient } from '../../utils/supabase';
 import { sendTicketConfirmationEmail } from '../../utils/ticketEmail';
 
 /**
+ * POST /api/tickets/resend-email
  * Admin endpoint to resend confirmation emails for ticket orders
- * Requires admin role
+ * Requires admin or staff role
+ * Uses RLS for data access
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient();
-    const body = await readBody(event);
+    // Use serverSupabaseClient which respects RLS
+    const client = await serverSupabaseClient(event);
 
-    // Get the authenticated user
-    const authHeader = getHeader(event, 'authorization');
-    if (!authHeader) {
+    // Get authenticated user (will be null if not authenticated)
+    const user = await serverSupabaseUser(event);
+
+    if (!user) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized - No auth token provided'
-      });
-    }
-
-    // Extract user from JWT token (Supabase handles this)
-    const token = authHeader.replace('Bearer ', '');
-
-    // Verify the user is authenticated
-    const { data: { user }, error: authError } = await client.auth.getUser(token);
-
-    if (authError || !user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized - Invalid token'
+        statusMessage: 'Unauthorized - Authentication required'
       });
     }
 
@@ -55,6 +44,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Validate required fields
+    const body = await readBody(event);
     const { orderId, email } = body;
 
     if (!orderId) {
@@ -64,7 +54,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Verify order exists
+    // Verify order exists (RLS policies will restrict access)
     const { data: order, error: orderError } = await client
       .from('ticket_orders')
       .select('id, customer_email, customer_name, status')
@@ -81,7 +71,8 @@ export default defineEventHandler(async (event) => {
     // Send email to specified address or original customer email
     const recipientEmail = email || order.customer_email;
 
-    const emailSent = await sendTicketConfirmationEmail(orderId, {
+    // Pass the RLS-aware client to the email function
+    const emailSent = await sendTicketConfirmationEmail(client, orderId, {
       toEmail: recipientEmail,
       includePdfAttachments: true
     });
@@ -94,7 +85,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Log the resend action (optional - could add to an audit log table)
-    console.log(`Confirmation email resent for order ${orderId} by admin ${user.email}`);
+    console.log(`Confirmation email resent for order ${orderId} by ${profile.user_role} ${user.email}`);
 
     return {
       success: true,
