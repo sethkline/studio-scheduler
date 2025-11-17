@@ -1,11 +1,15 @@
 // server/api/seat-reservations/release.post.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { getReservationSessionId } from '~/server/utils/reservationSession'
 
 export default defineEventHandler(async (event) => {
   const client = await serverSupabaseClient(event)
 
   try {
     const body = await readBody(event)
+
+    // Get session ID for ownership validation
+    const sessionId = await getReservationSessionId(event)
 
     // Validate required fields
     if (!body.token && !body.reservation_id) {
@@ -17,11 +21,11 @@ export default defineEventHandler(async (event) => {
 
     let reservationId: string
 
-    // If token provided, find the reservation
+    // If token provided, find the reservation and validate ownership
     if (body.token) {
       const { data: reservation, error: findError } = await client
         .from('seat_reservations')
-        .select('id, is_active')
+        .select('id, session_id, is_active')
         .eq('reservation_token', body.token)
         .single()
 
@@ -29,6 +33,14 @@ export default defineEventHandler(async (event) => {
         throw createError({
           statusCode: 404,
           statusMessage: 'Reservation not found'
+        })
+      }
+
+      // Validate ownership
+      if (reservation.session_id !== sessionId) {
+        throw createError({
+          statusCode: 403,
+          statusMessage: 'You do not have permission to release this reservation'
         })
       }
 
@@ -41,6 +53,28 @@ export default defineEventHandler(async (event) => {
 
       reservationId = reservation.id
     } else {
+      // If reservation_id provided, validate ownership
+      const { data: reservation, error: findError } = await client
+        .from('seat_reservations')
+        .select('id, session_id, is_active')
+        .eq('id', body.reservation_id)
+        .single()
+
+      if (findError || !reservation) {
+        throw createError({
+          statusCode: 404,
+          statusMessage: 'Reservation not found'
+        })
+      }
+
+      // Validate ownership
+      if (reservation.session_id !== sessionId) {
+        throw createError({
+          statusCode: 403,
+          statusMessage: 'You do not have permission to release this reservation'
+        })
+      }
+
       reservationId = body.reservation_id
     }
 

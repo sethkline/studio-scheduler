@@ -1,11 +1,15 @@
 // server/api/seat-reservations/reserve.post.ts
 import { serverSupabaseClient } from '#supabase/server'
 import { randomBytes } from 'crypto'
+import { getReservationSessionId, getActiveReservationForShow } from '~/server/utils/reservationSession'
 
 export default defineEventHandler(async (event) => {
   const client = await serverSupabaseClient(event)
 
   try {
+    // Get session ID for this user/anonymous session
+    const sessionId = await getReservationSessionId(event)
+
     const body = await readBody(event)
 
     // Validate required fields
@@ -28,6 +32,15 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Cannot reserve more than 10 seats at once'
+      })
+    }
+
+    // Check if this session already has an active reservation for this show
+    const existingReservation = await getActiveReservationForShow(event, body.show_id)
+    if (existingReservation) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'You already have an active reservation for this show. Please complete or cancel your existing reservation first.'
       })
     }
 
@@ -108,6 +121,7 @@ export default defineEventHandler(async (event) => {
       .from('seat_reservations')
       .insert({
         recital_show_id: body.show_id,
+        session_id: sessionId,
         email: body.email || null,
         phone: body.phone || null,
         reservation_token: reservationToken,

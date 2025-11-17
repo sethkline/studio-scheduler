@@ -1,11 +1,15 @@
 // server/api/seat-reservations/check.get.ts
 import { serverSupabaseClient } from '#supabase/server'
+import { getReservationSessionId } from '~/server/utils/reservationSession'
 
 export default defineEventHandler(async (event) => {
   const client = await serverSupabaseClient(event)
 
   try {
     const query = getQuery(event)
+
+    // Get session ID for ownership validation
+    const sessionId = await getReservationSessionId(event)
 
     // Validate required fields
     if (!query.token && !query.reservation_id) {
@@ -19,6 +23,7 @@ export default defineEventHandler(async (event) => {
       .from('seat_reservations')
       .select(`
         id,
+        session_id,
         recital_show_id,
         email,
         phone,
@@ -55,6 +60,14 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 404,
         statusMessage: 'Reservation not found'
+      })
+    }
+
+    // Validate ownership
+    if (reservation.session_id !== sessionId) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'You do not have permission to access this reservation'
       })
     }
 
