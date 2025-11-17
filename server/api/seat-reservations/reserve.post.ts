@@ -166,8 +166,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // 3. Update the seats to reserved status
-    const { error: updateSeatsError } = await client
+    // 3. Update the seats to reserved status (ATOMIC OPERATION)
+    // CRITICAL: Use conditional update to prevent race conditions
+    // Only update seats that are CURRENTLY available and not reserved by another transaction
+    const { data: updatedSeats, error: updateSeatsError } = await client
       .from('show_seats')
       .update({
         status: 'reserved',
@@ -175,6 +177,11 @@ export default defineEventHandler(async (event) => {
         reserved_by: reservationId
       })
       .in('id', body.seat_ids)
+      // ATOMIC CHECK: Only update if seat is still available
+      .eq('status', 'available')
+      // ATOMIC CHECK: And not reserved or reservation expired
+      .or(`reserved_until.is.null,reserved_until.lte.${now.toISOString()}`)
+      .select('id') // Return updated rows so we can verify count
 
     if (updateSeatsError) {
       console.error('Error updating seat status:', updateSeatsError)
@@ -195,6 +202,51 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Failed to reserve seats'
       })
     }
+
+    // CRITICAL RACE CONDITION CHECK:
+    // Verify that ALL requested seats were successfully updated
+    // If the count doesn't match, another request beat us to some seats
+    if (!updatedSeats || updatedSeats.length !== body.seat_ids.length) {
+      console.warn(
+        `Race condition detected: Requested ${body.seat_ids.length} seats, ` +
+        `but only ${updatedSeats?.length || 0} were available. ` +
+        `Another user may have reserved some seats simultaneously.`
+      )
+
+      // Rollback: Delete reservation and relationship records
+      await client
+        .from('reservation_seats')
+        .delete()
+        .eq('reservation_id', reservationId)
+
+      await client
+        .from('seat_reservations')
+        .delete()
+        .eq('id', reservationId)
+
+      // If we partially updated some seats, roll those back too
+      if (updatedSeats && updatedSeats.length > 0) {
+        const updatedSeatIds = updatedSeats.map(s => s.id)
+        await client
+          .from('show_seats')
+          .update({
+            status: 'available',
+            reserved_until: null,
+            reserved_by: null
+          })
+          .in('id', updatedSeatIds)
+
+        console.log(`Rolled back ${updatedSeats.length} partially reserved seats`)
+      }
+
+      // Return 409 Conflict to indicate seats were taken
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'One or more selected seats were just taken by another customer. Please select different seats.'
+      })
+    }
+
+    console.log(`Successfully reserved ${updatedSeats.length} seats atomically for reservation ${reservationId}`)
 
     // 4. Build response with seat details
     const reservedSeats = seatData.map(showSeat => ({

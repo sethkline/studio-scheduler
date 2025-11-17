@@ -270,6 +270,85 @@ export function useSeatSelection(maxSeats: number = 10) {
     return Math.max(0, Math.floor(diff / 1000))
   })
 
+  /**
+   * Handle real-time seat status update
+   * Called when a seat's status changes from real-time subscription
+   *
+   * @param seatId - ID of the seat that changed
+   * @param newStatus - New status of the seat
+   * @returns boolean - true if the selection was affected, false otherwise
+   */
+  const handleSeatStatusUpdate = (seatId: string, newStatus: 'available' | 'reserved' | 'sold' | 'held'): boolean => {
+    // Check if this seat is in our selection
+    const selectedIndex = selectedSeats.value.findIndex(seat => seat.id === seatId)
+
+    if (selectedIndex === -1) {
+      // Seat not in our selection, no action needed
+      return false
+    }
+
+    // If the seat is no longer available, remove it from selection
+    if (newStatus !== 'available') {
+      // Only remove if it's not reserved by us
+      const seat = selectedSeats.value[selectedIndex]
+      const isOurReservation = seat.reserved_by === reservationToken.value
+
+      if (!isOurReservation) {
+        console.warn('[useSeatSelection] Seat', seatId, 'is no longer available (status:', newStatus, '). Removing from selection.')
+        selectedSeats.value.splice(selectedIndex, 1)
+        return true
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * Batch update seat statuses from real-time updates
+   * More efficient than calling handleSeatStatusUpdate multiple times
+   *
+   * @param updates - Array of seat updates
+   * @returns Array of seat IDs that were removed from selection
+   */
+  const handleBatchSeatUpdates = (updates: Array<{ seatId: string, status: 'available' | 'reserved' | 'sold' | 'held', reservedBy?: string | null }>): string[] => {
+    const removedSeatIds: string[] = []
+
+    updates.forEach(update => {
+      const selectedIndex = selectedSeats.value.findIndex(seat => seat.id === update.seatId)
+
+      if (selectedIndex !== -1) {
+        const seat = selectedSeats.value[selectedIndex]
+
+        // Check if this is not our reservation
+        const isOurReservation = update.reservedBy === reservationToken.value ||
+                                  seat.reserved_by === reservationToken.value
+
+        // Remove if seat is no longer available and not reserved by us
+        if (update.status !== 'available' && !isOurReservation) {
+          selectedSeats.value.splice(selectedIndex, 1)
+          removedSeatIds.push(update.seatId)
+        }
+      }
+    })
+
+    return removedSeatIds
+  }
+
+  /**
+   * Update seat in selection (for keeping local state in sync)
+   * Used when we get real-time updates about seats we have selected
+   *
+   * @param updatedSeat - Updated seat object
+   */
+  const updateSeatInSelection = (updatedSeat: Seat) => {
+    const index = selectedSeats.value.findIndex(seat => seat.id === updatedSeat.id)
+
+    if (index !== -1) {
+      // Update the seat while preserving reactivity
+      selectedSeats.value[index] = { ...selectedSeats.value[index], ...updatedSeat }
+    }
+  }
+
   return {
     // State
     selectedSeats: computed(() => selectedSeats.value),
@@ -294,6 +373,11 @@ export function useSeatSelection(maxSeats: number = 10) {
     getSeatById,
     setReservation,
     clearReservation,
-    detectConsecutiveSeats
+    detectConsecutiveSeats,
+
+    // Real-time update handlers
+    handleSeatStatusUpdate,
+    handleBatchSeatUpdates,
+    updateSeatInSelection
   }
 }
