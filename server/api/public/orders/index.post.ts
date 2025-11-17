@@ -2,8 +2,29 @@
 /**
  * PUBLIC API - Create Order from Reservation
  *
- * SECURITY: Authenticated via reservation_token (acts as a temporary access token)
- * Uses service client for write operations after token validation
+ * ⚠️  LEGACY SCHEMA WARNING ⚠️
+ * This endpoint uses the OLD reservation system schema:
+ * - seat_reservations table (deprecated)
+ * - recital_show_id (should be show_id)
+ *
+ * NEW SYSTEM: The new ticketing system uses:
+ * - show_seats table with reserved_by/reserved_until columns
+ * - reserve_seats() and release_seats() PostgreSQL functions
+ * - See: supabase/migrations/20251116_*.sql
+ *
+ * SECURITY CONSIDERATIONS:
+ * Uses service key (getSupabaseClient) for write operations because:
+ * 1. ✅ Validates reservation_token (proves temporary ownership)
+ * 2. ✅ Verifies email matches reservation (prevents token theft)
+ * 3. ✅ Checks reservation is active and not expired
+ * 4. ⚠️  Service key needed for cross-table operations during order creation
+ *
+ * ACCEPTABLE USE of service key here because:
+ * - Token acts as a time-limited authentication mechanism
+ * - Email verification prevents stolen token abuse
+ * - All operations are within scope of the validated reservation
+ *
+ * TODO: Migrate to new schema or mark for deprecation
  */
 
 export default defineEventHandler(async (event) => {
