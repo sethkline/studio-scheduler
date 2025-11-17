@@ -315,3 +315,98 @@ export interface SeatMapData {
   price_zones: PriceZone[]
   seats: Seat[]
 }
+
+/**
+ * Seat reservation entity
+ */
+export interface SeatReservation {
+  id: string
+  recital_show_id: string
+  email: string | null
+  phone: string | null
+  reservation_token: string
+  expires_at: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Reservation seat join table
+ */
+export interface ReservationSeat {
+  id: string
+  reservation_id: string
+  seat_id: string
+  created_at: string
+}
+
+/**
+ * Reservation details (for API responses)
+ */
+export interface ReservationDetails {
+  id: string
+  token: string
+  show_id: string
+  email: string | null
+  phone: string | null
+  expires_at: string
+  is_active: boolean
+  is_expired: boolean
+  time_remaining_seconds: number
+  created_at: string
+  seats: ShowSeat[]
+  seat_count: number
+  total_amount_in_cents: number
+}
+
+/**
+ * Reserve seats request
+ */
+export interface ReserveSeatsRequest {
+  show_id: string
+  seat_ids: string[]
+  email?: string
+  phone?: string
+}
+
+/**
+ * Reserve seats response
+ */
+export interface ReserveSeatsResponse {
+  success: boolean
+  message: string
+  reservation: {
+    id: string
+    token: string
+    expires_at: string
+    seats: ShowSeat[]
+    seat_count: number
+    total_amount_in_cents: number
+  }
+}
+
+/**
+ * Release reservation request
+ */
+export interface ReleaseReservationRequest {
+  token?: string
+  reservation_id?: string
+}
+
+/**
+ * Release reservation response
+ */
+export interface ReleaseReservationResponse {
+  success: boolean
+  message: string
+  reservation_id: string
+}
+
+/**
+ * Check reservation response
+ */
+export interface CheckReservationResponse {
+  success: boolean
+  reservation: ReservationDetails
+}
