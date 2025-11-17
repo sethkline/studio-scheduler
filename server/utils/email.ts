@@ -248,6 +248,235 @@ If you have any questions, please reply to this email.
       return false;
     }
   }
+
+  public async sendRefundConfirmation(
+    email: string,
+    customerName: string,
+    orderNumber: string,
+    refundAmount: number,
+    isFullRefund: boolean,
+    showName: string,
+    showDate: string,
+    showTime: string,
+    showLocation: string
+  ): Promise<boolean> {
+    if (!this.setup()) {
+      console.error('Email service not properly configured')
+      return false
+    }
+
+    try {
+      const formatAmount = (amount: number): string => {
+        return (amount / 100).toFixed(2)
+      }
+
+      const formatDate = (dateString: string): string => {
+        const date = new Date(dateString)
+        return date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      }
+
+      const formatTime = (timeString: string): string => {
+        const [hours, minutes] = timeString.split(':')
+        const date = new Date()
+        date.setHours(parseInt(hours))
+        date.setMinutes(parseInt(minutes))
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+      }
+
+      const refundType = isFullRefund ? 'Full' : 'Partial'
+      const message = {
+        from: this.fromAddress,
+        to: email,
+        'h:Reply-To': this.replyToAddress,
+        subject: `Refund Confirmation - Order #${orderNumber.substring(0, 8).toUpperCase()}`,
+        text: `
+Dear ${customerName},
+
+Your refund has been processed successfully.
+
+REFUND DETAILS
+Order Number: ${orderNumber.substring(0, 8).toUpperCase()}
+Refund Type: ${refundType} Refund
+Refund Amount: $${formatAmount(refundAmount)}
+
+ORIGINAL ORDER
+Event: ${showName}
+Date: ${formatDate(showDate)}
+Time: ${formatTime(showTime)}
+Location: ${showLocation}
+
+${
+  isFullRefund
+    ? 'Your seats have been released and are now available for other customers to purchase.'
+    : 'This was a partial refund. Your remaining tickets are still valid.'
+}
+
+Refunds typically appear in your account within 5-10 business days, depending on your financial institution.
+
+If you have any questions about this refund, please contact us by replying to this email.
+
+Thank you,
+${showLocation}
+        `,
+        html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refund Confirmation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #8b5cf6;
+      margin-bottom: 10px;
+    }
+    .refund-info {
+      background-color: ${isFullRefund ? '#dcfce7' : '#fef3c7'};
+      border-left: 4px solid ${isFullRefund ? '#22c55e' : '#f59e0b'};
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+    .refund-amount {
+      font-size: 2em;
+      font-weight: bold;
+      color: ${isFullRefund ? '#16a34a' : '#d97706'};
+      text-align: center;
+      margin: 10px 0;
+    }
+    .order-details {
+      background-color: #f8f9fa;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .detail-row:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .info-box {
+      background-color: #e0e7ff;
+      border-left: 4px solid #6366f1;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .footer {
+      font-size: 0.8em;
+      text-align: center;
+      margin-top: 40px;
+      color: #666;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${isFullRefund ? '✓' : '⚠'} Refund Processed</h1>
+    <p>Your refund has been successfully processed</p>
+  </div>
+
+  <p>Dear ${customerName},</p>
+
+  <div class="refund-info">
+    <h3 style="margin-top: 0; text-align: center;">${refundType} Refund</h3>
+    <div class="refund-amount">$${formatAmount(refundAmount)}</div>
+    <p style="text-align: center; margin: 0;">
+      Order #${orderNumber.substring(0, 8).toUpperCase()}
+    </p>
+  </div>
+
+  <div class="order-details">
+    <h3 style="margin-top: 0;">Original Order Details</h3>
+    <div class="detail-row">
+      <strong>Event:</strong>
+      <span>${showName}</span>
+    </div>
+    <div class="detail-row">
+      <strong>Date:</strong>
+      <span>${formatDate(showDate)}</span>
+    </div>
+    <div class="detail-row">
+      <strong>Time:</strong>
+      <span>${formatTime(showTime)}</span>
+    </div>
+    <div class="detail-row">
+      <strong>Location:</strong>
+      <span>${showLocation}</span>
+    </div>
+  </div>
+
+  ${
+    isFullRefund
+      ? `
+  <div class="info-box">
+    <strong>Full Refund:</strong> Your seats have been released and are now available for other customers to purchase. Your tickets are no longer valid.
+  </div>
+  `
+      : `
+  <div class="info-box">
+    <strong>Partial Refund:</strong> This was a partial refund. Your remaining tickets are still valid for the event.
+  </div>
+  `
+  }
+
+  <p>
+    <strong>When will I receive my refund?</strong><br>
+    Refunds typically appear in your account within 5-10 business days, depending on your financial institution.
+  </p>
+
+  <p>
+    If you have any questions about this refund, please contact us by replying to this email.
+  </p>
+
+  <div class="footer">
+    <p>Thank you,<br>${showLocation}</p>
+    <p style="font-size: 0.9em; color: #999;">This is an automated message. Please do not reply directly to this email.</p>
+  </div>
+</body>
+</html>
+        `
+      }
+
+      const result = await this.mailgun.messages.create(this.domain, message)
+
+      console.log('Refund confirmation email sent successfully:', result)
+      return true
+    } catch (error) {
+      console.error('Error sending refund confirmation email:', error)
+      return false
+    }
+  }
 }
 
 export const emailService = EmailService.getInstance();

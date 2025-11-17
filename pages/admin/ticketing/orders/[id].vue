@@ -13,15 +13,22 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const { getOrder, resendConfirmationEmail } = useTicketOrders()
+const { getOrder, resendConfirmationEmail, refundOrder } = useTicketOrders()
 const toast = useToast()
 
 // State
 const order = ref<OrderDetails | null>(null)
 const loading = ref(false)
 const resendingEmail = ref(false)
+const refundDialogVisible = ref(false)
+const processingRefund = ref(false)
 
 const orderId = computed(() => route.params.id as string)
+
+// Computed
+const canRefund = computed(() => {
+  return order.value?.status === 'paid' && order.value?.stripe_payment_intent_id
+})
 
 // Load order details
 const loadOrder = async () => {
@@ -66,6 +73,30 @@ const handleStatusChange = (status: string) => {
     summary: 'Info',
     detail: 'Status change feature coming soon'
   })
+}
+
+// Open refund dialog
+const openRefundDialog = () => {
+  refundDialogVisible.value = true
+}
+
+// Handle refund confirmation
+const handleRefundConfirmed = async (amountInCents: number, reason: string) => {
+  if (!order.value) return
+
+  processingRefund.value = true
+  try {
+    await refundOrder(order.value.id, amountInCents, reason)
+    refundDialogVisible.value = false
+
+    // Reload order to get updated status
+    await loadOrder()
+  } catch (error) {
+    // Error is already handled by composable
+    console.error('Refund error:', error)
+  } finally {
+    processingRefund.value = false
+  }
 }
 
 // Back to list
@@ -117,7 +148,7 @@ useHead({
         @resend-email="handleResendEmail"
       />
 
-      <!-- Action Buttons (Future) -->
+      <!-- Action Buttons -->
       <Card class="mt-6">
         <template #content>
           <div class="flex justify-end gap-3">
@@ -133,14 +164,22 @@ useHead({
               icon="pi pi-replay"
               severity="danger"
               outlined
-              disabled
+              :disabled="!canRefund"
+              @click="openRefundDialog"
             />
           </div>
-          <p class="text-sm text-gray-500 mt-3 text-right">
-            Additional actions coming soon
+          <p v-if="!canRefund" class="text-sm text-gray-500 mt-3 text-right">
+            {{ order.status === 'refunded' ? 'Order has already been refunded' : 'Only paid orders can be refunded' }}
           </p>
         </template>
       </Card>
+
+      <!-- Refund Dialog -->
+      <AdminTicketingRefundDialog
+        v-model:visible="refundDialogVisible"
+        :order="order"
+        @refund-confirmed="handleRefundConfirmed"
+      />
     </div>
 
     <!-- Error State -->

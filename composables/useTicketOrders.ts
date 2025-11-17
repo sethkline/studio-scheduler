@@ -137,6 +137,53 @@ export function useTicketOrders() {
   }
 
   /**
+   * Process refund for an order
+   */
+  const refundOrder = async (
+    orderId: string,
+    amountInCents: number,
+    reason?: string
+  ) => {
+    try {
+      const response = await $fetch<{
+        success: boolean
+        message: string
+        data: {
+          order: TicketOrder
+          refund: any
+          seats_released: boolean
+        }
+      }>(`/api/admin/ticketing/orders/${orderId}/refund`, {
+        method: 'POST',
+        body: {
+          amount_in_cents: amountInCents,
+          reason
+        }
+      })
+
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: response.message
+      })
+
+      return response.data
+    } catch (error: any) {
+      const errorMessage =
+        error.data?.statusMessage ||
+        error.message ||
+        'Failed to process refund'
+
+      toast.add({
+        severity: 'error',
+        summary: 'Refund Failed',
+        detail: errorMessage
+      })
+      throw error
+    }
+  }
+
+  /**
    * Format currency for display
    */
   const formatCurrency = (cents: number): string => {
@@ -179,6 +226,7 @@ export function useTicketOrders() {
     getOrder,
     updateOrderStatus,
     resendConfirmationEmail,
+    refundOrder,
     formatCurrency,
     formatStatus,
     getStatusSeverity
