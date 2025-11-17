@@ -98,17 +98,25 @@
             <!-- Seat Statistics (if seats exist) -->
             <div v-if="seatStats.total > 0" class="mt-4 pt-4 border-t border-blue-300">
               <h5 class="font-semibold text-blue-900 mb-2 text-sm">Seat Availability</h5>
-              <div class="grid grid-cols-3 gap-3">
+              <div class="grid grid-cols-5 gap-2">
                 <div class="text-center">
-                  <div class="text-2xl font-bold text-blue-900">{{ seatStats.total }}</div>
-                  <div class="text-xs text-blue-700">Total Seats</div>
+                  <div class="text-lg font-bold text-blue-900">{{ seatStats.total }}</div>
+                  <div class="text-xs text-blue-700">Total</div>
                 </div>
                 <div class="text-center">
-                  <div class="text-2xl font-bold text-green-700">{{ seatStats.available }}</div>
+                  <div class="text-lg font-bold text-green-700">{{ seatStats.available }}</div>
                   <div class="text-xs text-blue-700">Available</div>
                 </div>
                 <div class="text-center">
-                  <div class="text-2xl font-bold text-red-700">{{ seatStats.sold }}</div>
+                  <div class="text-lg font-bold text-orange-700">{{ seatStats.reserved }}</div>
+                  <div class="text-xs text-blue-700">Reserved</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-lg font-bold text-purple-700">{{ seatStats.held }}</div>
+                  <div class="text-xs text-blue-700">Held</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-lg font-bold text-red-700">{{ seatStats.sold }}</div>
                   <div class="text-xs text-blue-700">Sold</div>
                 </div>
               </div>
@@ -269,7 +277,7 @@ const props = defineProps({
   },
   seatStats: {
     type: Object,
-    default: () => ({ total: 0, available: 0, sold: 0 })
+    default: () => ({ total: 0, available: 0, sold: 0, reserved: 0, held: 0 })
   },
   sectionStats: {
     type: Array,

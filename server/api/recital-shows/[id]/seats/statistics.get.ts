@@ -1,11 +1,27 @@
 // server/api/recital-shows/[id]/seats/statistics.get.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { requireAdminOrStaff } from '../../../../utils/auth'
 
+/**
+ * GET /api/recital-shows/:id/seats/statistics
+ * Get seat availability statistics for a show
+ * Requires: admin or staff role
+ */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Require admin or staff role
+    await requireAdminOrStaff(event)
+
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
-    
+
+    // Validate ID parameter - critical to prevent querying all show_seats
+    if (!id || id.trim() === '') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Show ID is required'
+      })
+    }
+
     // Count total seats
     const { count: totalCount, error: totalError } = await client
       .from('show_seats')

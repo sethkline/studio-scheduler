@@ -164,7 +164,9 @@ const ticketData = ref({
 const seatStats = ref({
   total: 0,
   available: 0,
-  sold: 0
+  sold: 0,
+  reserved: 0,
+  held: 0
 });
 
 const sectionStats = ref([]);
@@ -297,7 +299,9 @@ async function fetchSeatStatistics() {
       seatStats.value = {
         total: data.stats.total || 0,
         available: data.stats.available || 0,
-        sold: data.stats.sold || 0
+        sold: data.stats.sold || 0,
+        reserved: data.stats.reserved || 0,
+        held: data.stats.held || 0
       };
 
       sectionStats.value = data.sections || [];
