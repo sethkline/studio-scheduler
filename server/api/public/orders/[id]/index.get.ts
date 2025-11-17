@@ -1,143 +1,175 @@
 // server/api/public/orders/[id]/index.get.ts
+import { serverSupabaseClient } from '#supabase/server'
+
 /**
- * PUBLIC API - Get Order Details
- *
- * SECURITY: Requires customer_email verification to prevent unauthorized access
- * Uses RLS-aware client for proper access control
- *
- * Query params required:
- * - email: Customer email (must match order)
+ * Public API endpoint to get order details by ID
+ * Requires email verification to prevent unauthorized access
+ * Uses RLS-aware client for security
  */
-
 export default defineEventHandler(async (event) => {
-  const orderId = getRouterParam(event, 'id')
-  const query = getQuery(event)
-
-  if (!orderId) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Order ID is required'
-    })
-  }
-
-  // SECURITY: Require email verification to access order
-  if (!query.email) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Email is required for verification'
-    })
-  }
-
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(query.email as string)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid email format'
-    })
-  }
-
   try {
-    // Use RLS-aware client (respects row-level security policies)
     const client = await serverSupabaseClient(event)
+    const id = getRouterParam(event, 'id')
+    const query = getQuery(event)
 
-    // Get order details with email verification
+    if (!id) {
+      throw createError({
+        statusCode: 400,
+        message: 'Order ID is required'
+      })
+    }
+
+    // SECURITY: Require email verification to prevent unauthorized access
+    const email = query.email as string
+    if (!email) {
+      throw createError({
+        statusCode: 401,
+        message: 'Email verification required. Please provide your email address.'
+      })
+    }
+
+    // Get order details with show, venue, and tickets
     const { data: order, error: orderError } = await client
       .from('ticket_orders')
       .select(`
         id,
-        order_number,
         customer_name,
         customer_email,
         customer_phone,
         total_amount_in_cents,
         status,
-        created_at,
+        order_number,
         notes,
-        show:recital_shows!ticket_orders_show_id_fkey (
+        created_at,
+        updated_at,
+        show_id,
+        recital_shows:show_id (
           id,
-          title,
-          show_date,
-          show_time,
-          venue:venues (
+          name,
+          date,
+          start_time,
+          venue_id,
+          venues:venue_id (
             id,
             name,
             address,
             city,
-            state
+            state,
+            zip_code
           )
-        )
-      `)
-      .eq('id', orderId)
-      .eq('customer_email', query.email)
-      .maybeSingle()
-
-    if (orderError) {
-      console.error('Order fetch error:', orderError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Failed to fetch order'
-      })
-    }
-
-    // Order not found or email doesn't match
-    if (!order) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Order not found or email does not match'
-      })
-    }
-
-    // Get tickets for this order
-    const { data: tickets, error: ticketsError } = await client
-      .from('tickets')
-      .select(`
-        id,
-        ticket_number,
-        qr_code,
-        pdf_url,
-        scanned_at,
-        created_at,
-        show_seat:show_seats!tickets_show_seat_id_fkey (
+        ),
+        tickets (
           id,
-          price_in_cents,
-          seat:seats (
+          ticket_number,
+          qr_code,
+          pdf_url,
+          pdf_generated_at,
+          scanned_at,
+          created_at,
+          show_seat_id,
+          show_seats:show_seat_id (
             id,
-            row_name,
-            seat_number,
-            seat_type,
-            section:venue_sections (
+            price_in_cents,
+            status,
+            seat_id,
+            seats:seat_id (
               id,
-              name
+              row_name,
+              seat_number,
+              seat_type,
+              section_id,
+              venue_sections:section_id (
+                id,
+                name
+              )
             )
           )
         )
       `)
-      .eq('ticket_order_id', orderId)
+      .eq('id', id)
+      .single()
 
-    if (ticketsError) {
-      console.error('Tickets fetch error:', ticketsError)
-      // Don't fail the whole request if tickets fail
-      return {
-        order,
-        tickets: []
-      }
+    if (orderError) {
+      console.error('Error fetching order:', orderError)
+      throw createError({
+        statusCode: orderError.code === 'PGRST116' ? 404 : 500,
+        message: orderError.code === 'PGRST116' ? 'Order not found' : 'Failed to fetch order'
+      })
+    }
+
+    // SECURITY: Verify email matches order owner
+    if (order.customer_email.toLowerCase() !== email.toLowerCase()) {
+      throw createError({
+        statusCode: 403,
+        message: 'Unauthorized. Email does not match order owner.'
+      })
+    }
+
+    // Format response
+    const show = order.recital_shows
+    const venue = show?.venues
+
+    const formattedOrder = {
+      id: order.id,
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      customerPhone: order.customer_phone,
+      totalAmount: order.total_amount_in_cents,
+      status: order.status,
+      notes: order.notes,
+      createdAt: order.created_at,
+      updatedAt: order.updated_at,
+      show: show ? {
+        id: show.id,
+        name: show.name,
+        date: show.date,
+        time: show.start_time,
+        venue: venue ? {
+          id: venue.id,
+          name: venue.name,
+          address: venue.address,
+          city: venue.city,
+          state: venue.state,
+          zipCode: venue.zip_code
+        } : null
+      } : null,
+      tickets: order.tickets?.map(ticket => {
+        const showSeat = ticket.show_seats
+        const seat = showSeat?.seats
+        const section = seat?.venue_sections
+
+        return {
+          id: ticket.id,
+          ticketNumber: ticket.ticket_number,
+          qrCode: ticket.qr_code,
+          pdfUrl: ticket.pdf_url,
+          pdfGeneratedAt: ticket.pdf_generated_at,
+          scannedAt: ticket.scanned_at,
+          createdAt: ticket.created_at,
+          price: showSeat?.price_in_cents || 0,
+          seatStatus: showSeat?.status,
+          seat: seat ? {
+            id: seat.id,
+            section: section?.name || 'General',
+            sectionId: section?.id,
+            row: seat.row_name,
+            number: seat.seat_number,
+            type: seat.seat_type
+          } : null
+        }
+      }) || []
     }
 
     return {
-      order,
-      tickets: tickets || []
+      success: true,
+      data: formattedOrder
     }
   } catch (error: any) {
-    // If it's already a createError, re-throw it
-    if (error.statusCode) {
-      throw error
-    }
-
     console.error('Get order API error:', error)
     throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to fetch order'
+      statusCode: error.statusCode || 500,
+      message: error.message || 'Failed to fetch order'
     })
   }
 })

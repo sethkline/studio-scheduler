@@ -1,86 +1,105 @@
 // server/api/public/orders/lookup.get.ts
+import { serverSupabaseClient } from '#supabase/server'
+
 /**
- * PUBLIC API - Order Lookup
- *
- * SECURITY: Requires both order_number AND customer_email to prevent enumeration
- * Uses RLS-aware client for proper access control
+ * Public API endpoint to lookup ticket orders by email
+ * Allows customers to find their orders without logging in
+ * Uses RLS-aware client for security
  */
-
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-
-  // SECURITY: Require BOTH order_number and email to prevent enumeration attacks
-  if (!query.order_number || !query.email) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Both order_number and email are required'
-    })
-  }
-
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(query.email as string)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid email format'
-    })
-  }
-
   try {
-    // Use RLS-aware client (respects row-level security policies)
     const client = await serverSupabaseClient(event)
+    const query = getQuery(event)
 
-    // Query with BOTH order_number and email - prevents unauthorized access
-    const { data: order, error: orderError } = await client
+    // Validate required fields
+    if (!query.email) {
+      throw createError({
+        statusCode: 400,
+        message: 'Email is required'
+      })
+    }
+
+    const email = query.email as string
+
+    // Get orders by email with show and venue details
+    const { data: orders, error: ordersError } = await client
       .from('ticket_orders')
       .select(`
         id,
         order_number,
         customer_name,
         customer_email,
+        customer_phone,
         total_amount_in_cents,
         status,
+        order_number,
         created_at,
-        show:recital_shows!ticket_orders_show_id_fkey (
+        updated_at,
+        show_id,
+        recital_shows:show_id (
           id,
-          title,
-          show_date,
-          show_time
+          name,
+          date,
+          start_time,
+          venue_id,
+          venues:venue_id (
+            id,
+            name,
+            address,
+            city,
+            state
+          )
         )
       `)
-      .eq('order_number', query.order_number)
-      .eq('customer_email', query.email)
-      .maybeSingle()
+      .eq('customer_email', email)
+      .order('created_at', { ascending: false })
 
-    if (orderError) {
-      console.error('Order lookup error:', orderError)
+    if (ordersError) {
+      console.error('Error fetching orders:', ordersError)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Failed to lookup order'
+        message: 'Failed to fetch orders'
       })
     }
 
-    // No order found with matching credentials
-    if (!order) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Order not found. Please check your order number and email.'
-      })
-    }
+    // Format response
+    const formattedOrders = orders.map(order => ({
+      id: order.id,
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      customerPhone: order.customer_phone,
+      totalAmount: order.total_amount_in_cents,
+      status: order.status,
+      createdAt: order.created_at,
+      updatedAt: order.updated_at,
+      show: order.recital_shows ? {
+        id: order.recital_shows.id,
+        name: order.recital_shows.name,
+        date: order.recital_shows.date,
+        time: order.recital_shows.start_time,
+        venue: order.recital_shows.venues ? {
+          id: order.recital_shows.venues.id,
+          name: order.recital_shows.venues.name,
+          address: order.recital_shows.venues.address,
+          city: order.recital_shows.venues.city,
+          state: order.recital_shows.venues.state
+        } : null
+      } : null
+    }))
 
     return {
-      order
+      success: true,
+      data: {
+        orders: formattedOrders,
+        count: formattedOrders.length
+      }
     }
   } catch (error: any) {
-    // If it's already a createError, re-throw it
-    if (error.statusCode) {
-      throw error
-    }
-
     console.error('Lookup orders API error:', error)
     throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to lookup order'
+      statusCode: error.statusCode || 500,
+      message: error.message || 'Failed to lookup orders'
     })
   }
 })
