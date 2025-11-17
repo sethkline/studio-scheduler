@@ -1,5 +1,4 @@
 // server/api/recital-shows/[id]/seats/generate.post.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
 import { requireAdminOrStaff } from '../../../../utils/auth'
 
 /**
@@ -12,7 +11,7 @@ export default defineEventHandler(async (event) => {
     // Require admin or staff role
     await requireAdminOrStaff(event)
 
-    const client = getSupabaseClient()
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
 
     // Validate show ID
