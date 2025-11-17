@@ -1,13 +1,14 @@
 // server/api/venues/index.get.ts
-import { getSupabaseClient } from '../../utils/supabase'
 
 /**
  * GET /api/venues
  * List all venues with their sections and price zones
+ * Public endpoint - uses RLS for access control
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Use serverSupabaseClient which respects RLS and user auth
+    const client = await serverSupabaseClient(event)
 
     // Fetch all venues with their related sections and price zones
     const { data, error } = await client

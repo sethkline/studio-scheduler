@@ -1,13 +1,16 @@
 // server/api/venues/index.post.ts
-import { getSupabaseClient } from '../../utils/supabase'
 
 /**
  * POST /api/venues
  * Create a new venue
+ * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Require admin or staff role
+    await requireAdminOrStaff(event)
+
+    const client = await serverSupabaseClient(event)
     const body = await readBody(event)
 
     // Validate required fields

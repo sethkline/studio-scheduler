@@ -53,18 +53,21 @@ export interface PriceZone {
  */
 export interface Seat {
   id: string
-  venue_section_id: string
-  row: string
-  number: string
+  venue_id: string
+  section_id: string
+  row_name: string
+  seat_number: string
+  seat_type: 'regular' | 'ada' | 'house' | 'blocked'
   price_zone_id: string | null
-  is_accessible: boolean
-  x_coordinate: number | null
-  y_coordinate: number | null
+  is_sellable: boolean
+  x_position: number | null
+  y_position: number | null
   created_at: string
   updated_at: string
 
   // Relations
   price_zone?: PriceZone
+  section?: VenueSection
 }
 
 /**

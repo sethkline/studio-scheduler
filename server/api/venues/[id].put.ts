@@ -1,13 +1,16 @@
 // server/api/venues/[id].put.ts
-import { getSupabaseClient } from '../../utils/supabase'
 
 /**
  * PUT /api/venues/:id
  * Update an existing venue
+ * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Require admin or staff role
+    await requireAdminOrStaff(event)
+
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
     const body = await readBody(event)
 

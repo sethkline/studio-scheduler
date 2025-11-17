@@ -1,13 +1,14 @@
 // server/api/venues/[id].get.ts
-import { getSupabaseClient } from '../../utils/supabase'
 
 /**
  * GET /api/venues/:id
  * Fetch a single venue with sections, price zones, and seat counts
+ * Public endpoint - uses RLS for access control
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Use serverSupabaseClient which respects RLS and user auth
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
 
     if (!id) {
@@ -57,11 +58,11 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get seat count for this venue (across all sections)
+    // Get seat count for this venue (using venue_id directly)
     const { count: seatCount } = await client
       .from('seats')
       .select('id', { count: 'exact', head: true })
-      .in('venue_section_id', venue.venue_sections?.map((s: any) => s.id) || [])
+      .eq('venue_id', id)
 
     return {
       data: {

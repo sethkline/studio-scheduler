@@ -1,13 +1,16 @@
 // server/api/venues/[id].delete.ts
-import { getSupabaseClient } from '../../utils/supabase'
 
 /**
  * DELETE /api/venues/:id
  * Delete a venue (only if not in use)
+ * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Require admin or staff role
+    await requireAdminOrStaff(event)
+
+    const client = await serverSupabaseClient(event)
     const id = getRouterParam(event, 'id')
 
     if (!id) {
@@ -49,26 +52,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Check for associated seats
-    const { data: sections } = await client
-      .from('venue_sections')
-      .select('id')
+    // Check for associated seats (using venue_id directly)
+    const { count: seatCount } = await client
+      .from('seats')
+      .select('id', { count: 'exact', head: true })
       .eq('venue_id', id)
 
-    if (sections && sections.length > 0) {
-      const sectionIds = sections.map((s: any) => s.id)
-
-      const { count: seatCount } = await client
-        .from('seats')
-        .select('id', { count: 'exact', head: true })
-        .in('venue_section_id', sectionIds)
-
-      if (seatCount && seatCount > 0) {
-        throw createError({
-          statusCode: 409,
-          statusMessage: 'Cannot delete venue that has seats configured. Please remove sections and seats first.'
-        })
-      }
+    if (seatCount && seatCount > 0) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Cannot delete venue that has seats configured. Please remove sections and seats first.'
+      })
     }
 
     // Delete associated price zones first
