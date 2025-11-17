@@ -1,4 +1,5 @@
 // server/api/venues/index.post.ts
+import { requireAdminOrStaff } from '../../utils/auth'
 
 /**
  * POST /api/venues

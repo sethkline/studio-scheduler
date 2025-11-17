@@ -1,4 +1,5 @@
 // server/api/venues/[id].delete.ts
+import { requireAdminOrStaff } from '../../utils/auth'
 
 /**
  * DELETE /api/venues/:id
