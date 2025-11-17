@@ -10,7 +10,8 @@ export default defineNuxtConfig({
     '@vee-validate/nuxt',
     'nuxt-security',
     '@vueuse/nuxt',
-    '@nuxt/test-utils/module'
+    '@nuxt/test-utils/module',
+    '@vite-pwa/nuxt'
   ],
 
   primevue: {
@@ -44,6 +45,8 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
     marketingSiteUrl: process.env.MARKETING_SITE_URL,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+    mailgunDomain: process.env.MAILGUN_DOMAIN,
     // Public keys (can be exposed to client)
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
@@ -51,6 +54,7 @@ export default defineNuxtConfig({
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
       marketingSiteUrl: process.env.MARKETING_SITE_URL || 'https://localhost:3000',
       googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || '',
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY
     }
   },
 
@@ -84,7 +88,15 @@ export default defineNuxtConfig({
     head: {
       title: 'Dance Studio Scheduler',
       meta: [
-        { name: 'description', content: 'Dance studio class scheduling application' }
+        { name: 'description', content: 'Dance studio class scheduling application' },
+        { name: 'theme-color', content: '#8B5CF6' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+        { name: 'apple-mobile-web-app-title', content: 'Studio' }
+      ],
+      link: [
+        { rel: 'manifest', href: '/manifest.json' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
       ]
     }
   },
@@ -96,7 +108,158 @@ export default defineNuxtConfig({
     config: {
         plugins: [tailwindTypography],
     }
-},
+  },
+
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'Dance Studio Scheduler',
+      short_name: 'Studio',
+      description: 'Manage your dance studio classes, schedules, and recitals',
+      theme_color: '#8B5CF6',
+      background_color: '#ffffff',
+      display: 'standalone',
+      orientation: 'portrait',
+      scope: '/',
+      start_url: '/',
+      icons: [
+        {
+          src: '/icons/icon-72x72.png',
+          sizes: '72x72',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-96x96.png',
+          sizes: '96x96',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-128x128.png',
+          sizes: '128x128',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-144x144.png',
+          sizes: '144x144',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-152x152.png',
+          sizes: '152x152',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-384x384.png',
+          sizes: '384x384',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: '/icons/icon-192x192-maskable.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'maskable'
+        },
+        {
+          src: '/icons/icon-512x512-maskable.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable'
+        }
+      ],
+      screenshots: [
+        {
+          src: '/screenshots/schedule.png',
+          sizes: '540x720',
+          type: 'image/png',
+          form_factor: 'narrow',
+          label: 'Class Schedule View'
+        },
+        {
+          src: '/screenshots/recitals.png',
+          sizes: '540x720',
+          type: 'image/png',
+          form_factor: 'narrow',
+          label: 'Recital Management'
+        }
+      ]
+    },
+    workbox: {
+      navigateFallback: '/',
+      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+      runtimeCaching: [
+        {
+          urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'supabase-cache',
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 60 * 60 * 24 // 24 hours
+            },
+            cacheableResponse: {
+              statuses: [0, 200]
+            }
+          }
+        },
+        {
+          urlPattern: /^https:\/\/.*\.stripe\.com\/.*/i,
+          handler: 'NetworkOnly'
+        },
+        {
+          urlPattern: /\/api\/.*/i,
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'api-cache',
+            networkTimeoutSeconds: 10,
+            expiration: {
+              maxEntries: 50,
+              maxAgeSeconds: 60 * 5 // 5 minutes
+            },
+            cacheableResponse: {
+              statuses: [0, 200]
+            }
+          }
+        },
+        {
+          urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'image-cache',
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+            }
+          }
+        }
+      ]
+    },
+    client: {
+      installPrompt: true,
+      periodicSyncForUpdates: 3600 // Check for updates every hour
+    },
+    devOptions: {
+      enabled: true,
+      type: 'module'
+    }
+  },
 
   compatibilityDate: '2025-03-12'
 })

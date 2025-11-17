@@ -15,6 +15,12 @@ export * from './volunteers'
 // Media Gallery
 export * from './media'
 
+// Attendance System
+export * from './attendance'
+
+// Tier 1 Features (Rehearsals, Fees, etc.)
+export * from './tier1-features'
+
 export interface Student {
   id: string
   first_name: string
