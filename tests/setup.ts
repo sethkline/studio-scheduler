@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { vi, beforeAll, afterEach } from 'vitest'
 
 // Setup global test environment
 beforeAll(() => {
@@ -18,9 +18,3 @@ beforeAll(() => {
 afterEach(() => {
   vi.clearAllMocks()
 })
-
-// Global test utilities
-global.testUtils = {
-  generateId: () => `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-  wait: (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-}
