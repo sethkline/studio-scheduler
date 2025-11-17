@@ -31,6 +31,9 @@ const rowFormData = ref<RowTemplate>({
 // Delete Confirmation Dialog
 const deleteConfirmVisible = ref(false)
 
+// CSV Import Dialog
+const importCsvDialogVisible = ref(false)
+
 // Load seat map on mount
 onMounted(async () => {
   try {
@@ -142,6 +145,18 @@ const handleDeleteSelected = async () => {
   }
 }
 
+// Show CSV import dialog
+const showImportCsvDialog = () => {
+  importCsvDialogVisible.value = true
+}
+
+// Handle import complete
+const handleImportComplete = async () => {
+  // Reload seat map to show newly imported seats
+  await store.loadSeatMap(props.venueId)
+  importCsvDialogVisible.value = false
+}
+
 // Seat type options
 const seatTypeOptions = [
   { label: 'Regular', value: 'regular' },
@@ -157,6 +172,7 @@ const seatTypeOptions = [
     <BuilderToolbar
       @add-row="showAddRowDialog"
       @delete-selected="showDeleteConfirmation"
+      @import-csv="showImportCsvDialog"
     />
 
     <!-- Main Content -->
@@ -364,6 +380,22 @@ const seatTypeOptions = [
           />
         </div>
       </template>
+    </Dialog>
+
+    <!-- CSV Import Dialog -->
+    <Dialog
+      v-model:visible="importCsvDialogVisible"
+      header="Import Seats from CSV"
+      :modal="true"
+      class="w-full max-w-4xl"
+    >
+      <ImportCSV
+        :venue-id="venueId"
+        :sections="store.sections"
+        :price-zones="store.priceZones"
+        @import-complete="handleImportComplete"
+        @cancel="importCsvDialogVisible = false"
+      />
     </Dialog>
   </div>
 </template>
