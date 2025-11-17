@@ -1,13 +1,19 @@
 // server/api/venues/[id]/seat-map.post.ts
 
+import { requireAdminOrStaff } from '../../../utils/auth'
 import type { BulkCreateSeatsInput } from '~/types'
 
 /**
  * POST /api/venues/[id]/seat-map
  * Bulk save seats for a venue (creates multiple seats at once)
+ * Requires: admin or staff role
+ * Note: The insert operation is atomic - either all seats are created or none are
  */
 export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+  // Require admin or staff role
+  await requireAdminOrStaff(event)
+
+  const client = await serverSupabaseClient(event)
   const venueId = getRouterParam(event, 'id')
 
   if (!venueId) {

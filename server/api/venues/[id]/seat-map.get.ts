@@ -1,13 +1,18 @@
 // server/api/venues/[id]/seat-map.get.ts
 
+import { requireAdminOrStaff } from '../../../utils/auth'
 import type { SeatMapData } from '~/types'
 
 /**
  * GET /api/venues/[id]/seat-map
  * Fetch complete seat map data for a venue (sections, price zones, and seats)
+ * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+  // Require admin or staff role
+  await requireAdminOrStaff(event)
+
+  const client = await serverSupabaseClient(event)
   const venueId = getRouterParam(event, 'id')
 
   if (!venueId) {

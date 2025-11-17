@@ -1,11 +1,17 @@
 // server/api/venues/[id]/seats/[seatId].delete.ts
 
+import { requireAdminOrStaff } from '../../../../utils/auth'
+
 /**
  * DELETE /api/venues/[id]/seats/[seatId]
  * Delete a seat from a venue
+ * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+  // Require admin or staff role
+  await requireAdminOrStaff(event)
+
+  const client = await serverSupabaseClient(event)
   const venueId = getRouterParam(event, 'id')
   const seatId = getRouterParam(event, 'seatId')
 

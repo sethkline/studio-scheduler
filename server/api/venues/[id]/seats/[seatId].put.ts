@@ -1,13 +1,18 @@
 // server/api/venues/[id]/seats/[seatId].put.ts
 
+import { requireAdminOrStaff } from '../../../../utils/auth'
 import type { UpdateSeatInput } from '~/types'
 
 /**
  * PUT /api/venues/[id]/seats/[seatId]
  * Update a seat's properties
+ * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+  // Require admin or staff role
+  await requireAdminOrStaff(event)
+
+  const client = await serverSupabaseClient(event)
   const venueId = getRouterParam(event, 'id')
   const seatId = getRouterParam(event, 'seatId')
 

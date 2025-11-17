@@ -1,13 +1,18 @@
 // server/api/venues/[id]/seats/index.post.ts
 
+import { requireAdminOrStaff } from '../../../../utils/auth'
 import type { CreateSeatInput } from '~/types'
 
 /**
  * POST /api/venues/[id]/seats
  * Create a single seat for a venue
+ * Requires: admin or staff role
  */
 export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+  // Require admin or staff role
+  await requireAdminOrStaff(event)
+
+  const client = await serverSupabaseClient(event)
   const venueId = getRouterParam(event, 'id')
 
   if (!venueId) {
