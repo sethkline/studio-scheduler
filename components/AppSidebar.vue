@@ -111,6 +111,42 @@
           </NuxtLink>
         </div>
 
+        <!-- Lesson Planning Section - Teachers Only -->
+        <div v-if="can('canManageLessonPlans') || can('canViewLearningObjectives')" class="space-y-2">
+          <div class="sidebar-header">Lesson Planning</div>
+
+          <NuxtLink
+            to="/lesson-planning"
+            class="sidebar-link"
+            :class="{
+              'sidebar-link-active': isActive('/lesson-planning') && !isActive('/lesson-planning/objectives') && !isActive('/lesson-planning/templates')
+            }"
+          >
+            <i class="pi pi-book mr-3"></i>
+            <span>My Lesson Plans</span>
+          </NuxtLink>
+
+          <NuxtLink
+            v-if="can('canViewLearningObjectives')"
+            to="/lesson-planning/objectives"
+            class="sidebar-link"
+            :class="{ 'sidebar-link-active': isActive('/lesson-planning/objectives') }"
+          >
+            <i class="pi pi-list mr-3"></i>
+            <span>Learning Objectives</span>
+          </NuxtLink>
+
+          <NuxtLink
+            v-if="can('canManageLessonTemplates')"
+            to="/lesson-planning/templates"
+            class="sidebar-link"
+            :class="{ 'sidebar-link-active': isActive('/lesson-planning/templates') }"
+          >
+            <i class="pi pi-file mr-3"></i>
+            <span>Templates</span>
+          </NuxtLink>
+        </div>
+
         <!-- Parent Section - Parent Only -->
         <div v-if="isParent" class="space-y-2">
           <div class="sidebar-header">My Family</div>
