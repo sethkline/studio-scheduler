@@ -17,7 +17,6 @@ export default defineEventHandler(async (event) => {
       .select(`
         id,
         section,
-        section_type,
         row_name,
         seat_number,
         seat_type,
