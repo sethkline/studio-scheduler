@@ -188,3 +188,203 @@ export async function requireTicketAccess(event: H3Event, ticketId: string) {
 
   return { user, profile, isStaff: false }
 }
+
+/**
+ * Require permission check based on role
+ * Throws 401 if not authenticated, 403 if permission denied
+ * @param event - H3 event
+ * @param permission - Permission name from Permissions type
+ * @returns User profile
+ */
+export async function requirePermission(
+  event: H3Event,
+  permission: string
+) {
+  const profile = await getUserProfile(event)
+
+  if (!profile) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized - Authentication required'
+    })
+  }
+
+  const { getPermissionsForRole } = await import('~/types/auth')
+  const permissions = getPermissionsForRole(profile.user_role)
+
+  if (!(permissions as any)[permission]) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: `Forbidden - Permission '${permission}' required`
+    })
+  }
+
+  return profile
+}
+
+/**
+ * Verify parent has access to a specific student
+ * Uses correct two-step schema: profiles -> guardians -> student_guardian_relationships
+ * @param event - H3 event
+ * @param studentId - Student UUID
+ * @returns Guardian info if authorized
+ */
+export async function requireParentStudentAccess(
+  event: H3Event,
+  studentId: string
+) {
+  const user = await requireAuth(event)
+  const profile = await getUserProfile(event)
+
+  if (!profile) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'User profile not found'
+    })
+  }
+
+  // Admin/staff can access any student
+  if (['admin', 'staff'].includes(profile.user_role)) {
+    return { user, profile, isStaff: true, guardianId: null }
+  }
+
+  // For parents, verify through proper schema
+  const client = await serverSupabaseClient(event)
+
+  // Step 1: Get guardian record by user_id
+  const { data: guardian, error: guardianError } = await client
+    .from('guardians')
+    .select('id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (guardianError || !guardian) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'User is not registered as a guardian'
+    })
+  }
+
+  // Step 2: Verify guardian-student relationship
+  const { data: relationship, error: relationshipError } = await client
+    .from('student_guardian_relationships')
+    .select('id')
+    .eq('guardian_id', guardian.id)
+    .eq('student_id', studentId)
+    .single()
+
+  if (relationshipError || !relationship) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'You do not have access to this student'
+    })
+  }
+
+  return { user, profile, isStaff: false, guardianId: guardian.id }
+}
+
+/**
+ * Get list of student IDs accessible to the current user (parent)
+ * @param event - H3 event
+ * @returns Array of student IDs
+ */
+export async function getParentStudentIds(event: H3Event): Promise<string[]> {
+  const user = await requireAuth(event)
+  const profile = await getUserProfile(event)
+
+  if (!profile) return []
+
+  // Admin/staff can see all students
+  if (['admin', 'staff'].includes(profile.user_role)) {
+    const client = await serverSupabaseClient(event)
+    const { data: students } = await client.from('students').select('id')
+    return students?.map((s) => s.id) || []
+  }
+
+  // For parents, get their students through proper schema
+  const client = await serverSupabaseClient(event)
+
+  // Step 1: Get guardian record
+  const { data: guardian } = await client
+    .from('guardians')
+    .select('id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!guardian) return []
+
+  // Step 2: Get all student relationships
+  const { data: relationships } = await client
+    .from('student_guardian_relationships')
+    .select('student_id')
+    .eq('guardian_id', guardian.id)
+
+  return relationships?.map((r) => r.student_id) || []
+}
+
+/**
+ * Verify teacher owns/teaches a specific class
+ * @param event - H3 event
+ * @param classId - Class instance UUID
+ * @returns Teacher info if authorized
+ */
+export async function requireTeacherClassAccess(
+  event: H3Event,
+  classId: string
+) {
+  const user = await requireAuth(event)
+  const profile = await getUserProfile(event)
+
+  if (!profile) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'User profile not found'
+    })
+  }
+
+  // Admin/staff can access any class
+  if (['admin', 'staff'].includes(profile.user_role)) {
+    return { user, profile, isStaff: true, teacherId: null }
+  }
+
+  // For teachers, verify class ownership
+  if (profile.user_role !== 'teacher') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Only teachers can access class-specific data'
+    })
+  }
+
+  const client = await serverSupabaseClient(event)
+
+  // Get teacher record
+  const { data: teacher, error: teacherError } = await client
+    .from('teachers')
+    .select('id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (teacherError || !teacher) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Teacher profile not found'
+    })
+  }
+
+  // Verify teacher teaches this class
+  const { data: classInstance, error: classError } = await client
+    .from('class_instances')
+    .select('id')
+    .eq('id', classId)
+    .eq('teacher_id', teacher.id)
+    .single()
+
+  if (classError || !classInstance) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'You do not teach this class'
+    })
+  }
+
+  return { user, profile, isStaff: false, teacherId: teacher.id }
+}

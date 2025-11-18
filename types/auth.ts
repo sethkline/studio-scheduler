@@ -80,6 +80,19 @@ export interface Permissions {
   // User Management
   canManageUsers: boolean
   canManageRoles: boolean
+
+  // Analytics & Reporting (NEW - for security fixes)
+  canViewAnalytics: boolean
+  canExportAnalytics: boolean
+
+  // Communication (NEW - for security fixes)
+  canSendEmails: boolean
+  canManageEmailTemplates: boolean
+
+  // Teacher Tools (NEW - for security fixes)
+  canManageChoreography: boolean
+  canManageLessonPlans: boolean
+  canManageAssessments: boolean
 }
 
 /**
@@ -135,6 +148,19 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: true,
     canManageRoles: true,
+
+    // Analytics & Reporting
+    canViewAnalytics: true,
+    canExportAnalytics: true,
+
+    // Communication
+    canSendEmails: true,
+    canManageEmailTemplates: true,
+
+    // Teacher Tools
+    canManageChoreography: true,
+    canManageLessonPlans: true,
+    canManageAssessments: true,
   },
 
   staff: {
@@ -186,6 +212,19 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Analytics & Reporting
+    canViewAnalytics: false,
+    canExportAnalytics: false,
+
+    // Communication
+    canSendEmails: true,
+    canManageEmailTemplates: false,
+
+    // Teacher Tools
+    canManageChoreography: true,
+    canManageLessonPlans: true,
+    canManageAssessments: true,
   },
 
   teacher: {
@@ -237,6 +276,19 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Analytics & Reporting
+    canViewAnalytics: false,
+    canExportAnalytics: false,
+
+    // Communication
+    canSendEmails: false,
+    canManageEmailTemplates: false,
+
+    // Teacher Tools
+    canManageChoreography: true,
+    canManageLessonPlans: true,
+    canManageAssessments: true,
   },
 
   parent: {
@@ -288,6 +340,19 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Analytics & Reporting
+    canViewAnalytics: false,
+    canExportAnalytics: false,
+
+    // Communication
+    canSendEmails: false,
+    canManageEmailTemplates: false,
+
+    // Teacher Tools
+    canManageChoreography: false,
+    canManageLessonPlans: false,
+    canManageAssessments: false,
   },
 
   student: {
@@ -339,6 +404,19 @@ export const RolePermissions: Record<UserRole, Permissions> = {
     // User Management
     canManageUsers: false,
     canManageRoles: false,
+
+    // Analytics & Reporting
+    canViewAnalytics: false,
+    canExportAnalytics: false,
+
+    // Communication
+    canSendEmails: false,
+    canManageEmailTemplates: false,
+
+    // Teacher Tools
+    canManageChoreography: false,
+    canManageLessonPlans: false,
+    canManageAssessments: false,
   },
 }
 
