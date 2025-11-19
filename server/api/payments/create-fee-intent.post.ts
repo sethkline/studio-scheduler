@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 import Stripe from 'stripe'
 
 /**
@@ -19,8 +20,9 @@ import Stripe from 'stripe'
  *   payment_intent_id: string
  * }
  */
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAuth(event)
+
+  const client = await getUserSupabaseClient(event)
   const body = await readBody(event)
 
   // Validate required fields

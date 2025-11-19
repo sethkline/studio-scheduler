@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 /**
  * Get Fee Types
@@ -22,8 +23,9 @@ import { getSupabaseClient } from '~/server/utils/supabase'
  *   }
  * }
  */
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
+  const client = await getUserSupabaseClient(event)
   const recitalShowId = getRouterParam(event, 'id')
   const query = getQuery(event)
 

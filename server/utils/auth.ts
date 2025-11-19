@@ -13,6 +13,15 @@ export async function getServerUser(event: H3Event) {
 }
 
 /**
+ * Alias for getServerUser - returns current authenticated user or null
+ * @param event - H3 event
+ * @returns User object or null
+ */
+export async function getCurrentUser(event: H3Event) {
+  return await getServerUser(event)
+}
+
+/**
  * Get the user's profile including their role
  * @param event - H3 event
  * @returns User profile with role or null

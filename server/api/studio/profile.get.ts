@@ -1,9 +1,11 @@
 // server/api/studio/profile.get.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdmin(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     
     // Fetch the studio profile (assuming there's only one)
     const { data, error } = await client

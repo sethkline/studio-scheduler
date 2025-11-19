@@ -1,8 +1,10 @@
 // server/api/show-images/[id].ts
-import { getSupabaseClient } from '../../utils/supabase';
+import { getUserSupabaseClient } from '../utils/supabase';
 
 export default defineEventHandler(async (event) => {
   try {
+    // Public endpoint - querying public data only
+
     const client = getSupabaseClient();
     const id = getRouterParam(event, 'id');
     const query = getQuery(event);

@@ -5,10 +5,12 @@
  * Uses the unified email campaign system (email_campaign_unsubscribes table).
  */
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
+  // Public endpoint - querying public data only
+
   const client = getSupabaseClient()
 
   // Validate email

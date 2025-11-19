@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 /**
  * Upload a resource (file or link) for a rehearsal
@@ -12,9 +13,10 @@ import { getSupabaseClient } from '../../../utils/supabase'
  * - Content-Type: application/json
  * - Body: { title, description, type: 'link', external_url, is_public }
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const rehearsalId = getRouterParam(event, 'id')
     const contentType = getHeader(event, 'content-type')
 

@@ -1,5 +1,6 @@
 // server/api/venues/[id]/seat-map.post.ts
 
+import { requireAdminOrStaff } from '~/server/utils/auth'
 import { requireAdminOrStaff } from '../../../utils/auth'
 import type { BulkCreateSeatsInput } from '~/types'
 

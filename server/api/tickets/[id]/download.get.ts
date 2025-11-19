@@ -1,7 +1,7 @@
 // server/api/tickets/[id]/download.get.ts
 
 import { getOrGenerateTicketPDF, fetchTicketData } from '~/server/utils/ticketPdf'
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../../utils/supabase'
 import { requireTicketAccess } from '~/server/utils/auth'
 
 /**

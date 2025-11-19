@@ -1,13 +1,15 @@
 // server/api/email/preferences.put.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 /**
  * PUT /api/email/preferences
  * Update email preferences
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody(event)
     const query = getQuery(event)
     const token = query.token as string | undefined

@@ -1,4 +1,5 @@
 // server/api/venues/[id]/price-zones/[zoneId].put.ts
+import { requireAdmin } from '~/server/utils/auth'
 import { requireAdmin } from '../../../../utils/auth'
 
 /**

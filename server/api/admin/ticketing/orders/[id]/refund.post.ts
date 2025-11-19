@@ -1,5 +1,8 @@
 // server/api/admin/ticketing/orders/[id]/refund.post.ts
 
+import { requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../../../../utils/supabase'
 import type { TicketOrder } from '~/types'
 import { emailService } from '~/server/utils/email'
 
@@ -12,7 +15,7 @@ export default defineEventHandler(async (event) => {
   // Require admin role
   await requireAdmin(event)
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
   const orderId = getRouterParam(event, 'id')
   const body = await readBody(event)
 

@@ -50,6 +50,11 @@ export default defineEventHandler(async (event) => {
   try {
     // Use service client for reservation operations
     // NOTE: Service role needed because reservation may not belong to authenticated user yet
+    // Public endpoint - querying public data only
+
+    // Public endpoint - querying public data only
+
+
     const client = getSupabaseClient()
 
     // Find and validate the reservation using the token

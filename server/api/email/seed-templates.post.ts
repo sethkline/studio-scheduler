@@ -1,5 +1,6 @@
 // server/api/email/seed-templates.post.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 import { enhancedEmailService } from '../../utils/emailService'
 import { defaultEmailTemplates } from '../../utils/emailTemplates'
 
@@ -8,9 +9,10 @@ import { defaultEmailTemplates } from '../../utils/emailTemplates'
  * Seed the database with default email templates
  * IMPORTANT: This should only be run by admins during initial setup
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
 
     // Verify admin access (simplified - you may want to add proper auth check)
     const authHeader = event.headers.get('authorization')

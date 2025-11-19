@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 /**
  * Delete a rehearsal resource
@@ -6,9 +7,10 @@ import { getSupabaseClient } from '../../../utils/supabase'
  *
  * This will delete the database record and attempt to delete the file from storage
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const resourceId = getRouterParam(event, 'id')
 
     // First, get the resource to check if it has a file to delete

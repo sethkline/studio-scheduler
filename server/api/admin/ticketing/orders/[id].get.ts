@@ -1,5 +1,7 @@
 // server/api/admin/ticketing/orders/[id].get.ts
 
+import { requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 import type { OrderDetails } from '~/types'
 
 /**
@@ -11,7 +13,7 @@ export default defineEventHandler(async (event) => {
   // Require admin or staff role
   await requireAdminOrStaff(event)
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
   const orderId = getRouterParam(event, 'id')
 
   if (!orderId) {

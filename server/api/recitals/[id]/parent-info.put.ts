@@ -2,9 +2,11 @@
 // Story 2.1.6: Parent Information Center
 // Updates parent-facing content and settings
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const recitalId = getRouterParam(event, 'id')
   const body = await readBody(event)
 
@@ -15,7 +17,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     const updateData: any = {

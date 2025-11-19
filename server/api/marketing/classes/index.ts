@@ -1,5 +1,10 @@
 export default defineEventHandler(async (event) => {
   try {
+    // Public endpoint - querying public data only
+
+    // Public endpoint - querying public data only
+
+
     const client = getSupabaseClient()
     const query = getQuery(event)
     

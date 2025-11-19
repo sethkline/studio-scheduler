@@ -2,9 +2,11 @@
 // Story 2.1.4: Recital Media Hub
 // Returns all media items with optional filtering
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const recitalId = getRouterParam(event, 'id')
   const query = getQuery(event)
   const performanceId = query.performanceId as string | undefined
@@ -18,7 +20,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     let queryBuilder = client

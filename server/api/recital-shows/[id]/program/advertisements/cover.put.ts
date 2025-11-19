@@ -1,10 +1,13 @@
 // server/api/recital-shows/[id]/program/cover.put.ts
-import { getSupabaseClient } from '../../../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../../../../utils/supabase'
 import { v4 as uuidv4 } from 'uuid'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const id = getRouterParam(event, 'id')
     
     // Handle file upload

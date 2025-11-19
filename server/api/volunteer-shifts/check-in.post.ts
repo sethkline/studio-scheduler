@@ -2,13 +2,15 @@
 // Story 2.1.5: Volunteer Coordination Center
 // Records check-in time and user
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 interface CheckInRequest {
   signupId: string
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const body = await readBody<CheckInRequest>(event)
   const user = event.context.user
 
@@ -19,7 +21,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     const { data: signup, error } = await client

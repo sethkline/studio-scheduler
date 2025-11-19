@@ -1,7 +1,10 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from 'utils/supabase'
 
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdmin(event)
+
+  const client = await getUserSupabaseClient(event)
   const query = getQuery(event)
 
   const recitalId = query.recital_id as string | undefined

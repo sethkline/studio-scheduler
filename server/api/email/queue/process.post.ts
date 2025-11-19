@@ -1,5 +1,6 @@
 // server/api/email/queue/process.post.ts
-import { getSupabaseClient } from '../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 import { enhancedEmailService } from '../../../utils/emailService'
 import type { EmailTemplateData } from '~/types/email'
 
@@ -8,9 +9,10 @@ import type { EmailTemplateData } from '~/types/email'
  * Process pending emails in the queue
  * This should be called by a cron job or manual trigger
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody(event)
     const limit = body.limit || 50 // Process up to 50 emails at a time
 

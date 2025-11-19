@@ -5,15 +5,14 @@
  * Requires authentication and admin/staff role.
  */
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
-  const query = getQuery(event)
+  await requireAdmin(event)
 
-  // TODO: Add auth check for admin/staff role
-  // const user = await requireAuth(event)
-  // await requireRole(user, ['admin', 'staff'])
+  const client = await getUserSupabaseClient(event)
+  const query = getQuery(event)
 
   // Get subscribers using database function
   const { data: subscribers, error } = await client

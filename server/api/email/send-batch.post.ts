@@ -1,5 +1,6 @@
 // server/api/email/send-batch.post.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 import type { SendBatchEmailRequest } from '~/types/email'
 
 /**
@@ -7,9 +8,10 @@ import type { SendBatchEmailRequest } from '~/types/email'
  * Send emails to multiple recipients (queued for processing)
  * REQUIRES: Admin or Staff role
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody<SendBatchEmailRequest>(event)
 
     // SECURITY: Require authentication

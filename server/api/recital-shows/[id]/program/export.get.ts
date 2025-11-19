@@ -1,10 +1,12 @@
 // server/api/recital-shows/[id]/program/export.get.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 import PDFDocument from 'pdfkit'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const id = getRouterParam(event, 'id')
     
     // Fetch recital show details

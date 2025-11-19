@@ -2,11 +2,13 @@
 // Story 2.1.5: Volunteer Coordination Center
 // Sends reminder emails for upcoming shifts (within 24 hours)
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const config = useRuntimeConfig()
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     // Calculate the time window (next 24-48 hours)

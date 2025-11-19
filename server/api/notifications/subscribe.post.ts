@@ -1,6 +1,8 @@
-import { getSupabaseClient } from '~/server/utils/supabase';
+import { requireAuth } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAuth(event)
+
   try {
     const body = await readBody(event);
     const { endpoint, keys } = body;
@@ -21,7 +23,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const client = getSupabaseClient();
+    const client = await getUserSupabaseClient(event);
 
     // Check if subscription already exists
     const { data: existing } = await client

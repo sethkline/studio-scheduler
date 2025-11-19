@@ -2,9 +2,11 @@
 // Story 2.1.3: Enhanced Ticket Sales Dashboard
 // Returns detailed sales metrics, trends, and projections
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const recitalId = getRouterParam(event, 'id')
 
   if (!recitalId) {
@@ -14,7 +16,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     // Get overall recital sales summary

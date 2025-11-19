@@ -1,12 +1,14 @@
 // server/api/recitals/[id]/performances/export.get.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { createError, sendStream } from 'h3'
 import { Readable } from 'stream'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const recitalId = getRouterParam(event, 'id')
     
     if (!recitalId) {

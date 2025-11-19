@@ -1,4 +1,5 @@
 // server/api/venues/[id]/price-zones/index.post.ts
+import { requireAdmin } from '~/server/utils/auth'
 import { requireAdmin } from '../../../../utils/auth'
 
 /**

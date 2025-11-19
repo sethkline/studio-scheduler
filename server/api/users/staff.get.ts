@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 /**
  * Get Staff Users
@@ -7,8 +8,9 @@ import { getSupabaseClient } from '~/server/utils/supabase'
  *
  * Returns all users with staff, admin, or teacher roles for task assignment.
  */
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdmin(event)
+
+  const client = await getUserSupabaseClient(event)
 
   try {
     const { data: users, error } = await client

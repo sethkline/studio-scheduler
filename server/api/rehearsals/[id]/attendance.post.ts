@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 /**
  * Create attendance records for a rehearsal
@@ -11,9 +12,10 @@ import { getSupabaseClient } from '../../../utils/supabase'
  *   student_ids: string[]
  * }
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const rehearsalId = getRouterParam(event, 'id')
     const body = await readBody(event)
 

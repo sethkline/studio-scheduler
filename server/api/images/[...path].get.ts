@@ -1,5 +1,5 @@
 // server/api/images/[...path].get.ts
-import { getSupabaseClient } from '../../utils/supabase';
+import { getUserSupabaseClient } from '../utils/supabase';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -10,6 +10,9 @@ export default defineEventHandler(async (event) => {
     const path = Array.isArray(pathParam) ? pathParam.join('/') : pathParam;
     
     console.log('Proxying image path:', path);
+    
+    // Public endpoint - querying public data only
+
     
     const client = getSupabaseClient();
     

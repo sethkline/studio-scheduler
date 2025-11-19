@@ -1,7 +1,9 @@
+import { requireAuth } from '~/server/utils/auth'
 import webpush from 'web-push';
-import { getSupabaseClient } from '~/server/utils/supabase';
+import { getUserSupabaseClient } from '../utils/supabase';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAuth(event)
+
   try {
     // Get authenticated user
     const user = event.context.user;
@@ -21,7 +23,7 @@ export default defineEventHandler(async (event) => {
       config.vapidPrivateKey
     );
 
-    const client = getSupabaseClient();
+    const client = await getUserSupabaseClient(event);
 
     // Get user's subscriptions
     const { data: subscriptions, error } = await client

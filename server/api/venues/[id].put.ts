@@ -1,4 +1,5 @@
 // server/api/venues/[id].put.ts
+import { requireAdminOrStaff } from '~/server/utils/auth'
 import { requireAdminOrStaff } from '../../utils/auth'
 
 /**

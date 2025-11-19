@@ -1,9 +1,11 @@
 // server/api/public/tickets/[code]/download.get.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 import PDFDocument from 'pdfkit'
 
 export default defineEventHandler(async (event) => {
   try {
+    // Public endpoint - querying public data only
+
     const client = getSupabaseClient()
     const code = getRouterParam(event, 'code')
     

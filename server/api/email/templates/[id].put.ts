@@ -1,5 +1,6 @@
 // server/api/email/templates/[id].put.ts
-import { getSupabaseClient } from '../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 import { enhancedEmailService } from '../../../utils/emailService'
 import type { EmailTemplateForm } from '~/types/email'
 
@@ -7,9 +8,10 @@ import type { EmailTemplateForm } from '~/types/email'
  * PUT /api/email/templates/[id]
  * Update an email template
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const id = getRouterParam(event, 'id')
     const body = await readBody<Partial<EmailTemplateForm>>(event)
 

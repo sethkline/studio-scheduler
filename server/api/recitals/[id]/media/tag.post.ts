@@ -2,14 +2,16 @@
 // Story 2.1.4: Recital Media Hub
 // Creates tags linking students to media items
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 
 interface TagRequest {
   mediaId: string
   studentIds: string[]
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const recitalId = getRouterParam(event, 'id')
   const body = await readBody<TagRequest>(event)
   const user = event.context.user
@@ -21,7 +23,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     // Verify media belongs to this recital

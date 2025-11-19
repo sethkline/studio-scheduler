@@ -1,5 +1,6 @@
 // server/api/venues/[id]/seats/index.post.ts
 
+import { requireAdminOrStaff } from '~/server/utils/auth'
 import { requireAdminOrStaff } from '../../../../utils/auth'
 import type { CreateSeatInput } from '~/types'
 

@@ -1,7 +1,7 @@
 // server/api/webhooks/stripe/ticket-payment.post.ts
 
 import Stripe from 'stripe'
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 /**
  * SECURITY NOTE: This webhook endpoint is called by Stripe, not by users.
@@ -18,6 +18,8 @@ import { getSupabaseClient } from '~/server/utils/supabase'
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  // Public endpoint - querying public data only
+
   const client = getSupabaseClient() // Service role - required for Stripe webhooks
 
   try {

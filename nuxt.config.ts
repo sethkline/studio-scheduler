@@ -35,7 +35,8 @@ export default defineNuxtConfig({
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_ANON_KEY,
-    serviceKey: process.env.SUPABASE_SERVICE_KEY,
+    // Note: serviceKey removed from client config to prevent accidental exposure
+    // Service role key is only available server-side via runtimeConfig
     redirect: false,
   },
 

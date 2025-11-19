@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 /**
  * Get all rehearsals for a recital with optional filtering
@@ -10,9 +11,10 @@ import { getSupabaseClient } from '../../../utils/supabase'
  * - date_from: Filter by start date (inclusive)
  * - date_to: Filter by end date (inclusive)
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const recitalShowId = getRouterParam(event, 'id')
     const query = getQuery(event)
 
