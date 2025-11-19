@@ -1,0 +1,27 @@
+# Build outputs
+.nuxt
+.output
+dist
+coverage
+
+# Dependencies
+node_modules
+
+# Generated files
+*.d.ts
+
+# Storybook
+storybook-static
+
+# PWA
+public/sw.js
+public/workbox-*.js
+
+# Test files (optional - can be removed later for stricter checks)
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+
+# Other
+.git
