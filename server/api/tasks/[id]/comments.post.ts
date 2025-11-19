@@ -1,12 +1,14 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
 /**
  * Add Task Comment
  *
  * POST /api/tasks/:id/comments
  */
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
+  const client = await getUserSupabaseClient(event)
   const taskId = getRouterParam(event, 'id')
   const body = await readBody(event)
 

@@ -1,4 +1,6 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from 'utils/supabase'
 
 /**
  * Get Task Templates
@@ -7,8 +9,9 @@ import { getSupabaseClient } from '~/server/utils/supabase'
  *
  * Returns all available task templates with their items.
  */
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
+  const client = await getUserSupabaseClient(event)
 
   try {
     const { data: templates, error } = await client

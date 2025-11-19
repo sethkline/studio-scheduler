@@ -1,5 +1,6 @@
 // server/api/email/webhook.post.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 import { enhancedEmailService } from '../../utils/emailService'
 import type { MailgunWebhookEvent } from '~/types/email'
 
@@ -7,9 +8,10 @@ import type { MailgunWebhookEvent } from '~/types/email'
  * POST /api/email/webhook
  * Handle Mailgun webhook events for email tracking
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody<MailgunWebhookEvent>(event)
 
     // Verify webhook signature

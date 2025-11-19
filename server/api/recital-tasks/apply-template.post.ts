@@ -2,7 +2,8 @@
 // Story 2.1.2: Enhanced Recital Checklist System
 // Creates tasks from a template with calculated due dates
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 interface ApplyTemplateRequest {
   recitalId: string
@@ -10,7 +11,8 @@ interface ApplyTemplateRequest {
   showDate: string // The reference date for calculating due dates
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const body = await readBody<ApplyTemplateRequest>(event)
 
   if (!body.recitalId || !body.templateId || !body.showDate) {
@@ -20,7 +22,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     // Get the template

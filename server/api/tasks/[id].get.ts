@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 /**
  * Get Task
@@ -11,8 +12,9 @@ import { getSupabaseClient } from '~/server/utils/supabase'
  *   task: TaskWithDetails
  * }
  */
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
+  const client = await getUserSupabaseClient(event)
   const taskId = getRouterParam(event, 'id')
 
   if (!taskId) {

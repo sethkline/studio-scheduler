@@ -1,10 +1,12 @@
 // server/api/studio/logo.post.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 import { v4 as uuidv4 } from 'uuid'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdmin(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     
     // Parse multipart form data
     const formData = await readMultipartFormData(event)

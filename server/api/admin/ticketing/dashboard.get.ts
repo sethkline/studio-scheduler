@@ -1,15 +1,17 @@
 // server/api/admin/ticketing/dashboard.get.ts
 
+import { requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+
 /**
  * GET /api/admin/ticketing/dashboard
  * Get ticketing dashboard analytics and metrics
  * Requires: Admin or Staff role
  */
 export default defineEventHandler(async (event) => {
-  // Require admin or staff role
   await requireAdminOrStaff(event)
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
   const query = getQuery(event)
 
   // Parse date range filter

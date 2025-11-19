@@ -1,4 +1,5 @@
 // server/api/recital-shows/[id]/index.get.ts
+import { requireAdminOrStaff } from '~/server/utils/auth'
 import { requireAdminOrStaff } from '../../../utils/auth'
 
 /**

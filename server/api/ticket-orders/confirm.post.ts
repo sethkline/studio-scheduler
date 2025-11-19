@@ -1,10 +1,11 @@
 // server/api/ticket-orders/confirm.post.ts
 
+import { requireAuth } from '~/server/utils/auth'
 import Stripe from 'stripe'
 import type { ConfirmPaymentRequest, ConfirmPaymentResponse } from '~/types/ticketing'
 import { serverSupabaseClient } from '#supabase/server'
 import { getReservationSessionId } from '~/server/utils/reservationSession'
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event): Promise<ConfirmPaymentResponse> => {
   const config = useRuntimeConfig()

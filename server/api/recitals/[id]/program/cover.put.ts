@@ -1,10 +1,12 @@
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 import { readMultipartFormData } from 'h3'
 import { v4 as uuidv4 } from 'uuid'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const recitalId = getRouterParam(event, 'id')
     
     if (!recitalId) {

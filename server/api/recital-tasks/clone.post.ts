@@ -2,7 +2,8 @@
 // Story 2.1.2: Enhanced Recital Checklist System
 // Copies all tasks from a previous recital with adjusted due dates
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 interface CloneTasksRequest {
   sourceRecitalId: string
@@ -10,7 +11,8 @@ interface CloneTasksRequest {
   adjustDueDates?: boolean
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const body = await readBody<CloneTasksRequest>(event)
 
   if (!body.sourceRecitalId || !body.targetRecitalId) {
@@ -20,7 +22,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     // Get source recital date

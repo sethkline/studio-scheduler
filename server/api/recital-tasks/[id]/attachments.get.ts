@@ -2,9 +2,11 @@
 // Story 2.1.2: Enhanced Recital Checklist System
 // Returns all attachments with signed URLs for download
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   const taskId = getRouterParam(event, 'id')
 
   if (!taskId) {
@@ -14,7 +16,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
 
   try {
     const { data: attachments, error } = await client

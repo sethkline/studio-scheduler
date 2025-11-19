@@ -1,15 +1,17 @@
 // server/api/admin/ticketing/orders/[id]/resend-email.post.ts
 
+import { requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+
 /**
  * POST /api/admin/ticketing/orders/:id/resend-email
  * Resend order confirmation email
  * Requires: Admin or Staff role
  */
 export default defineEventHandler(async (event) => {
-  // Require admin or staff role
   await requireAdminOrStaff(event)
 
-  const client = getSupabaseClient()
+  const client = await getUserSupabaseClient(event)
   const orderId = getRouterParam(event, 'id')
 
   if (!orderId) {

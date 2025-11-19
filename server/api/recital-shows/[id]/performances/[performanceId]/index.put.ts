@@ -1,9 +1,12 @@
 // server/api/recital-shows/[id]/performances/[performanceId]/index.put.ts
-import { getSupabaseClient } from '../../../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../../../../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const recitalId = getRouterParam(event, 'id')
     const performanceId = getRouterParam(event, 'performanceId')
     const body = await readBody(event)

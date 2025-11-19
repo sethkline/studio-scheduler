@@ -1,7 +1,10 @@
 // server/api/studio/hours/update.post.ts
-export default defineEventHandler(async (event) => {
+import { requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '~/server/utils/supabase'
+export default defineEventHandler(async (event) => {  await requireAdmin(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody(event)
     
     // Validate the request

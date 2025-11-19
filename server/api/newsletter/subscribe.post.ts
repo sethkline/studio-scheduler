@@ -1,6 +1,8 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 export default defineEventHandler(async (event) => {
+  // Public endpoint - querying public data only
+
   const client = getSupabaseClient()
   const body = await readBody(event)
 

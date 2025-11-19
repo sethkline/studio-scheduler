@@ -1,5 +1,6 @@
 // server/api/venues/[id]/seats/[seatId].delete.ts
 
+import { requireAdminOrStaff } from '~/server/utils/auth'
 import { requireAdminOrStaff } from '../../../../utils/auth'
 
 /**

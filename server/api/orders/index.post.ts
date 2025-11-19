@@ -1,5 +1,6 @@
 // server/api/orders/index.post.ts
-import { getSupabaseClient } from '../../utils/supabase';
+import { requireAuth } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase';
 import { getStripeClient } from '../../utils/stripe';
 import { sendTicketConfirmationEmail } from '../../utils/ticketEmail';
 import { validateReservationOwnership } from '../../utils/reservationSession';
@@ -14,7 +15,8 @@ import { validateReservationOwnership } from '../../utils/reservationSession';
  *
  * Uses service client ONLY after validation to bypass RLS for order creation.
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAuth(event)
+
   try {
     const body = await readBody(event);
 

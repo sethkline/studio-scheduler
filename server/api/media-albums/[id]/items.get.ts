@@ -1,7 +1,9 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
+  const client = await getUserSupabaseClient(event)
   const albumId = getRouterParam(event, 'id')
   const query = getQuery(event)
   const mediaType = query.type as string | undefined

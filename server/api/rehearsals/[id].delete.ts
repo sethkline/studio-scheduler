@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 /**
  * Delete a rehearsal and all related data
@@ -9,9 +10,10 @@ import { getSupabaseClient } from '../../utils/supabase'
  * - Rehearsal attendance records
  * - Rehearsal resources (files will need separate cleanup)
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const rehearsalId = getRouterParam(event, 'id')
 
     // First, check if rehearsal exists

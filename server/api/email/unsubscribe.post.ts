@@ -1,13 +1,15 @@
 // server/api/email/unsubscribe.post.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
 /**
  * POST /api/email/unsubscribe
  * Unsubscribe from all emails using token
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody<{ token: string }>(event)
 
     if (!body.token) {

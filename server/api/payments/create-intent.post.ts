@@ -1,8 +1,10 @@
 // server/api/payments/create-intent.ts
-import { getSupabaseClient } from '../../utils/supabase';
+import { requireAuth } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase';
 import Stripe from 'stripe';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAuth(event)
+
   try {
     const body = await readBody(event);
     const { reservation_token, amount, currency = 'usd', payment_method_types = ['card'] } = body;
@@ -29,7 +31,7 @@ export default defineEventHandler(async (event) => {
     });
     
     // Get reservation details from database
-    const client = getSupabaseClient();
+    const client = await getUserSupabaseClient(event);
     const { data: reservation, error: reservationError } = await client
       .from('seat_reservations')
       .select('*')

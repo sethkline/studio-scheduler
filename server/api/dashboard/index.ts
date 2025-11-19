@@ -1,9 +1,11 @@
 // server/api/dashboard/index.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAuth(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     
     // Fetch upcoming classes
     const { data: classes, error: classesError } = await client

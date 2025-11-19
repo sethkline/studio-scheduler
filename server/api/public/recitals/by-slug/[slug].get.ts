@@ -2,7 +2,7 @@
 // Story 2.2.1: Public Recital Landing Page
 // Returns public-facing recital data for marketing page
 
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')
@@ -13,6 +13,9 @@ export default defineEventHandler(async (event) => {
       message: 'Slug is required'
     })
   }
+
+  // Public endpoint - querying public data only
+
 
   const client = getSupabaseClient()
 

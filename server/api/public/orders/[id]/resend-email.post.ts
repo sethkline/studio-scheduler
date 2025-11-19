@@ -1,6 +1,6 @@
 // server/api/public/orders/[id]/resend-email.post.ts
 import { serverSupabaseClient } from '#supabase/server'
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { getUserSupabaseClient } from '../../../utils/supabase'
 import { sendTicketConfirmationEmail } from '../../../../utils/ticketEmail'
 
 /**

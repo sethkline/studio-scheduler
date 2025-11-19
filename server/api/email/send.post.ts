@@ -1,5 +1,6 @@
 // server/api/email/send.post.ts
-import { getSupabaseClient } from '../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../utils/supabase'
 import { enhancedEmailService } from '../../utils/emailService'
 import type { SendEmailRequest, EmailTemplateData } from '~/types/email'
 
@@ -8,9 +9,10 @@ import type { SendEmailRequest, EmailTemplateData } from '~/types/email'
  * Send an email using a template or custom content
  * REQUIRES: Admin or Staff role
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody<SendEmailRequest>(event)
 
     // SECURITY: Require authentication

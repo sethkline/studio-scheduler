@@ -1,5 +1,6 @@
 // server/api/email/templates/preview.post.ts
-import { getSupabaseClient } from '../../../utils/supabase'
+import { requireAuth, requireAdminOrStaff } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 import { enhancedEmailService } from '../../../utils/emailService'
 import type { EmailTemplateData } from '~/types/email'
 
@@ -7,9 +8,10 @@ import type { EmailTemplateData } from '~/types/email'
  * POST /api/email/templates/preview
  * Preview an email template with sample data
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => {  await requireAdminOrStaff(event)
+
   try {
-    const client = getSupabaseClient()
+    const client = await getUserSupabaseClient(event)
     const body = await readBody<{
       template_id: string
       template_data?: EmailTemplateData

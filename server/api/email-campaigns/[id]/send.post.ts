@@ -1,7 +1,9 @@
-import { getSupabaseClient } from '~/server/utils/supabase'
+import { requireAuth, requireAdmin } from '~/server/utils/auth'
+import { getUserSupabaseClient } from '../../utils/supabase'
 
-export default defineEventHandler(async (event) => {
-  const client = getSupabaseClient()
+export default defineEventHandler(async (event) => {  await requireAdmin(event)
+
+  const client = await getUserSupabaseClient(event)
   const campaignId = getRouterParam(event, 'id')
   const user = event.context.user
 
