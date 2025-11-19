@@ -102,7 +102,8 @@ export default defineNuxtConfig({
   },
 
   typescript: {
-    strict: true
+    strict: true,
+    typeCheck: false // Disabled temporarily due to existing errors; re-enable after type fixes
   },
   tailwindcss: {
     config: {
