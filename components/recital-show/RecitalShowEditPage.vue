@@ -43,9 +43,11 @@
         <TabPanels>
           <!-- General Information Tab -->
           <TabPanel value="general">
-            <ShowDetailsForm 
-              :showData="showData" 
+            <ShowDetailsForm
+              :showData="showData"
               :saving="saving"
+              :seatStats="seatStats"
+              :sectionStats="sectionStats"
               @save="saveGeneralInfo"
               @cancel="goBack"
             />
@@ -142,7 +144,9 @@ const showData = ref({
   description: '',
   status: 'planning',
   series_id: null,
-  series_name: ''
+  series_name: '',
+  venue_id: null,
+  venue: null
 });
 
 const ticketData = ref({
@@ -160,7 +164,9 @@ const ticketData = ref({
 const seatStats = ref({
   total: 0,
   available: 0,
-  sold: 0
+  sold: 0,
+  reserved: 0,
+  held: 0
 });
 
 const sectionStats = ref([]);
@@ -169,8 +175,6 @@ const sectionStats = ref([]);
 onMounted(async () => {
   if (showId) {
     await fetchRecitalShow();
-    // await fetchSeatCount();
-    // await loadSeatLayouts();
   } else {
     loading.value = false;
   }
@@ -200,8 +204,15 @@ async function fetchRecitalShow() {
       description: showDetails?.description || '',
       status: showDetails?.status || 'planning',
       series_id: showDetails?.series_id || null,
-      series_name: showDetails?.series?.name || ''
+      series_name: showDetails?.series?.name || '',
+      venue_id: showDetails?.venue_id || null,
+      venue: showDetails?.venue || null
     };
+
+    // Load seat statistics if venue is set
+    if (showDetails?.venue_id) {
+      await fetchSeatStatistics();
+    }
     
     // Set ticket data
     ticketData.value = {
@@ -226,22 +237,45 @@ async function fetchRecitalShow() {
 async function saveGeneralInfo(formData) {
   try {
     saving.value = true;
-    
+
+    // Check if venue changed and has seats - warn user
+    const venueChanged = formData.venue_id !== showData.value.venue_id;
+    if (venueChanged && hasSeats.value && formData.venue_id !== showData.value.venue_id) {
+      const shouldContinue = await new Promise((resolve) => {
+        confirm.require({
+          message: 'Changing the venue will require regenerating seats for this show. Any existing seat reservations and sales will be lost. Do you want to continue?',
+          header: 'Confirm Venue Change',
+          icon: 'pi pi-exclamation-triangle',
+          acceptClass: 'p-button-danger',
+          accept: () => resolve(true),
+          reject: () => resolve(false)
+        });
+      });
+
+      if (!shouldContinue) {
+        saving.value = false;
+        return;
+      }
+    }
+
     // Use API service to update the show
     const { data, error } = await updateShow(showId, formData);
-    
+
     if (error.value) throw new Error(error.value.statusMessage || 'Failed to update show');
-    
+
     // Update the local data
     Object.assign(showData.value, formData);
-    
+
+    // Reload show data to get updated venue info
+    await fetchRecitalShow();
+
     toast.add({
       severity: 'success',
       summary: 'Success',
       detail: 'Show details updated successfully',
       life: 3000
     });
-    
+
   } catch (err) {
     console.error('Error updating show:', err);
     toast.add({
@@ -252,6 +286,31 @@ async function saveGeneralInfo(formData) {
     });
   } finally {
     saving.value = false;
+  }
+}
+
+async function fetchSeatStatistics() {
+  try {
+    const { data, error } = await $fetch(`/api/recital-shows/${showId}/seats/statistics`);
+
+    if (error) throw error;
+
+    if (data) {
+      seatStats.value = {
+        total: data.stats.total || 0,
+        available: data.stats.available || 0,
+        sold: data.stats.sold || 0,
+        reserved: data.stats.reserved || 0,
+        held: data.stats.held || 0
+      };
+
+      sectionStats.value = data.sections || [];
+      hasSeats.value = data.stats.total > 0;
+    }
+  } catch (err) {
+    console.error('Error fetching seat statistics:', err);
+    // Don't show error toast, just set defaults
+    hasSeats.value = false;
   }
 }
 
@@ -302,9 +361,9 @@ async function generateSeats() {
       detail: `Generated ${data.value.seat_count} seats for this show`,
       life: 3000
     });
-    
+
     // Refresh seat data
-    await fetchSeatCount();
+    await fetchSeatStatistics();
     
   } catch (err) {
     console.error('Error generating seats:', err);

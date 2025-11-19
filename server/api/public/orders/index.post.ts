@@ -1,22 +1,58 @@
-
 // server/api/public/orders/index.post.ts
-import { getSupabaseClient } from '../../../utils/supabase'
-import { randomBytes } from 'crypto'
+/**
+ * PUBLIC API - Create Order from Reservation
+ *
+ * ⚠️  LEGACY SCHEMA WARNING ⚠️
+ * This endpoint uses the OLD reservation system schema:
+ * - seat_reservations table (deprecated)
+ * - recital_show_id (should be show_id)
+ *
+ * NEW SYSTEM: The new ticketing system uses:
+ * - show_seats table with reserved_by/reserved_until columns
+ * - reserve_seats() and release_seats() PostgreSQL functions
+ * - See: supabase/migrations/20251116_*.sql
+ *
+ * SECURITY CONSIDERATIONS:
+ * Uses service key (getSupabaseClient) for write operations because:
+ * 1. ✅ Validates reservation_token (proves temporary ownership)
+ * 2. ✅ Verifies email matches reservation (prevents token theft)
+ * 3. ✅ Checks reservation is active and not expired
+ * 4. ⚠️  Service key needed for cross-table operations during order creation
+ *
+ * ACCEPTABLE USE of service key here because:
+ * - Token acts as a time-limited authentication mechanism
+ * - Email verification prevents stolen token abuse
+ * - All operations are within scope of the validated reservation
+ *
+ * TODO: Migrate to new schema or mark for deprecation
+ */
 
 export default defineEventHandler(async (event) => {
+  const body = await readBody(event)
+
+  // Validate required fields
+  if (!body.reservation_token || !body.customer_name || !body.customer_email) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Missing required fields: reservation_token, customer_name, customer_email'
+    })
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(body.customer_email)) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Invalid email format'
+    })
+  }
+
   try {
+    // Use service client for reservation operations
+    // NOTE: Service role needed because reservation may not belong to authenticated user yet
     const client = getSupabaseClient()
-    const body = await readBody(event)
-    
-    // Validate required fields
-    if (!body.reservation_token || !body.customer_name || !body.payment_method) {
-      return createError({
-        statusCode: 400,
-        statusMessage: 'Missing required fields'
-      })
-    }
-    
-    // Find the reservation
+
+    // Find and validate the reservation using the token
     const { data: reservation, error: reservationError } = await client
       .from('seat_reservations')
       .select(`
@@ -30,14 +66,42 @@ export default defineEventHandler(async (event) => {
       .eq('reservation_token', body.reservation_token)
       .single()
     
-    if (reservationError) throw reservationError
-    
+    if (reservationError) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Reservation not found or invalid token'
+      })
+    }
+
+    if (!reservation) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Reservation not found'
+      })
+    }
+
+    // SECURITY: Verify email matches reservation
+    // This prevents someone from using a stolen token with a different email
+    if (reservation.email && reservation.email.toLowerCase() !== body.customer_email.toLowerCase()) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Email does not match reservation'
+      })
+    }
+
     // Check if reservation is active and not expired
     const now = new Date()
     const expiresAt = new Date(reservation.expires_at)
-    
-    if (!reservation.is_active || expiresAt < now) {
-      return createError({
+
+    if (!reservation.is_active) {
+      throw createError({
+        statusCode: 410,
+        statusMessage: 'Reservation is no longer active'
+      })
+    }
+
+    if (expiresAt < now) {
+      throw createError({
         statusCode: 410,
         statusMessage: 'Reservation has expired'
       })
@@ -188,11 +252,17 @@ export default defineEventHandler(async (event) => {
       },
       tickets: detailedTickets
     }
-  } catch (error) {
+  } catch (error: any) {
+    // If it's already a createError, re-throw it
+    if (error.statusCode) {
+      throw error
+    }
+
     console.error('Create order API error:', error)
-    return createError({
+    throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to create order'
+      statusMessage: 'Failed to create order',
+      message: error.message
     })
   }
 })

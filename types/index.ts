@@ -18,6 +18,15 @@ export * from './media'
 // Email Notification System
 export * from './email'
 
+// Attendance System
+export * from './attendance'
+
+// Tier 1 Features (Rehearsals, Fees, etc.)
+export * from './tier1-features'
+
+// Ticketing System
+export * from './ticketing'
+
 export interface Student {
   id: string
   first_name: string

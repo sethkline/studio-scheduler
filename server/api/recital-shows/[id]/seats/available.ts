@@ -1,9 +1,10 @@
 // server/api/recital-shows/[id]/seats/available.ts
-import { getSupabaseClient } from '../../../../utils/supabase'
+import { serverSupabaseClient } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
-    const client = getSupabaseClient()
+    // Use serverSupabaseClient to respect RLS policies for public access
+    const client = await serverSupabaseClient(event)
     const showId = getRouterParam(event, 'id')
     const query = getQuery(event)
     
