@@ -15,6 +15,9 @@ export * from './volunteers'
 // Media Gallery
 export * from './media'
 
+// Email Notification System
+export * from './email'
+
 // Attendance System
 export * from './attendance'
 
