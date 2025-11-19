@@ -1,6 +1,68 @@
 import tailwindTypography from '@tailwindcss/typography';
+
+/**
+ * Validate required environment variables
+ */
+function validateEnvironmentVariables() {
+  const isProduction = process.env.NODE_ENV === 'production'
+  const requiredVars = [
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_KEY',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_PUBLISHABLE_KEY',
+    'MAILGUN_API_KEY',
+    'MAILGUN_DOMAIN'
+  ]
+
+  // In production, also require these
+  if (isProduction) {
+    requiredVars.push('MARKETING_SITE_URL')
+    requiredVars.push('VAPID_PUBLIC_KEY')
+    requiredVars.push('VAPID_PRIVATE_KEY')
+  }
+
+  const missingVars = requiredVars.filter(varName => !process.env[varName])
+
+  if (missingVars.length > 0) {
+    const errorMessage = `
+╔════════════════════════════════════════════════════════════════════╗
+║  Missing Required Environment Variables                           ║
+╠════════════════════════════════════════════════════════════════════╣
+║                                                                    ║
+║  The following environment variables are required but not set:    ║
+║                                                                    ║
+${missingVars.map(v => `║  - ${v.padEnd(60, ' ')}║`).join('\n')}
+║                                                                    ║
+║  Please create a .env file based on .env.example and fill in      ║
+║  the required values.                                              ║
+║                                                                    ║
+╚════════════════════════════════════════════════════════════════════╝
+    `.trim()
+
+    // Only throw error in production, warn in development
+    if (isProduction) {
+      throw new Error(errorMessage)
+    } else {
+      console.warn('\x1b[33m%s\x1b[0m', errorMessage)
+    }
+  }
+
+  // Validate URL formats
+  if (process.env.SUPABASE_URL && !process.env.SUPABASE_URL.startsWith('https://')) {
+    console.warn('⚠️  SUPABASE_URL should start with https://')
+  }
+
+  if (isProduction && process.env.MARKETING_SITE_URL && !process.env.MARKETING_SITE_URL.startsWith('https://')) {
+    console.warn('⚠️  MARKETING_SITE_URL should use https:// in production')
+  }
+}
+
+// Run validation
+validateEnvironmentVariables()
+
 export default defineNuxtConfig({
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV !== 'production' },
 
   modules: [
     '@nuxtjs/tailwindcss',
@@ -58,31 +120,67 @@ export default defineNuxtConfig({
     }
   },
 
-  // security: {
-  //   headers: {
-  //     // contentSecurityPolicy: false,
-  //     // crossOriginEmbedderPolicy: false,
-  //     // crossOriginResourcePolicy: false
-  //     crossOriginEmbedderPolicy: 'credentialless',
-  //     contentSecurityPolicy: {
-  //       'base-uri': ["'self'"],
-  //       'font-src': ["'self'", 'https:', 'data:'],
-  //       'form-action': ["'self'"],
-  //       'frame-ancestors': ["'self'", "https://localhost:3000"],
-  //       'img-src': ["'self'", 'data:', 'https:'],
-  //       'object-src': ["'none'"],
-  //       'script-src-attr': ["'none'"],
-  //       'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://*.stripe.com"],
-  //       'style-src': ["'self'", 'https:', "'unsafe-inline'"],
-  //       'connect-src': ["'self'", "https://*.stripe.com", "https://api.stripe.com"],
-  //       'frame-src': ["'self'", "https://*.stripe.com", "https://js.stripe.com", "https://hooks.stripe.com"],
-  //       'upgrade-insecure-requests': true
-  //     },
-  //     // Add CORS headers
-  //     crossOriginResourcePolicy: false
-  //   },
-  //   rateLimiter: false
-  // },
+  security: {
+    headers: {
+      crossOriginEmbedderPolicy: process.env.NODE_ENV === 'production' ? 'credentialless' : false,
+      contentSecurityPolicy: {
+        'base-uri': ["'self'"],
+        'font-src': ["'self'", 'https:', 'data:'],
+        'form-action': ["'self'"],
+        'frame-ancestors': ["'self'"],
+        'img-src': ["'self'", 'data:', 'https:', 'blob:'],
+        'object-src': ["'none'"],
+        'script-src-attr': ["'none'"],
+        'script-src': [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'", // Required for Vue/Nuxt in dev mode
+          "https://*.stripe.com",
+          "https://js.stripe.com"
+        ],
+        'style-src': ["'self'", 'https:', "'unsafe-inline'"],
+        'connect-src': [
+          "'self'",
+          "https://*.stripe.com",
+          "https://api.stripe.com",
+          "https://*.supabase.co",
+          "wss://*.supabase.co"
+        ],
+        'frame-src': [
+          "'self'",
+          "https://*.stripe.com",
+          "https://js.stripe.com",
+          "https://hooks.stripe.com"
+        ],
+        'upgrade-insecure-requests': process.env.NODE_ENV === 'production'
+      },
+      crossOriginResourcePolicy: false, // Allow resources to be loaded cross-origin
+      strictTransportSecurity: {
+        maxAge: 31536000, // 1 year
+        includeSubdomains: true,
+        preload: true
+      },
+      xContentTypeOptions: 'nosniff',
+      xFrameOptions: 'SAMEORIGIN',
+      xXSSProtection: '1; mode=block',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      permissionsPolicy: {
+        camera: ['()'],
+        microphone: ['()'],
+        geolocation: ['()'],
+        payment: ['self']
+      }
+    },
+    rateLimiter: {
+      tokensPerInterval: 100,
+      interval: 'minute',
+      headers: true,
+      driver: {
+        name: 'lruCache'
+      },
+      throwError: false
+    }
+  },
 
   app: {
     head: {
@@ -98,6 +196,47 @@ export default defineNuxtConfig({
         { rel: 'manifest', href: '/manifest.json' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }
       ]
+    }
+  },
+
+  routeRules: {
+    // Stricter rate limiting for public API endpoints
+    '/api/public/**': {
+      security: {
+        rateLimiter: {
+          tokensPerInterval: 50,
+          interval: 'minute',
+          throwError: false
+        }
+      }
+    },
+    '/api/tickets/**': {
+      security: {
+        rateLimiter: {
+          tokensPerInterval: 50,
+          interval: 'minute',
+          throwError: false
+        }
+      }
+    },
+    '/api/payments/**': {
+      security: {
+        rateLimiter: {
+          tokensPerInterval: 30,
+          interval: 'minute',
+          throwError: false
+        }
+      }
+    },
+    // More relaxed rate limiting for authenticated endpoints
+    '/api/**': {
+      security: {
+        rateLimiter: {
+          tokensPerInterval: 100,
+          interval: 'minute',
+          throwError: false
+        }
+      }
     }
   },
 
@@ -256,7 +395,7 @@ export default defineNuxtConfig({
       periodicSyncForUpdates: 3600 // Check for updates every hour
     },
     devOptions: {
-      enabled: true,
+      enabled: process.env.NODE_ENV === 'development',
       type: 'module'
     }
   },
