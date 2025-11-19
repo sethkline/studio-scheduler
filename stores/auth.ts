@@ -150,8 +150,33 @@ export const useAuthStore = defineStore('auth', {
 
     /**
      * Clear user profile (on logout)
+     * Also clears all cached data for this user to prevent cross-user leaks
      */
-    clearProfile() {
+    async clearProfile() {
+      // Clear user-specific cache from IndexedDB
+      if (this.userProfile?.id) {
+        try {
+          const { offlineStorage } = await import('~/utils/offlineStorage')
+          await offlineStorage.clearUserData(this.userProfile.id)
+        } catch (error) {
+          console.error('Error clearing user cache:', error)
+        }
+      }
+
+      // Clear service worker caches for this user
+      if ('caches' in window) {
+        try {
+          const cacheNames = await caches.keys()
+          await Promise.all(
+            cacheNames
+              .filter(name => name.includes('api-cache') || name.includes('supabase'))
+              .map(name => caches.delete(name))
+          )
+        } catch (error) {
+          console.error('Error clearing service worker caches:', error)
+        }
+      }
+
       this.userProfile = null
       this.error = null
       this.loading = false

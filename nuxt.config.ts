@@ -204,12 +204,15 @@ export default defineNuxtConfig({
     workbox: {
       navigateFallback: '/',
       globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+      // Add cache name prefix with version for cache busting
+      cleanupOutdatedCaches: true,
       runtimeCaching: [
         {
-          urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+          // Public Supabase storage (images, assets) - NetworkFirst is safe
+          urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
           handler: 'NetworkFirst',
           options: {
-            cacheName: 'supabase-cache',
+            cacheName: 'supabase-storage-v1',
             expiration: {
               maxEntries: 100,
               maxAgeSeconds: 60 * 60 * 24 // 24 hours
@@ -220,14 +223,26 @@ export default defineNuxtConfig({
           }
         },
         {
+          // Supabase auth/API calls - NetworkOnly to prevent stale auth data
+          urlPattern: /^https:\/\/.*\.supabase\.co\/(auth|rest)\/.*/i,
+          handler: 'NetworkOnly'
+        },
+        {
+          // Stripe - NetworkOnly for security
           urlPattern: /^https:\/\/.*\.stripe\.com\/.*/i,
           handler: 'NetworkOnly'
         },
         {
-          urlPattern: /\/api\/.*/i,
+          // Authenticated API routes - NetworkOnly to prevent cross-user cache leaks
+          urlPattern: /\/api\/(profile|auth|students|teachers|staff)\/.*/i,
+          handler: 'NetworkOnly'
+        },
+        {
+          // Public API routes (tickets, recitals) - NetworkFirst with short TTL
+          urlPattern: /\/api\/(recitals|public)\/.*/i,
           handler: 'NetworkFirst',
           options: {
-            cacheName: 'api-cache',
+            cacheName: 'public-api-cache-v1',
             networkTimeoutSeconds: 10,
             expiration: {
               maxEntries: 50,
@@ -239,10 +254,11 @@ export default defineNuxtConfig({
           }
         },
         {
+          // Images - CacheFirst for performance
           urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
           handler: 'CacheFirst',
           options: {
-            cacheName: 'image-cache',
+            cacheName: 'image-cache-v1',
             expiration: {
               maxEntries: 100,
               maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
@@ -255,8 +271,9 @@ export default defineNuxtConfig({
       installPrompt: true,
       periodicSyncForUpdates: 3600 // Check for updates every hour
     },
+    // Only enable dev options in development
     devOptions: {
-      enabled: true,
+      enabled: process.env.NODE_ENV === 'development',
       type: 'module'
     }
   },

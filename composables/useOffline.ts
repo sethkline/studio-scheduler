@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useOnline } from '@vueuse/core';
+import { useToast } from 'primevue/usetoast';
 
 interface QueuedAction {
   id: string;
@@ -9,6 +10,7 @@ interface QueuedAction {
   data?: any;
   timestamp: number;
   retries: number;
+  description?: string; // Human-readable description for UI
 }
 
 export function useOffline() {
@@ -16,6 +18,7 @@ export function useOffline() {
   const isOffline = computed(() => !isOnline.value);
   const actionQueue = ref<QueuedAction[]>([]);
   const syncInProgress = ref(false);
+  const toast = useToast();
 
   // Load queued actions from localStorage on mount
   const loadQueueFromStorage = () => {
@@ -51,6 +54,16 @@ export function useOffline() {
     actionQueue.value.push(queuedAction);
     saveQueueToStorage();
 
+    // Show toast notification when action is queued
+    if (toast && action.description) {
+      toast.add({
+        severity: 'info',
+        summary: 'Action Queued',
+        detail: `${action.description} will be processed when you're back online`,
+        life: 3000,
+      });
+    }
+
     return queuedAction.id;
   };
 
@@ -68,6 +81,8 @@ export function useOffline() {
 
     syncInProgress.value = true;
     const actionsToProcess = [...actionQueue.value];
+    let successCount = 0;
+    let failureCount = 0;
 
     for (const action of actionsToProcess) {
       try {
@@ -80,9 +95,11 @@ export function useOffline() {
 
           // If successful, remove from queue
           removeAction(action.id);
+          successCount++;
         }
       } catch (error) {
         console.error('Error processing queued action:', error);
+        failureCount++;
 
         // Increment retry count
         const actionIndex = actionQueue.value.findIndex(a => a.id === action.id);
@@ -93,6 +110,16 @@ export function useOffline() {
           if (actionQueue.value[actionIndex].retries >= 5) {
             console.warn('Action failed after 5 retries, removing from queue:', action);
             removeAction(action.id);
+
+            // Show error notification for permanently failed action
+            if (toast && action.description) {
+              toast.add({
+                severity: 'error',
+                summary: 'Action Failed',
+                detail: `${action.description} failed after multiple retries`,
+                life: 5000,
+              });
+            }
           } else {
             saveQueueToStorage();
           }
@@ -101,6 +128,16 @@ export function useOffline() {
     }
 
     syncInProgress.value = false;
+
+    // Show summary toast if actions were processed
+    if (successCount > 0 && toast) {
+      toast.add({
+        severity: 'success',
+        summary: 'Sync Complete',
+        detail: `${successCount} ${successCount === 1 ? 'action' : 'actions'} synced successfully`,
+        life: 3000,
+      });
+    }
   };
 
   // Check if a specific feature is available offline
