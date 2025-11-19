@@ -1,5 +1,8 @@
 // server/api/admin/ticketing/orders/[id]/resend-email.post.ts
 
+import { logError } from '~/server/utils/logger'
+import { logAudit, logAuditFailure, AuditActions, AuditResourceTypes } from '~/server/utils/audit'
+
 /**
  * POST /api/admin/ticketing/orders/:id/resend-email
  * Resend order confirmation email
@@ -46,12 +49,41 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Log audit trail for email resend
+    await logAudit(event, {
+      action: AuditActions.TICKET_RESEND,
+      resourceType: AuditResourceTypes.ORDER,
+      resourceId: orderId,
+      metadata: {
+        order_number: order.order_number,
+        customer_email: order.customer_email,
+        customer_name: order.customer_name,
+      },
+      status: 'success',
+    })
+
     return {
       success: true,
       message: `Confirmation email sent to ${order.customer_email}`
     }
   } catch (error: any) {
-    console.error('Error sending confirmation email:', error)
+    logError(error, {
+      context: 'resend_confirmation_email',
+      order_id: orderId,
+    })
+
+    // Log audit trail for failed email resend
+    await logAuditFailure(
+      event,
+      AuditActions.TICKET_RESEND,
+      AuditResourceTypes.ORDER,
+      error.message || 'Failed to resend confirmation email',
+      orderId,
+      {
+        customer_email: order?.customer_email,
+      }
+    )
+
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to send confirmation email',

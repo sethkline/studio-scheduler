@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '~/server/utils/supabase'
 import Stripe from 'stripe'
+import { logError } from '~/server/utils/logger'
 
 /**
  * Create Stripe Checkout Session
@@ -74,7 +75,8 @@ export default defineEventHandler(async (event) => {
     // Initialize Stripe
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY
     if (!stripeSecretKey) {
-      console.error('STRIPE_SECRET_KEY environment variable not set')
+      const error = new Error('STRIPE_SECRET_KEY environment variable not set')
+      logError(error, { context: 'stripe_initialization' })
       throw createError({
         statusCode: 500,
         statusMessage: 'Payment processing is not configured'
@@ -111,7 +113,10 @@ export default defineEventHandler(async (event) => {
       session_id: session.id
     }
   } catch (error: any) {
-    console.error('Error creating checkout session:', error)
+    logError(error, {
+      context: 'create_checkout_session',
+      fee_ids: body.fee_ids,
+    })
     throw createError({
       statusCode: error.statusCode || 500,
       statusMessage: error.statusMessage || 'Failed to create checkout session'
