@@ -2,6 +2,8 @@
 
 import type { TicketOrder } from '~/types'
 import { emailService } from '~/server/utils/email'
+import { logError, logWarning, logInfo } from '~/server/utils/logger'
+import { logAudit, logAuditFailure, AuditActions, AuditResourceTypes } from '~/server/utils/audit'
 
 /**
  * POST /api/admin/ticketing/orders/:id/refund
@@ -138,7 +140,11 @@ export default defineEventHandler(async (event) => {
       .eq('id', orderId)
 
     if (updateError) {
-      console.error('Failed to update order status:', updateError)
+      logError(new Error('Failed to update order status'), {
+        context: 'order_refund_update',
+        order_id: orderId,
+        error: updateError,
+      })
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to update order status'
@@ -162,7 +168,12 @@ export default defineEventHandler(async (event) => {
           .in('id', showSeatIds)
 
         if (seatError) {
-          console.error('Failed to release seats:', seatError)
+          logWarning('Failed to release seats after refund', {
+            context: 'seat_release',
+            order_id: orderId,
+            show_seat_ids: showSeatIds,
+            error: seatError,
+          })
           // Don't fail the refund if seat release fails, just log it
         }
       }
@@ -183,7 +194,12 @@ export default defineEventHandler(async (event) => {
         showData?.venue?.name || 'Venue'
       )
     } catch (emailError) {
-      console.error('Failed to send refund confirmation email:', emailError)
+      logWarning('Failed to send refund confirmation email', {
+        context: 'refund_email',
+        order_id: orderId,
+        customer_email: order.customer_email,
+        error: emailError,
+      })
       // Don't fail the refund if email fails
     }
 
@@ -195,8 +211,29 @@ export default defineEventHandler(async (event) => {
       .single()
 
     if (fetchError) {
-      console.error('Failed to fetch updated order:', fetchError)
+      logWarning('Failed to fetch updated order after refund', {
+        context: 'order_fetch',
+        order_id: orderId,
+        error: fetchError,
+      })
     }
+
+    // Log audit trail for refund
+    await logAudit(event, {
+      action: AuditActions.ORDER_REFUND,
+      resourceType: AuditResourceTypes.ORDER,
+      resourceId: orderId,
+      metadata: {
+        order_number: order.order_number,
+        amount_in_cents,
+        refund_type: isFullRefund ? 'full' : 'partial',
+        reason,
+        stripe_refund_id: refund.id,
+        customer_email: order.customer_email,
+        seats_released: isFullRefund,
+      },
+      status: 'success',
+    })
 
     return {
       success: true,
@@ -215,7 +252,27 @@ export default defineEventHandler(async (event) => {
       }
     }
   } catch (error: any) {
-    console.error('Refund processing error:', error)
+    logError(error, {
+      context: 'refund_processing',
+      order_id: orderId,
+      amount_in_cents,
+      is_full_refund: isFullRefund,
+    })
+
+    // Log audit trail for failed refund
+    await logAuditFailure(
+      event,
+      AuditActions.ORDER_REFUND,
+      AuditResourceTypes.ORDER,
+      error.message || 'Refund processing failed',
+      orderId,
+      {
+        amount_in_cents,
+        refund_type: isFullRefund ? 'full' : 'partial',
+        reason,
+        error_type: error.type || 'unknown',
+      }
+    )
 
     // Handle Stripe errors
     if (error.type === 'StripeCardError') {

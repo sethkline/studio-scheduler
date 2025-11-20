@@ -2,6 +2,7 @@
 import { getSupabaseClient } from '../../../utils/supabase'
 import { enhancedEmailService } from '../../../utils/emailService'
 import type { EmailTemplateData } from '~/types/email'
+import { logError, logInfo } from '~/server/utils/logger'
 
 /**
  * POST /api/email/queue/process
@@ -26,7 +27,10 @@ export default defineEventHandler(async (event) => {
       .limit(limit)
 
     if (fetchError) {
-      console.error('Error fetching queue items:', fetchError)
+      logError(new Error('Error fetching queue items'), {
+        context: 'email_queue_fetch',
+        error: fetchError,
+      })
       throw createError({
         statusCode: 500,
         statusMessage: 'Failed to fetch email queue',
@@ -173,7 +177,12 @@ export default defineEventHandler(async (event) => {
           throw new Error(sendResult.error || 'Failed to send email')
         }
       } catch (err: any) {
-        console.error(`Error processing queue item ${item.id}:`, err)
+        logError(err, {
+          context: 'email_queue_processing',
+          queue_item_id: item.id,
+          recipient_email: item.recipient_email,
+          template_id: item.template_id,
+        })
         results.failed++
         results.errors.push({
           id: item.id,
@@ -199,7 +208,9 @@ export default defineEventHandler(async (event) => {
       results,
     }
   } catch (error: any) {
-    console.error('Queue processing error:', error)
+    logError(error, {
+      context: 'email_queue_processing_error',
+    })
     throw createError({
       statusCode: error.statusCode || 500,
       statusMessage: error.statusMessage || 'Failed to process email queue',
