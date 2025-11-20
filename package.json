@@ -9,7 +9,9 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",
@@ -40,6 +42,8 @@
     "jsqr": "^1.4.0",
     "jszip": "^3.10.1",
     "mailgun.js": "^12.0.1",
+    "mjml": "^4.16.1",
+    "mjml-browser": "^4.16.1",
     "nuxt": "^3.16.0",
     "nuxt-security": "^2.2.0",
     "papaparse": "^5.5.3",

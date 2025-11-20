@@ -225,3 +225,277 @@ if (!permissions.canManageStudents) {
 ```
 
 See `/docs/rbac-guide.md` for complete documentation on the RBAC system.
+
+## Troubleshooting
+
+### Common Development Issues
+
+#### Build Errors
+
+**Problem**: `Cannot find module` errors during build
+
+**Solution**:
+```bash
+# Clear Nuxt cache
+rm -rf .nuxt node_modules/.cache
+
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+
+# Rebuild
+npm run build
+```
+
+**Problem**: TypeScript errors in IDE but build succeeds
+
+**Solution**:
+- Restart TypeScript server in VSCode: `Cmd+Shift+P` → "TypeScript: Restart TS Server"
+- Ensure `.nuxt/tsconfig.json` exists (run `npm run dev` first)
+- Check that VSCode is using workspace TypeScript version
+
+#### Database/Supabase Issues
+
+**Problem**: `Invalid API key` or authentication errors
+
+**Solution**:
+- Verify `SUPABASE_URL` and `SUPABASE_ANON_KEY` are correct in `.env`
+- Check that `.env` file is in project root
+- Restart dev server after changing `.env`
+- Ensure Supabase project is not paused (free tier auto-pauses after 7 days inactivity)
+
+**Problem**: RLS policy errors (`new row violates row-level security policy`)
+
+**Solution**:
+- Check that user is authenticated: `const user = useSupabaseUser()`
+- Verify user role in `profiles` table matches required permission
+- Review RLS policies in Supabase dashboard
+- Use service role key server-side for admin operations
+
+**Problem**: Real-time subscriptions not working
+
+**Solution**:
+- Enable Realtime in Supabase dashboard for relevant tables
+- Check browser console for WebSocket errors
+- Verify channel subscription code is correct
+- Ensure table has `REPLICA IDENTITY FULL` enabled for UPDATE events
+
+#### Stripe Integration Issues
+
+**Problem**: Webhook not receiving events
+
+**Solution**:
+- For local development, use Stripe CLI: `stripe listen --forward-to localhost:3000/api/stripe/webhook`
+- Verify webhook endpoint is accessible (not behind auth middleware)
+- Check webhook signing secret matches in `.env`
+- Review webhook event logs in Stripe Dashboard
+
+**Problem**: `No such customer` errors
+
+**Solution**:
+- Verify using correct Stripe keys (test vs. production)
+- Check that customer ID exists in Stripe dashboard
+- Ensure customer ID is stored correctly in database
+- Create customer before creating checkout session
+
+**Problem**: Payment succeeds but order not created
+
+**Solution**:
+- Check server logs for webhook processing errors
+- Verify webhook signature validation is passing
+- Ensure database transaction completes successfully
+- Check for idempotency issues (duplicate webhooks)
+
+#### Email Delivery Issues
+
+**Problem**: Emails not sending
+
+**Solution**:
+- Verify Mailgun API key and domain in `.env`
+- Check Mailgun domain is verified (DNS records)
+- Review Mailgun logs for delivery errors
+- Ensure email addresses are valid
+- Check spam folder for delivered emails
+
+**Problem**: Email formatting issues
+
+**Solution**:
+- Test MJML template in [MJML Playground](https://mjml.io/try-it-live)
+- Verify all MJML tags are properly closed
+- Check for syntax errors in template variables
+- Test with different email clients
+
+#### Performance Issues
+
+**Problem**: Slow page loads
+
+**Solution**:
+- Check browser Network tab for slow requests
+- Optimize database queries (add indexes)
+- Use `useLazyAsyncData` for non-critical data
+- Enable Nuxt `ssr: true` for faster initial load
+- Implement pagination for large lists
+
+**Problem**: High memory usage
+
+**Solution**:
+- Check for memory leaks (unsubscribed listeners, intervals)
+- Use `onUnmounted` to clean up subscriptions
+- Limit number of real-time subscriptions
+- Clear large arrays when component unmounts
+
+#### Testing Issues
+
+**Problem**: Tests failing with module resolution errors
+
+**Solution**:
+- Ensure `@nuxt/test-utils` is installed
+- Add `vitest.config.ts` with correct module aliases
+- Use `setup()` from `@nuxt/test-utils` in test files
+- Clear Vitest cache: `rm -rf node_modules/.vitest`
+
+**Problem**: Component tests failing with PrimeVue errors
+
+**Solution**:
+- Mock PrimeVue components in tests
+- Install required PrimeVue components in test setup
+- Use shallow mounting to avoid rendering child components
+
+### Environment-Specific Issues
+
+#### Local Development
+
+**Port already in use**:
+```bash
+# Find process using port 3000
+lsof -ti:3000
+
+# Kill the process
+kill -9 <PID>
+
+# Or use different port
+PORT=3001 npm run dev
+```
+
+**Hot reload not working**:
+- Check that file watcher limit is not exceeded (Linux)
+- Restart dev server
+- Clear browser cache
+- Check for errors in terminal
+
+#### Production/Deployment
+
+**Build succeeds but app crashes**:
+- Check environment variables are set correctly
+- Review server logs for errors
+- Verify Node.js version matches requirement (18+)
+- Check for missing dependencies in production
+
+**Database connection errors**:
+- Verify Supabase connection pooling settings
+- Check IP allowlist in Supabase (if restricted)
+- Ensure service role key is used server-side only
+- Review connection string format
+
+**Stripe webhooks not working in production**:
+- Update webhook endpoint URL in Stripe Dashboard
+- Verify webhook signing secret for production
+- Ensure server can receive POST requests at webhook endpoint
+- Check server firewall/security group settings
+
+### Debugging Tips
+
+**Enable verbose logging**:
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  debug: true,
+  devtools: { enabled: true }
+})
+```
+
+**Debug API endpoints**:
+```typescript
+// server/api/example.ts
+export default defineEventHandler(async (event) => {
+  console.log('Request body:', await readBody(event))
+  console.log('Request headers:', getHeaders(event))
+  // ... rest of handler
+})
+```
+
+**Debug Supabase queries**:
+```typescript
+const { data, error } = await supabase
+  .from('table')
+  .select()
+
+console.log('Supabase response:', { data, error })
+```
+
+**Debug real-time subscriptions**:
+```typescript
+const channel = supabase.channel('test')
+  .on('postgres_changes', { /* ... */ }, (payload) => {
+    console.log('Realtime event:', payload)
+  })
+  .subscribe((status) => {
+    console.log('Subscription status:', status)
+  })
+```
+
+### Getting Help
+
+If you're still stuck after trying these solutions:
+
+1. **Search existing documentation**:
+   - [Architecture Guide](/docs/architecture.md)
+   - [Deployment Guide](/docs/deployment.md)
+   - [Testing Guide](/docs/testing.md)
+   - Workflow guides in `/docs/workflows/`
+
+2. **Check external documentation**:
+   - [Nuxt 3 Docs](https://nuxt.com/docs)
+   - [Supabase Docs](https://supabase.com/docs)
+   - [Stripe Docs](https://stripe.com/docs)
+   - [PrimeVue Docs](https://primevue.org/)
+
+3. **Search GitHub Issues**:
+   - Check if someone else had the same problem
+   - Look for closed issues with solutions
+
+4. **Create a new issue**:
+   - Provide detailed error messages
+   - Include steps to reproduce
+   - Share relevant code snippets
+   - Mention what you've already tried
+
+5. **Community resources**:
+   - Nuxt Discord
+   - Supabase Discord
+   - Stack Overflow (tag with `nuxt3`, `supabase`, `stripe`)
+
+### Quick Reference
+
+**Clear all caches**:
+```bash
+rm -rf .nuxt node_modules/.cache node_modules/.vitest coverage
+```
+
+**Reset database (development only)**:
+```sql
+-- In Supabase SQL Editor
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+-- Then re-run migrations
+```
+
+**Test webhook locally**:
+```bash
+stripe trigger checkout.session.completed
+```
+
+**Generate TypeScript types from Supabase**:
+```bash
+npx supabase gen types typescript --project-id your-project-id > types/database.ts
+```
