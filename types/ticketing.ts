@@ -161,13 +161,128 @@ export interface TicketOrderItem {
  */
 export interface UpsellItem {
   id: string
+  recital_series_id: string | null
+  recital_show_id: string | null
   name: string
   description: string | null
   price_in_cents: number
-  item_type: 'digital_download' | 'dvd' | 'photo_package' | 'merchandise'
-  max_quantity_per_order: number | null
+  item_type: 'digital_download' | 'dvd' | 'merchandise' | 'bundle' | 'live_stream' | 'flowers'
+  inventory_quantity: number | null
+  max_quantity_per_order: number
   is_active: boolean
+  display_order: number
   image_url: string | null
+  available_from: string | null
+  available_until: string | null
+  created_at: string
+  updated_at: string
+
+  // Relations (optional, loaded when needed)
+  upsell_item_variants?: UpsellItemVariant[]
+}
+
+/**
+ * UpsellItemVariant - Variants for upsell items (sizes, colors, etc.)
+ */
+export interface UpsellItemVariant {
+  id: string
+  upsell_item_id: string
+  variant_name: string
+  variant_type: 'size' | 'color' | 'style'
+  price_override_in_cents: number | null
+  sku: string | null
+  inventory_quantity: number | null
+  is_available: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * UpsellOrderItem - Upsell product purchased in an order
+ */
+export interface UpsellOrderItem {
+  id: string
+  order_id: string
+  upsell_item_id: string
+  variant_id: string | null
+  quantity: number
+  unit_price_in_cents: number
+  total_price_in_cents: number
+  customization_text: string | null
+  fulfillment_status: 'pending' | 'processing' | 'fulfilled' | 'cancelled'
+  fulfillment_method: 'pickup' | 'shipping' | 'digital' | 'venue_delivery' | null
+  delivery_recipient_name: string | null
+  delivery_notes: string | null
+  shipping_address_line1: string | null
+  shipping_address_line2: string | null
+  shipping_city: string | null
+  shipping_state: string | null
+  shipping_zip: string | null
+  tracking_number: string | null
+  created_at: string
+  updated_at: string
+
+  // Relations (optional)
+  upsell_item?: UpsellItem
+  variant?: UpsellItemVariant
+}
+
+/**
+ * MediaItem - Digital media files for download
+ */
+export interface MediaItem {
+  id: string
+  recital_series_id: string
+  name: string
+  description: string | null
+  file_url: string | null
+  duration_seconds: number | null
+  file_size_mb: number | null
+  created_at: string
+}
+
+/**
+ * MediaAccessCode - Access code for digital media
+ */
+export interface MediaAccessCode {
+  id: string
+  ticket_order_id: string
+  access_code: string
+  expires_at: string | null
+  created_at: string
+}
+
+/**
+ * MediaAccessGrant - Grants access to specific media items
+ */
+export interface MediaAccessGrant {
+  id: string
+  access_code_id: string
+  media_item_id: string
+  accessed_at: string | null
+  download_count: number
+  created_at: string
+
+  // Relations (optional)
+  media_item?: MediaItem
+}
+
+/**
+ * StreamingSession - Live stream access session
+ */
+export interface StreamingSession {
+  id: string
+  order_id: string
+  upsell_item_id: string
+  access_code: string
+  stream_url: string
+  stream_starts_at: string
+  stream_ends_at: string
+  replay_available_until: string | null
+  view_count: number
+  last_viewed_at: string | null
+  is_active: boolean
   created_at: string
   updated_at: string
 }
@@ -581,4 +696,136 @@ export interface OrderDetails extends TicketOrder {
   order_items: TicketOrderItem[]
   payment_status: 'pending' | 'succeeded' | 'failed' | 'refunded'
   payment_intent_status?: string
+}
+
+/**
+ * Upsell Product Management Types
+ */
+
+/**
+ * Create upsell item input
+ */
+export interface CreateUpsellItemInput {
+  recital_series_id?: string
+  recital_show_id?: string
+  name: string
+  description?: string
+  item_type: UpsellItem['item_type']
+  price_in_cents: number
+  inventory_quantity?: number
+  max_quantity_per_order?: number
+  image_url?: string
+  available_from?: string
+  available_until?: string
+  is_active?: boolean
+  display_order?: number
+  variants?: Array<{
+    variant_name: string
+    variant_type: string
+    price_override_in_cents?: number
+    sku?: string
+    inventory_quantity?: number
+    display_order?: number
+  }>
+}
+
+/**
+ * Update upsell item input
+ */
+export interface UpdateUpsellItemInput {
+  name?: string
+  description?: string
+  item_type?: UpsellItem['item_type']
+  price_in_cents?: number
+  inventory_quantity?: number
+  max_quantity_per_order?: number
+  image_url?: string
+  available_from?: string
+  available_until?: string
+  is_active?: boolean
+  display_order?: number
+}
+
+/**
+ * Add upsell to order input
+ */
+export interface AddUpsellToOrderInput {
+  upsell_item_id: string
+  variant_id?: string
+  quantity: number
+  customization_text?: string
+  delivery_recipient_name?: string
+  delivery_notes?: string
+  shipping_address?: {
+    line1: string
+    line2?: string
+    city: string
+    state: string
+    zip: string
+  }
+}
+
+/**
+ * Create variant input
+ */
+export interface CreateVariantInput {
+  upsell_item_id: string
+  variant_name: string
+  variant_type: 'size' | 'color' | 'style'
+  price_override_in_cents?: number
+  sku?: string
+  inventory_quantity?: number
+  display_order?: number
+}
+
+/**
+ * Update variant input
+ */
+export interface UpdateVariantInput {
+  variant_name?: string
+  variant_type?: 'size' | 'color' | 'style'
+  price_override_in_cents?: number
+  sku?: string
+  inventory_quantity?: number
+  is_available?: boolean
+  display_order?: number
+}
+
+/**
+ * Generate media access code input
+ */
+export interface GenerateMediaAccessInput {
+  order_id: string
+  media_item_id: string
+  customer_email: string
+  max_downloads?: number
+  expires_in_days?: number
+}
+
+/**
+ * Create streaming session input
+ */
+export interface CreateStreamingSessionInput {
+  order_id: string
+  upsell_item_id: string
+  stream_url: string
+  stream_starts_at: string
+  stream_ends_at: string
+  replay_available_until?: string
+}
+
+/**
+ * Upsell analytics response
+ */
+export interface UpsellAnalytics {
+  total_revenue_in_cents: number
+  total_orders: number
+  orders_with_upsells: number
+  attach_rate: number
+  top_product: string | null
+  pending_count: number
+  products_by_type: Record<string, {
+    count: number
+    revenue_in_cents: number
+  }>
 }
