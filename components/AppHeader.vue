@@ -6,6 +6,9 @@
       </div>
       
       <div class="flex items-center space-x-4">
+        <!-- Shopping Cart Badge -->
+        <CartCartBadge />
+
         <!-- User profile/account dropdown -->
         <div v-if="user">
           <Menu ref="menu" :model="menuItems" :popup="true">
@@ -22,7 +25,7 @@
           </Menu>
         </div>
         <NuxtLink v-else to="/login" class="hover:text-primary-200">Login</NuxtLink>
-        
+
         <!-- Mobile menu toggle button - only visible on mobile -->
         <button @click="toggleSidebar" class="md:hidden text-white">
           <i class="pi pi-bars text-xl"></i>
