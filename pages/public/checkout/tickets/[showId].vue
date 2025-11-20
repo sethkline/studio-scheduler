@@ -26,6 +26,10 @@ const clientSecret = ref<string | null>(null)
 const publishableKey = ref<string | null>(null)
 const processing = ref(false)
 
+// Upsells state
+const selectedUpsells = ref<any[]>([])
+const upsellsTotalInCents = ref(0)
+
 // Component refs
 const customerFormRef = ref<any>(null)
 const paymentFormRef = ref<any>(null)
@@ -117,8 +121,31 @@ const proceedToPayment = async () => {
 
     order.value = orderResponse.order
 
-    // Step 2: Create payment intent
-    const paymentResponse = await createPaymentIntent(orderResponse.order.id)
+    // Step 2: Add upsells to order if any selected
+    if (selectedUpsells.value.length > 0) {
+      for (const upsell of selectedUpsells.value) {
+        try {
+          await $fetch(`/api/ticket-orders/${order.value.id}/upsells`, {
+            method: 'POST',
+            body: {
+              upsell_item_id: upsell.upsell_item_id,
+              variant_id: upsell.variant_id,
+              quantity: upsell.quantity,
+              customization_text: upsell.customization_text,
+              delivery_recipient_name: upsell.delivery_recipient_name,
+              delivery_notes: upsell.delivery_notes,
+              shipping_address: upsell.shipping_address
+            }
+          })
+        } catch (upsellError) {
+          console.error('Error adding upsell to order:', upsellError)
+          // Continue adding other upsells even if one fails
+        }
+      }
+    }
+
+    // Step 3: Create payment intent (with updated total including upsells)
+    const paymentResponse = await createPaymentIntent(order.value.id)
 
     if (!paymentResponse.success) {
       throw new Error('Failed to initialize payment')
@@ -126,6 +153,11 @@ const proceedToPayment = async () => {
 
     clientSecret.value = paymentResponse.client_secret
     publishableKey.value = paymentResponse.publishable_key
+
+    // Update order reference with final total
+    if (paymentResponse.order) {
+      order.value = paymentResponse.order
+    }
 
     // Move to payment step
     currentStep.value = 'payment'
@@ -183,13 +215,26 @@ const goBackToCustomerInfo = () => {
 }
 
 // Computed
-const totalAmount = computed(() => {
+const ticketsTotal = computed(() => {
   return reservation.value?.total_amount_in_cents || 0
+})
+
+const totalAmount = computed(() => {
+  return ticketsTotal.value + upsellsTotalInCents.value
 })
 
 const seatCount = computed(() => {
   return reservation.value?.seat_count || 0
 })
+
+// Handle upsell updates
+const handleUpsellsUpdate = (items: any[]) => {
+  selectedUpsells.value = items
+}
+
+const handleUpsellsTotalUpdate = (totalInCents: number) => {
+  upsellsTotalInCents.value = totalInCents
+}
 </script>
 
 <template>
@@ -252,12 +297,19 @@ const seatCount = computed(() => {
           </Card>
 
           <!-- Customer Info Form -->
-          <div v-show="currentStep === 'customer'">
+          <div v-show="currentStep === 'customer'" class="space-y-6">
             <CustomerInfoForm
               ref="customerFormRef"
               :initial-values="customerInfo"
               :disabled="processing"
               @submit="handleCustomerInfoSubmit"
+            />
+
+            <!-- Upsell Products -->
+            <UpsellSelection
+              :show-id="showId"
+              @update:total="handleUpsellsTotalUpdate"
+              @update:items="handleUpsellsUpdate"
             />
 
             <Button
@@ -267,7 +319,7 @@ const seatCount = computed(() => {
               :loading="processing"
               :disabled="processing"
               @click="customerFormRef?.submit()"
-              class="w-full mt-4 p-button-lg"
+              class="w-full p-button-lg"
               severity="primary"
             />
           </div>
