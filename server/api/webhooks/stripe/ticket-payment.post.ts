@@ -2,6 +2,7 @@
 
 import Stripe from 'stripe'
 import { getSupabaseClient } from '~/server/utils/supabase'
+import { sendTicketConfirmationEmail } from '~/server/utils/ticketEmail'
 
 /**
  * SECURITY NOTE: This webhook endpoint is called by Stripe, not by users.
@@ -183,8 +184,18 @@ async function handlePaymentSuccess(client: any, paymentIntent: Stripe.PaymentIn
 
   console.log(`Order ${orderId} marked as paid`)
 
-  // TODO: Send confirmation email (Story 5.3)
-  // await sendOrderConfirmationEmail(order)
+  // Send confirmation email
+  try {
+    const emailSent = await sendTicketConfirmationEmail(client, orderId)
+    if (emailSent) {
+      console.log(`Confirmation email sent successfully for order ${orderId}`)
+    } else {
+      console.error(`Failed to send confirmation email for order ${orderId}`)
+    }
+  } catch (emailError) {
+    // Log error but don't fail the webhook - payment already succeeded
+    console.error(`Error sending confirmation email for order ${orderId}:`, emailError)
+  }
 }
 
 /**
