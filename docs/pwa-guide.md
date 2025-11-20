@@ -449,6 +449,149 @@ Shows offline status, queued action count, and sync progress.
 - [ ] Stripe calls never cached
 - [ ] Cache expires per TTL settings
 
+## Security and Production Configuration
+
+### Production-Ready Features
+
+The PWA implementation includes comprehensive security measures to prevent cross-user data leaks and ensure production safety:
+
+#### 1. Environment-Aware Dev Options
+
+Dev tools are automatically disabled in production builds:
+
+```typescript
+// nuxt.config.ts
+devOptions: {
+  enabled: process.env.NODE_ENV === 'development',
+  type: 'module'
+}
+```
+
+**Benefit**: Prevents debugging tools and verbose logging from exposing sensitive information in production.
+
+#### 2. User-Specific Cache Isolation
+
+All cached data is isolated per user to prevent cross-user data leaks:
+
+- **Cache Keys**: Prefixed with user ID (`userId:resourceId`)
+- **Automatic Clearing**: All user data cleared on logout
+- **Plugin Monitoring**: Watches for user changes and clears caches automatically
+
+**Example**:
+```typescript
+// User A's data
+await cacheSchedule('schedule-123', data) // Stored as: userA:schedule-123
+
+// User B cannot access User A's cached data
+const data = await getCachedSchedule('schedule-123') // Returns null for User B
+```
+
+#### 3. Secure Caching Strategies
+
+Different routes use appropriate caching strategies:
+
+- **NetworkOnly** (Never cached):
+  - Authentication endpoints (`/auth`, `/rest`)
+  - Payment processing (Stripe)
+  - User-specific API routes (`/api/profile`, `/api/students`, etc.)
+
+- **NetworkFirst** (Short TTL):
+  - Public API routes (5 minutes)
+  - Supabase storage (24 hours)
+
+- **CacheFirst**:
+  - Static images only (30 days)
+
+**Why**: Prevents serving stale authenticated data and ensures payment security.
+
+#### 4. Offline Data Staleness Warnings
+
+Users are warned when viewing potentially outdated cached data:
+
+- **OfflineDataBanner**: Shows when offline or data is >30 minutes old
+- **Last Sync Time**: Displays human-readable age of cached data
+- **Retry Button**: Manually trigger sync
+- **Pending Actions**: Shows count of queued actions
+
+**Usage**:
+```vue
+<template>
+  <OfflineDataBanner
+    store-name="schedules"
+    cache-key="current-schedule"
+    :staleness-threshold="30"
+  />
+</template>
+```
+
+#### 5. Studio-Specific Branding
+
+The PWA manifest is dynamically generated per studio for future multi-tenant support:
+
+```
+GET /api/manifest.json
+```
+
+Returns studio-customized manifest with:
+- Studio name in app name
+- Studio primary color as theme color
+- Studio-specific description
+
+**Cache**: 1 hour for balance between freshness and performance
+
+### Testing Cache Isolation
+
+To verify cache isolation works correctly:
+
+1. **Login as User A**
+   - Browse schedules/students
+   - Check DevTools > Application > IndexedDB
+   - Should see keys like `userA:schedule-123`
+
+2. **Logout**
+   - IndexedDB should be cleared
+   - Service worker caches cleared
+
+3. **Login as User B**
+   - Browse same resources
+   - Should see keys like `userB:schedule-123`
+   - Should NOT see any `userA:*` keys
+
+4. **Verify No Cross-User Access**
+   - User B should never see User A's cached data
+   - Each user has isolated cache namespace
+
+### Security Best Practices
+
+**Do's** ✅
+- Always use `NetworkOnly` for authenticated routes
+- Clear caches on logout
+- Use user-specific cache keys
+- Show staleness warnings
+- Validate permissions server-side
+
+**Don'ts** ❌
+- Never cache authentication tokens
+- Never cache user-specific data with `NetworkFirst`
+- Never share cache between users
+- Never trust cached data without validation
+- Never enable dev options in production
+
+### Detailed Security Documentation
+
+For comprehensive security information, see:
+
+**[PWA Security and Production Configuration Guide](./pwa-security.md)**
+
+This guide covers:
+- Production configuration details
+- Cache isolation implementation
+- Offline data staleness detection
+- Studio-specific branding
+- Complete testing checklist
+- Troubleshooting guide
+- Maintenance procedures
+
 ## Future Enhancements
 
 ### Planned Features

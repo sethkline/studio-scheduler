@@ -1,16 +1,18 @@
 /**
  * Offline Storage Utility using IndexedDB
  * Provides methods to cache and retrieve data for offline access
+ * Supports user-specific cache isolation to prevent cross-user data leaks
  */
 
 const DB_NAME = 'dance-studio-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented for user isolation support
 
 export interface CachedData<T = any> {
   key: string;
   data: T;
   timestamp: number;
   expiresAt?: number;
+  userId?: string; // For user-specific cache isolation
 }
 
 class OfflineStorage {
@@ -76,7 +78,8 @@ class OfflineStorage {
     storeName: string,
     key: string,
     data: T,
-    ttlMinutes?: number
+    ttlMinutes?: number,
+    userId?: string
   ): Promise<void> {
     const db = await this.getDB();
 
@@ -84,11 +87,15 @@ class OfflineStorage {
       const transaction = db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
 
+      // Include userId in the key to isolate user data
+      const cacheKey = userId ? `${userId}:${key}` : key;
+
       const cachedData: CachedData<T> = {
-        key,
+        key: cacheKey,
         data,
         timestamp: Date.now(),
         expiresAt: ttlMinutes ? Date.now() + ttlMinutes * 60 * 1000 : undefined,
+        userId,
       };
 
       const request = store.put(cachedData);
@@ -101,13 +108,16 @@ class OfflineStorage {
   /**
    * Get data from a specific store
    */
-  async get<T>(storeName: string, key: string): Promise<T | null> {
+  async get<T>(storeName: string, key: string, userId?: string): Promise<T | null> {
     const db = await this.getDB();
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
-      const request = store.get(key);
+
+      // Include userId in the key to isolate user data
+      const cacheKey = userId ? `${userId}:${key}` : key;
+      const request = store.get(cacheKey);
 
       request.onsuccess = () => {
         const result = request.result as CachedData<T> | undefined;
@@ -120,7 +130,7 @@ class OfflineStorage {
         // Check if data has expired
         if (result.expiresAt && Date.now() > result.expiresAt) {
           // Delete expired data
-          this.delete(storeName, key);
+          this.delete(storeName, cacheKey);
           resolve(null);
           return;
         }
@@ -135,7 +145,7 @@ class OfflineStorage {
   /**
    * Get all data from a specific store
    */
-  async getAll<T>(storeName: string): Promise<T[]> {
+  async getAll<T>(storeName: string, userId?: string): Promise<T[]> {
     const db = await this.getDB();
 
     return new Promise((resolve, reject) => {
@@ -149,7 +159,14 @@ class OfflineStorage {
 
         // Filter out expired data and extract the actual data
         const validData = results
-          .filter((item) => !item.expiresAt || now <= item.expiresAt)
+          .filter((item) => {
+            // Filter by userId if specified
+            if (userId && item.userId !== userId) {
+              return false;
+            }
+            // Filter out expired items
+            return !item.expiresAt || now <= item.expiresAt;
+          })
           .map((item) => item.data);
 
         resolve(validData);
@@ -157,6 +174,74 @@ class OfflineStorage {
 
       request.onerror = () => reject(new Error(`Failed to get all data from ${storeName}`));
     });
+  }
+
+  /**
+   * Get cache metadata (for staleness checking)
+   */
+  async getCacheMetadata(storeName: string, key: string, userId?: string): Promise<{ timestamp: number; expiresAt?: number } | null> {
+    const db = await this.getDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
+
+      const cacheKey = userId ? `${userId}:${key}` : key;
+      const request = store.get(cacheKey);
+
+      request.onsuccess = () => {
+        const result = request.result as CachedData | undefined;
+
+        if (!result) {
+          resolve(null);
+          return;
+        }
+
+        resolve({
+          timestamp: result.timestamp,
+          expiresAt: result.expiresAt,
+        });
+      };
+
+      request.onerror = () => reject(new Error(`Failed to get metadata from ${storeName}`));
+    });
+  }
+
+  /**
+   * Clear all data for a specific user
+   */
+  async clearUserData(userId: string): Promise<void> {
+    const db = await this.getDB();
+    const storeNames = Array.from(db.objectStoreNames);
+
+    for (const storeName of storeNames) {
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+          const results = request.result as CachedData[];
+
+          // Delete all items for this user
+          const deletePromises = results
+            .filter((item) => item.userId === userId)
+            .map((item) => {
+              return new Promise<void>((deleteResolve, deleteReject) => {
+                const deleteRequest = store.delete(item.key);
+                deleteRequest.onsuccess = () => deleteResolve();
+                deleteRequest.onerror = () => deleteReject();
+              });
+            });
+
+          Promise.all(deletePromises)
+            .then(() => resolve())
+            .catch(() => reject(new Error(`Failed to clear user data from ${storeName}`)));
+        };
+
+        request.onerror = () => reject(new Error(`Failed to read data from ${storeName}`));
+      });
+    }
   }
 
   /**
@@ -210,55 +295,83 @@ class OfflineStorage {
 export const offlineStorage = new OfflineStorage();
 
 /**
- * Composable for using offline storage
+ * Composable for using offline storage with user-specific cache isolation
  */
 export function useOfflineStorage() {
+  // Get current user ID from Supabase
+  const getCurrentUserId = (): string | undefined => {
+    const user = useSupabaseUser();
+    return user.value?.id;
+  };
+
   const cacheSchedule = async (scheduleId: string, data: any) => {
-    await offlineStorage.set('schedules', scheduleId, data, 60); // 1 hour TTL
+    const userId = getCurrentUserId();
+    await offlineStorage.set('schedules', scheduleId, data, 60, userId); // 1 hour TTL
   };
 
   const getCachedSchedule = async (scheduleId: string) => {
-    return await offlineStorage.get('schedules', scheduleId);
+    const userId = getCurrentUserId();
+    return await offlineStorage.get('schedules', scheduleId, userId);
+  };
+
+  const getScheduleCacheMetadata = async (scheduleId: string) => {
+    const userId = getCurrentUserId();
+    return await offlineStorage.getCacheMetadata('schedules', scheduleId, userId);
   };
 
   const cacheStudent = async (studentId: string, data: any) => {
-    await offlineStorage.set('students', studentId, data, 120); // 2 hour TTL
+    const userId = getCurrentUserId();
+    await offlineStorage.set('students', studentId, data, 120, userId); // 2 hour TTL
   };
 
   const getCachedStudent = async (studentId: string) => {
-    return await offlineStorage.get('students', studentId);
+    const userId = getCurrentUserId();
+    return await offlineStorage.get('students', studentId, userId);
   };
 
   const getAllCachedStudents = async () => {
-    return await offlineStorage.getAll('students');
+    const userId = getCurrentUserId();
+    return await offlineStorage.getAll('students', userId);
   };
 
   const cacheClass = async (classId: string, data: any) => {
-    await offlineStorage.set('classes', classId, data, 120); // 2 hour TTL
+    const userId = getCurrentUserId();
+    await offlineStorage.set('classes', classId, data, 120, userId); // 2 hour TTL
   };
 
   const getCachedClass = async (classId: string) => {
-    return await offlineStorage.get('classes', classId);
+    const userId = getCurrentUserId();
+    return await offlineStorage.get('classes', classId, userId);
   };
 
   const getAllCachedClasses = async () => {
-    return await offlineStorage.getAll('classes');
+    const userId = getCurrentUserId();
+    return await offlineStorage.getAll('classes', userId);
   };
 
-  const cacheProfile = async (userId: string, data: any) => {
-    await offlineStorage.set('profiles', userId, data, 240); // 4 hour TTL
+  const cacheProfile = async (profileId: string, data: any) => {
+    const userId = getCurrentUserId();
+    await offlineStorage.set('profiles', profileId, data, 240, userId); // 4 hour TTL
   };
 
-  const getCachedProfile = async (userId: string) => {
-    return await offlineStorage.get('profiles', userId);
+  const getCachedProfile = async (profileId: string) => {
+    const userId = getCurrentUserId();
+    return await offlineStorage.get('profiles', profileId, userId);
   };
 
   const cacheGeneric = async (key: string, data: any, ttlMinutes?: number) => {
-    await offlineStorage.set('cache', key, data, ttlMinutes);
+    const userId = getCurrentUserId();
+    await offlineStorage.set('cache', key, data, ttlMinutes, userId);
   };
 
   const getCachedGeneric = async (key: string) => {
-    return await offlineStorage.get('cache', key);
+    const userId = getCurrentUserId();
+    return await offlineStorage.get('cache', key, userId);
+  };
+
+  const getCacheMetadata = async (storeName: string, key: string) => {
+    const userId = getCurrentUserId();
+    return await offlineStorage.getCacheMetadata(storeName, key, userId);
   };
 
   const clearAllCache = async () => {
@@ -269,9 +382,17 @@ export function useOfflineStorage() {
     await offlineStorage.clear('cache');
   };
 
+  const clearCurrentUserCache = async () => {
+    const userId = getCurrentUserId();
+    if (userId) {
+      await offlineStorage.clearUserData(userId);
+    }
+  };
+
   return {
     cacheSchedule,
     getCachedSchedule,
+    getScheduleCacheMetadata,
     cacheStudent,
     getCachedStudent,
     getAllCachedStudents,
@@ -282,6 +403,8 @@ export function useOfflineStorage() {
     getCachedProfile,
     cacheGeneric,
     getCachedGeneric,
+    getCacheMetadata,
     clearAllCache,
+    clearCurrentUserCache,
   };
 }
