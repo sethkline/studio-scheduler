@@ -1,0 +1,21 @@
+vendor_sku,name,category,description,season,gender,price,sizes,colors,image_urls,availability
+W10245,Prima Ballerina,ballet,Professional romantic tutu with hand-sewn sequins,2025,girls,89.99,"IC,MC,LC,XLC,SA,IA,MA","Pink,White,Peach",https://picsum.photos/seed/w10245/400/400,in_stock
+W10246,Jazz Pizzazz,jazz,Two-piece set with sequin top and mesh skirt,2025,girls,74.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Fuchsia,Turquoise,Lime",https://picsum.photos/seed/w10246/400/400,in_stock
+W10247,Tap Sensation,tap,Fringe dress with holographic accents,2025,girls,69.99,"IC,MC,LC,SA,IA,MA","Black,Silver,Royal Blue",https://picsum.photos/seed/w10247/400/400,in_stock
+W10248,Lyrical Grace,lyrical,High-low dress with lace overlay and rhinestone waist,2025,girls,79.99,"IC,MC,LC,XLC,SA,IA,MA,LA","Dusty Rose,Lavender,Ivory",https://picsum.photos/seed/w10248/400/400,in_stock
+W10249,Hip Hop Dynasty,hip-hop,Metallic jacket with coordinating shorts,2025,girls,64.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Gold,Silver,Bronze",https://picsum.photos/seed/w10249/400/400,pre_order
+W10250,Modern Movement,contemporary,Unitard with mesh panels and crystal details,2025,girls,84.99,"IC,MC,LC,XLC,SA,IA,MA","Navy,Black,Burgundy",https://picsum.photos/seed/w10250/400/400,in_stock
+W10251,Broadway Bound,musical-theater,Sequined flapper dress with feather boa,2025,girls,94.99,"IC,MC,LC,SA,IA,MA","Red,Black,Gold",https://picsum.photos/seed/w10251/400/400,in_stock
+W10252,Nutcracker Dreams,ballet,Character costume with velvet bodice and tutu,2025,girls,99.99,"SC,IC,MC,LC,SA,IA,MA","Red,Green,Gold",https://picsum.photos/seed/w10252/400/400,discontinued
+W10253,Sassy Jazz,jazz,Crop top and high-waisted shorts with fringe,2025,girls,59.99,"IC,MC,LC,XLC,SA,IA,MA","Black,Red,Purple",https://picsum.photos/seed/w10253/400/400,in_stock
+W10254,Ethereal,lyrical,Flowing goddess dress with attached cape,2025,girls,87.99,"IC,MC,LC,XLC,SA,IA,MA,LA","White,Sky Blue,Mint",https://picsum.photos/seed/w10254/400/400,limited
+W10255,Competition Ready,contemporary,Asymmetric unitard with mesh and sequins,2025,girls,92.99,"IC,MC,LC,XLC,SA,IA,MA","Teal,Plum,Coral",https://picsum.photos/seed/w10255/400/400,in_stock
+W10256,Dapper Dan,tap,Boys vest and pants set with bow tie,2025,boys,68.99,"SC,IC,MC,LC,SA,IA,MA,LA","Black,Navy,Burgundy",https://picsum.photos/seed/w10256/400/400,in_stock
+W10257,Young Prince,ballet,Boys tunic with attached belt and tights,2025,boys,54.99,"SC,IC,MC,LC,SA,IA","Royal Blue,Black,White",https://picsum.photos/seed/w10257/400/400,in_stock
+W10258,Urban Beat,hip-hop,Boys hoodie and jogger set with graphic print,2025,boys,62.99,"IC,MC,LC,XLC,SA,IA,MA,LA","Black,Gray,Red",https://picsum.photos/seed/w10258/400/400,in_stock
+W10259,Tuxedo Time,musical-theater,Boys full tuxedo with tails,2025,boys,84.99,"IC,MC,LC,SA,IA,MA,LA","Black,White",https://picsum.photos/seed/w10259/400/400,in_stock
+W10260,Sparkle Crown,accessory,Rhinestone tiara headpiece,2025,girls,28.99,"One Size","Silver,Gold",https://picsum.photos/seed/w10260/400/400,in_stock
+W10261,Professional Tights,accessory,Convertible ballet tights,2025,girls,18.99,"SC,IC,MC,LC,SA,IA,MA,LA","Pink,Tan,White,Black",https://picsum.photos/seed/w10261/400/400,in_stock
+W10262,Mesh Bolero,accessory,Shrug with rhinestone trim,2025,girls,24.99,"SC,IC,MC,LC,SA,IA,MA","Black,White,Pink",https://picsum.photos/seed/w10262/400/400,in_stock
+W10263,Fingerless Gloves,accessory,Lace fingerless gloves,2025,girls,19.99,"SC,IC,MC,SA,IA,MA","Black,White,Red",https://picsum.photos/seed/w10263/400/400,in_stock
+W10264,Sequin Hat,accessory,Top hat with sequin band,2025,unisex,32.99,"SC,IC,MC,SA,IA,MA","Black,Silver,Red",https://picsum.photos/seed/w10264/400/400,in_stock

@@ -1,0 +1,21 @@
+vendor_sku,name,category,description,season,gender,price,sizes,colors,image_urls,availability
+REV-2501,Sparkle Dreams Tutu,ballet,Classic ballet tutu with sequined bodice and layered tulle skirt,2025,girls,52.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Pink,White,Lavender",https://picsum.photos/seed/rev2501/400/400,in_stock
+REV-2502,Jazz Fever Biketard,jazz,High-neck biketard with mesh inserts and rhinestone accents,2025,girls,45.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Black,Red,Royal Blue",https://picsum.photos/seed/rev2502/400/400,in_stock
+REV-2503,Tap Magic Dress,tap,Sequined dress with fringe details perfect for tap performances,2025,girls,48.99,"SC,IC,MC,LC,SA,IA","Black,Silver,Gold",https://picsum.photos/seed/rev2503/400/400,in_stock
+REV-2504,Lyrical Flow Dress,lyrical,Flowing asymmetrical dress with rhinestone bodice,2025,girls,56.99,"IC,MC,LC,XLC,SA,IA,MA","Dusty Rose,Sky Blue,Mint",https://picsum.photos/seed/rev2504/400/400,in_stock
+REV-2505,Hip Hop Crew,hip-hop,Two-piece crop top and jogger set with metallic accents,2025,girls,44.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Black,Neon Pink,Purple",https://picsum.photos/seed/rev2505/400/400,in_stock
+REV-2506,Contemporary Elegance,contemporary,Convertible dress with flowing sleeves and high-low hem,2025,girls,59.99,"IC,MC,LC,XLC,SA,IA,MA,LA","Burgundy,Navy,Emerald",https://picsum.photos/seed/rev2506/400/400,in_stock
+REV-2507,Broadway Star Dress,musical-theater,Showgirl-inspired sequined dress with feather trim,2025,girls,64.99,"SC,IC,MC,LC,SA,IA,MA","Red,Gold,Black",https://picsum.photos/seed/rev2507/400/400,pre_order
+REV-2508,Ballet Slipper Pink,ballet,Full sole leather ballet slippers,2025,girls,24.99,"SC,IC,MC,LC,SA,IA,MA","Pink,White",https://picsum.photos/seed/rev2508/400/400,in_stock
+REV-2509,Stretch Canvas Jazz Shoe,jazz,Split-sole jazz shoe with elastic arch insert,2025,unisex,32.99,"SC,IC,MC,LC,SA,IA,MA,LA","Black,Tan",https://picsum.photos/seed/rev2509/400/400,in_stock
+REV-2510,Professional Tap Shoes,tap,Lace-up tap shoes with aluminum taps,2025,unisex,54.99,"IC,MC,LC,SA,IA,MA,LA","Black",https://picsum.photos/seed/rev2510/400/400,in_stock
+REV-2511,Rhinestone Hair Bow,accessory,Large rhinestone-studded hair bow with clip,2025,girls,12.99,"One Size","Pink,Red,Blue,Black,White",https://picsum.photos/seed/rev2511/400/400,in_stock
+REV-2512,Fishnet Tights,accessory,Professional fishnet tights,2025,girls,8.99,"SC,IC,MC,LC,SA,IA,MA","Black,Tan,White",https://picsum.photos/seed/rev2512/400/400,in_stock
+REV-2513,Satin Gloves,accessory,Elbow-length satin performance gloves,2025,girls,14.99,"SC,IC,MC,SA,IA,MA","White,Black,Red",https://picsum.photos/seed/rev2513/400/400,in_stock
+REV-2514,Boys Jazz Pants,jazz,Straight-leg jazz pants with elastic waist,2025,boys,34.99,"SC,IC,MC,LC,SA,IA,MA,LA","Black,Navy",https://picsum.photos/seed/rev2514/400/400,in_stock
+REV-2515,Boys Hip Hop Jacket,hip-hop,Metallic bomber jacket with logo detailing,2025,boys,49.99,"SC,IC,MC,LC,SA,IA,MA","Black,Silver,Gold",https://picsum.photos/seed/rev2515/400/400,in_stock
+REV-2516,Leotard Classic,ballet,Basic tank leotard with princess seams,2025,girls,28.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Black,Pink,Royal Blue,Red",https://picsum.photos/seed/rev2516/400/400,in_stock
+REV-2517,Sequin Capri Set,jazz,Sequined top with matching capri pants,2025,girls,51.99,"IC,MC,LC,XLC,SA,IA,MA","Turquoise,Pink,Purple",https://picsum.photos/seed/rev2517/400/400,in_stock
+REV-2518,Velvet Dream Dress,lyrical,Velvet bodice with chiffon skirt overlay,2025,girls,58.99,"IC,MC,LC,SA,IA,MA","Burgundy,Hunter Green,Navy",https://picsum.photos/seed/rev2518/400/400,limited
+REV-2519,Tutu Overlay Skirt,ballet,Pull-on tutu skirt for layering,2025,girls,24.99,"SC,IC,MC,LC,SA,IA","Pink,White,Black,Lavender",https://picsum.photos/seed/rev2519/400/400,in_stock
+REV-2520,Character Shoe,musical-theater,Low heel character shoe with buckle,2025,girls,42.99,"IC,MC,LC,SA,IA,MA","Black,Tan",https://picsum.photos/seed/rev2520/400/400,in_stock

@@ -1,0 +1,21 @@
+vendor_sku,name,category,description,season,gender,price,sizes,colors,image_urls,availability
+CC-25-001,Enchanted Garden,ballet,Floral applique bodice with romantic tutu,Spring 2025,girls,64.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Blush Pink,Mint Green,Lilac",https://picsum.photos/seed/cc001/400/400,in_stock
+CC-25-002,City Lights,jazz,Geometric sequin design with asymmetric cut,Spring 2025,girls,58.99,"IC,MC,LC,XLC,SA,IA,MA,LA","Black,Silver,Rose Gold",https://picsum.photos/seed/cc002/400/400,in_stock
+CC-25-003,Showtime Spectacular,musical-theater,Beaded fringe dress inspired by 1920s glamour,Spring 2025,girls,72.99,"IC,MC,LC,SA,IA,MA","Red,Gold,Black",https://picsum.photos/seed/cc003/400/400,pre_order
+CC-25-004,Ocean Waves,lyrical,Ombre fabric with flowing sleeves and handkerchief hem,Spring 2025,girls,61.99,"IC,MC,LC,XLC,SA,IA,MA","Ocean Blue,Aqua,Seafoam",https://picsum.photos/seed/cc004/400/400,in_stock
+CC-25-005,Urban Edge,hip-hop,Crop hoodie and shorts set with reflective piping,Spring 2025,girls,49.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Black,Neon Yellow,Hot Pink",https://picsum.photos/seed/cc005/400/400,in_stock
+CC-25-006,Twilight Dreams,contemporary,Mesh overlay dress with crystal embellishments,Spring 2025,girls,68.99,"IC,MC,LC,XLC,SA,IA,MA,LA","Midnight Blue,Plum,Charcoal",https://picsum.photos/seed/cc006/400/400,limited
+CC-25-007,Classical Beauty,ballet,Traditional romantic tutu with lace bodice,Spring 2025,girls,69.99,"IC,MC,LC,XLC,SA,IA,MA","White,Ivory,Powder Blue",https://picsum.photos/seed/cc007/400/400,in_stock
+CC-25-008,Rhythm Nation,tap,Tuxedo-inspired vest and pants combo,Spring 2025,unisex,55.99,"SC,IC,MC,LC,SA,IA,MA,LA","Black,Red,Royal Blue",https://picsum.photos/seed/cc008/400/400,in_stock
+CC-25-009,Firefly Glow,lyrical,Bioluminescent print dress with glow-in-dark accents,Spring 2025,girls,65.99,"IC,MC,LC,SA,IA,MA","Deep Purple,Navy,Forest Green",https://picsum.photos/seed/cc009/400/400,in_stock
+CC-25-010,Jazz Hands,jazz,Holographic fabric biketard with cutouts,Spring 2025,girls,52.99,"SC,IC,MC,LC,XLC,SA,IA,MA","Silver,Gold,Copper",https://picsum.photos/seed/cc010/400/400,in_stock
+CC-25-011,Arabesque,ballet,Peasant-style tutu with velvet bodice,Spring 2025,girls,74.99,"IC,MC,LC,SA,IA,MA","Burgundy,Emerald,Sapphire",https://picsum.photos/seed/cc011/400/400,pre_order
+CC-25-012,Street Style,hip-hop,Oversized hoodie and jogger set,Spring 2025,girls,46.99,"IC,MC,LC,XLC,SA,IA,MA,LA","Gray,Black,Purple",https://picsum.photos/seed/cc012/400/400,in_stock
+CC-25-013,Swan Lake,ballet,White romantic tutu with feather trim,Spring 2025,girls,79.99,"IC,MC,LC,SA,IA,MA","White",https://picsum.photos/seed/cc013/400/400,limited
+CC-25-014,Carnival,jazz,Multi-color sequin fringe dress,Spring 2025,girls,59.99,"SC,IC,MC,LC,SA,IA,MA","Rainbow,Multi",https://picsum.photos/seed/cc014/400/400,in_stock
+CC-25-015,Moonlight Sonata,contemporary,Draped asymmetric dress with metallic thread,Spring 2025,girls,66.99,"IC,MC,LC,XLC,SA,IA,MA","Silver,Pewter,Gunmetal",https://picsum.photos/seed/cc015/400/400,in_stock
+CC-25-016,Boys Tap Tux,tap,Tailored vest and pants with satin lapels,Spring 2025,boys,58.99,"SC,IC,MC,LC,SA,IA,MA,LA","Black,White,Red",https://picsum.photos/seed/cc016/400/400,in_stock
+CC-25-017,Little Princes,ballet,Boys ballet tunic with attached shorts,Spring 2025,boys,42.99,"SC,IC,MC,LC,SA,IA","White,Royal Blue,Black",https://picsum.photos/seed/cc017/400/400,in_stock
+CC-25-018,Hip Hop Hero,hip-hop,Boys graphic tee and cargo pants set,Spring 2025,boys,44.99,"SC,IC,MC,LC,SA,IA,MA,LA","Black,Camo,Navy",https://picsum.photos/seed/cc018/400/400,in_stock
+CC-25-019,Feather Headpiece,accessory,Ostrich feather headband with rhinestones,Spring 2025,girls,22.99,"One Size","Black,White,Pink,Red",https://picsum.photos/seed/cc019/400/400,in_stock
+CC-25-020,Rhinestone Belt,accessory,Elastic rhinestone belt for costume enhancement,Spring 2025,girls,16.99,"SC,IC,MC,LC,SA,IA,MA","Silver,Gold",https://picsum.photos/seed/cc020/400/400,in_stock
