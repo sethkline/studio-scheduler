@@ -24,6 +24,9 @@ export * from './attendance'
 // Tier 1 Features (Rehearsals, Fees, etc.)
 export * from './tier1-features'
 
+// Unified Inbox
+export * from './inbox'
+
 // Ticketing System
 export * from './ticketing'
 
