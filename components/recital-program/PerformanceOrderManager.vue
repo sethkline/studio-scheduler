@@ -64,40 +64,83 @@
               <div class="line-clamp-2">
                 {{ formatDancersList(data.dancers) }}
               </div>
-              <Button 
-                v-if="data.dancers.length > 3" 
-                label="View All" 
-                class="p-button-text p-button-sm p-0 text-xs text-primary-600" 
-                @click="viewDancers(data)" 
+              <Button
+                v-if="data.dancers.length > 3"
+                label="View All"
+                class="p-button-text p-button-sm p-0 text-xs text-primary-600"
+                @click="viewDancers(data)"
               />
             </div>
             <div v-else-if="data.notes && data.notes.includes('Dancers:')" class="text-sm">
               <div class="line-clamp-2">{{ data.notes.substring(data.notes.indexOf('Dancers:') + 8).trim() }}</div>
             </div>
             <div v-else class="text-xs text-gray-500 flex items-center">
-              <Button 
-                label="Add Dancers" 
-                icon="pi pi-users" 
-                class="p-button-text p-button-sm p-0" 
+              <Button
+                label="Add Dancers"
+                icon="pi pi-users"
+                class="p-button-text p-button-sm p-0"
                 @click="editDancers(data)"
               />
             </div>
           </template>
         </Column>
+
+        <Column field="costumes" header="Costumes" style="min-width: 200px">
+          <template #body="{ data }">
+            <div v-if="data.costumes && data.costumes.length > 0" class="text-sm">
+              <div class="space-y-1">
+                <div
+                  v-for="costume in data.costumes.slice(0, 2)"
+                  :key="costume.id"
+                  class="flex items-center gap-2"
+                >
+                  <Tag
+                    v-if="costume.is_primary"
+                    value="Primary"
+                    severity="success"
+                    class="text-xs"
+                  />
+                  <span class="text-xs">{{ costume.costume?.name || 'Unknown' }}</span>
+                </div>
+                <Button
+                  v-if="data.costumes.length > 2"
+                  :label="`+${data.costumes.length - 2} more`"
+                  class="p-button-text p-button-sm p-0 text-xs text-primary-600"
+                  @click="viewCostumes(data)"
+                />
+              </div>
+            </div>
+            <div v-else class="text-xs text-gray-500">
+              <Button
+                label="Assign Costume"
+                icon="pi pi-shopping-bag"
+                class="p-button-text p-button-sm p-0"
+                @click="assignCostume(data)"
+              />
+            </div>
+          </template>
+        </Column>
         
-        <Column style="width: 8rem">
+        <Column style="width: 10rem">
           <template #body="{ data }">
             <div class="flex justify-end gap-2">
-              <Button 
-                icon="pi pi-pencil" 
-                class="p-button-text p-button-sm" 
+              <Button
+                icon="pi pi-pencil"
+                class="p-button-text p-button-sm"
                 @click="editPerformance(data)"
+                v-tooltip.top="'Edit Performance'"
               />
-              <Button 
-                icon="pi pi-users" 
-                class="p-button-text p-button-sm" 
+              <Button
+                icon="pi pi-users"
+                class="p-button-text p-button-sm"
                 @click="editDancers(data)"
-                tooltip="Edit Dancers"
+                v-tooltip.top="'Edit Dancers'"
+              />
+              <Button
+                icon="pi pi-shopping-bag"
+                class="p-button-text p-button-sm"
+                @click="assignCostume(data)"
+                v-tooltip.top="'Assign Costume'"
               />
             </div>
           </template>
@@ -167,10 +210,10 @@
     </Dialog>
     
     <!-- View Dancers Dialog -->
-    <Dialog 
-      v-model:visible="showViewDancersDialog" 
-      modal 
-      header="Dancers" 
+    <Dialog
+      v-model:visible="showViewDancersDialog"
+      modal
+      header="Dancers"
       :style="{width: '400px'}"
     >
       <div v-if="selectedPerformance">
@@ -194,6 +237,73 @@
         </div>
       </div>
     </Dialog>
+
+    <!-- View Costumes Dialog -->
+    <Dialog
+      v-model:visible="showViewCostumesDialog"
+      modal
+      header="Assigned Costumes"
+      :style="{width: '600px'}"
+    >
+      <div v-if="selectedPerformance">
+        <h3 class="mb-4 font-medium">{{ selectedPerformance.song_title }}</h3>
+        <div v-if="selectedPerformance.costumes && selectedPerformance.costumes.length > 0">
+          <div class="space-y-3">
+            <div
+              v-for="assignment in selectedPerformance.costumes"
+              :key="assignment.id"
+              class="border rounded-lg p-3 flex items-start gap-3"
+            >
+              <Image
+                v-if="assignment.costume?.primary_image?.url"
+                :src="assignment.costume.primary_image.url"
+                :alt="assignment.costume.name"
+                width="60"
+                height="60"
+                class="rounded object-cover"
+                preview
+              />
+              <div class="flex-grow">
+                <div class="flex items-start justify-between mb-1">
+                  <h4 class="font-medium text-sm">{{ assignment.costume?.name || 'Unknown Costume' }}</h4>
+                  <Tag
+                    v-if="assignment.is_primary"
+                    value="Primary"
+                    severity="success"
+                  />
+                </div>
+                <div class="text-xs text-gray-600 space-y-1">
+                  <div><strong>Vendor:</strong> {{ assignment.costume?.vendor?.name }}</div>
+                  <div><strong>SKU:</strong> {{ assignment.costume?.vendor_sku }}</div>
+                  <div v-if="assignment.quantity_needed"><strong>Quantity:</strong> {{ assignment.quantity_needed }}</div>
+                  <div v-if="assignment.notes" class="mt-2">
+                    <strong>Notes:</strong> {{ assignment.notes }}
+                  </div>
+                </div>
+                <div class="mt-2 flex gap-2">
+                  <Button
+                    label="Remove"
+                    icon="pi pi-trash"
+                    class="p-button-sm p-button-danger p-button-text"
+                    @click="removeCostume(assignment)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="text-sm text-gray-500">
+          No costumes assigned to this performance.
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Costume Assignment Modal -->
+    <CostumeAssignmentModal
+      v-model:visible="showCostumeAssignmentModal"
+      :performance-id="selectedPerformance?.id"
+      @assigned="handleCostumeAssigned"
+    />
   </div>
 </template>
 
@@ -214,7 +324,7 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(['save', 'update-performance']);
+const emit = defineEmits(['save', 'update-performance', 'costume-assigned', 'remove-costume']);
 
 // Store
 const programStore = useRecitalProgramStore();
@@ -225,6 +335,8 @@ const modified = ref(false);
 const showEditDialog = ref(false);
 const showDancersDialog = ref(false);
 const showViewDancersDialog = ref(false);
+const showViewCostumesDialog = ref(false);
+const showCostumeAssignmentModal = ref(false);
 const selectedPerformance = ref(null);
 const editForm = ref({});
 const dancersText = ref('');
@@ -358,6 +470,36 @@ async function saveDancers() {
 function viewDancers(performance) {
   selectedPerformance.value = performance;
   showViewDancersDialog.value = true;
+}
+
+// Assign costume to a performance
+function assignCostume(performance) {
+  selectedPerformance.value = performance;
+  showCostumeAssignmentModal.value = true;
+}
+
+// View all costumes for a performance
+function viewCostumes(performance) {
+  selectedPerformance.value = performance;
+  showViewCostumesDialog.value = true;
+}
+
+// Handle costume assignment
+function handleCostumeAssigned(assignment) {
+  // Emit event to parent to refresh performance data
+  emit('costume-assigned', selectedPerformance.value.id);
+  showCostumeAssignmentModal.value = false;
+}
+
+// Remove costume assignment
+async function removeCostume(assignment) {
+  if (!confirm('Are you sure you want to remove this costume assignment?')) {
+    return;
+  }
+
+  // Emit event to parent to remove costume
+  emit('remove-costume', assignment.id);
+  showViewCostumesDialog.value = false;
 }
 </script>
 
