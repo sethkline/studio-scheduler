@@ -41,6 +41,8 @@
               :loading="loading.saving"
               @save="savePerformanceOrder"
               @update-performance="updatePerformance"
+              @costume-assigned="handleCostumeAssigned"
+              @remove-costume="handleRemoveCostume"
             />
           </TabPanel>
 
@@ -143,6 +145,8 @@ onMounted(async () => {
   if (programStore.performances.length > 0) {
     await programStore.fetchPerformanceDancers(recitalId);
   }
+  // Load costume assignments for all performances
+  await loadAllCostumeAssignments();
 });
 
 const getDancersForPerformance = (performanceId) => {
@@ -425,6 +429,85 @@ async function generatePdf() {
       severity: 'error',
       summary: 'Error',
       detail: programStore.error || 'Failed to generate PDF',
+      life: 3000
+    });
+  }
+}
+
+// Load costume assignments for all performances
+async function loadAllCostumeAssignments() {
+  const { getPerformanceCostumes } = useCostumeCatalogService();
+
+  for (const performance of programStore.performances) {
+    try {
+      const { data } = await getPerformanceCostumes(performance.id);
+      if (data.value) {
+        // Add costumes to the performance object
+        performance.costumes = data.value;
+      }
+    } catch (error) {
+      console.error(`Error loading costumes for performance ${performance.id}:`, error);
+    }
+  }
+}
+
+// Handle costume assigned event
+async function handleCostumeAssigned(performanceId: string) {
+  const { getPerformanceCostumes } = useCostumeCatalogService();
+
+  try {
+    const { data } = await getPerformanceCostumes(performanceId);
+    if (data.value) {
+      // Find the performance and update its costumes
+      const performance = programStore.performances.find(p => p.id === performanceId);
+      if (performance) {
+        performance.costumes = data.value;
+      }
+
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Costume assigned successfully',
+        life: 3000
+      });
+    }
+  } catch (error) {
+    console.error('Error refreshing costume assignments:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to refresh costume assignments',
+      life: 3000
+    });
+  }
+}
+
+// Handle remove costume event
+async function handleRemoveCostume(assignmentId: string) {
+  const { removePerformanceCostume } = useCostumeCatalogService();
+
+  try {
+    const { data, error } = await removePerformanceCostume(assignmentId);
+
+    if (error.value) {
+      throw new Error(error.value.message);
+    }
+
+    // Refresh all costume assignments
+    await loadAllCostumeAssignments();
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Costume removed successfully',
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error removing costume:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to remove costume',
       life: 3000
     });
   }
