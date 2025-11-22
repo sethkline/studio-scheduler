@@ -167,7 +167,7 @@ export default defineEventHandler(async (event) => {
     }
     
     // Add table of contents page
-    const tocPage = pdfDoc.addPage()
+    let tocPage = pdfDoc.addPage()
     
     tocPage.drawText('Program', {
       x: 50,

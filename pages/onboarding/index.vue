@@ -630,6 +630,10 @@ async function saveClassLevels() {
 }
 
 function completeSetup() {
-  router.push('/')
+  // Mark onboarding as incomplete to show checklist
+  localStorage.removeItem('onboarding_completed')
+
+  // Redirect to admin dashboard
+  router.push('/admin/dashboard')
 }
 </script>

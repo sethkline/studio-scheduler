@@ -1,5 +1,6 @@
 // server/middleware/studio-context.ts
 import type { H3Event } from 'h3'
+import { serverSupabaseClient } from '#supabase/server'
 
 /**
  * Studio Context Middleware
@@ -51,10 +52,10 @@ export default defineEventHandler(async (event: H3Event) => {
     // Strategy 3: Get user's primary studio (fallback)
     // Only if not already set and user is authenticated
     if (!studioId) {
-      const user = await serverSupabaseUser(event)
+      const client = await serverSupabaseClient(event)
+      const { data: { user } } = await client.auth.getUser()
 
       if (user) {
-        const client = await serverSupabaseClient(event)
         const { data: profile } = await client
           .from('profiles')
           .select('primary_studio_id')
