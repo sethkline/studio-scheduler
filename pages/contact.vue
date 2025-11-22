@@ -248,8 +248,10 @@ const isSubmitting = ref(false)
 const handleSubmit = async () => {
   isSubmitting.value = true
   try {
-    // TODO: Implement contact form API endpoint
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await $fetch('/api/contact', {
+      method: 'POST',
+      body: form.value,
+    })
 
     toast.add({
       severity: 'success',
