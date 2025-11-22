@@ -1,5 +1,6 @@
 // server/api/tickets/resend-email.post.ts
 import { sendTicketConfirmationEmail } from '../../utils/ticketEmail';
+import { serverSupabaseClient } from '#supabase/server'
 
 /**
  * POST /api/tickets/resend-email
@@ -13,7 +14,7 @@ export default defineEventHandler(async (event) => {
     const client = await serverSupabaseClient(event);
 
     // Get authenticated user (will be null if not authenticated)
-    const user = await serverSupabaseUser(event);
+    const { data: { user } } = await client.auth.getUser();
 
     if (!user) {
       throw createError({

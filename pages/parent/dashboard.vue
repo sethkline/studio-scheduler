@@ -11,6 +11,9 @@
       </div>
     </div>
 
+    <!-- Onboarding Checklist (shown for new parents) -->
+    <ParentOnboardingChecklist v-if="showOnboarding" @complete="handleOnboardingComplete" />
+
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div class="card bg-blue-50 border-l-4 border-blue-500">
@@ -251,6 +254,7 @@ const toast = useToast()
 
 // State
 const loading = ref(true)
+const showOnboarding = ref(false)
 const students = ref<StudentProfile[]>([])
 const weeklySchedule = ref<ParentScheduleEvent[]>([])
 const upcomingRecitals = ref<any[]>([])
@@ -312,6 +316,7 @@ const actionItemsCount = computed(() => actionItems.value.length)
 // Load data
 onMounted(async () => {
   await loadDashboardData()
+  checkOnboardingStatus()
 })
 
 async function loadDashboardData() {
@@ -414,6 +419,19 @@ function viewStudent(studentId: string) {
 
 function viewRecital(recitalId: string) {
   navigateTo(`/public/recitals/${recitalId}`)
+}
+
+function checkOnboardingStatus() {
+  const hasCompletedOnboarding = localStorage.getItem('parent_onboarding_completed')
+  const accountAge = authStore.profile?.created_at ? new Date(authStore.profile.created_at) : null
+  const isNewUser = accountAge && (new Date().getTime() - accountAge.getTime()) < 30 * 24 * 60 * 60 * 1000 // 30 days
+
+  showOnboarding.value = !hasCompletedOnboarding && isNewUser
+}
+
+function handleOnboardingComplete() {
+  showOnboarding.value = false
+  localStorage.setItem('parent_onboarding_completed', 'true')
 }
 </script>
 

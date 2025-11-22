@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
     console.log(`Trying bucket: ${bucket}, path: ${filePath}`);
     
     // Try to get the file from the determined bucket
-    const { data, error } = await client.storage
+    let { data, error } = await client.storage
       .from(bucket)
       .download(filePath);
     
