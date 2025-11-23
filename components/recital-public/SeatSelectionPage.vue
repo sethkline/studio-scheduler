@@ -272,13 +272,39 @@
             </div>
 
             <div class="space-y-2">
+              <!-- Add to Cart Button -->
               <Button
-                label="Proceed to Checkout"
+                v-if="!isShowInCart(showId)"
+                label="Add to Cart"
+                icon="pi pi-shopping-cart"
+                class="w-full"
+                outlined
+                @click="handleAddToCart"
+                :disabled="!isSelectionValid"
+              />
+
+              <!-- Update Cart Button (if show already in cart) -->
+              <Button
+                v-else
+                label="Update Cart"
+                icon="pi pi-refresh"
+                class="w-full"
+                outlined
+                severity="info"
+                @click="handleUpdateCart"
+                :disabled="!isSelectionValid"
+              />
+
+              <!-- Checkout Now Button -->
+              <Button
+                label="Checkout Now"
                 icon="pi pi-arrow-right"
+                iconPos="right"
                 class="w-full"
                 @click="proceedToCheckout"
                 :disabled="!isSelectionValid"
               />
+
               <div v-if="showReservationTimer" class="mt-4 text-xs flex items-center justify-center">
                 <i class="pi pi-clock mr-1"></i>
                 <span>
@@ -294,7 +320,7 @@
               </div>
 
               <p class="text-xs text-gray-500 text-center">
-                Selected seats will be held for 10 minutes during checkout.
+                Add to cart or checkout immediately to reserve your seats.
               </p>
             </div>
           </div>
@@ -403,7 +429,9 @@
 import { useWindowSize } from '@vueuse/core';
 import { detectMechanicsburgConsecutiveSeats, createReservationTimer } from '~/utils/seatDetection';
 const route = useRoute();
+const router = useRouter();
 const showId = ref(route.params.id);
+const { addToCart, isShowInCart } = useShoppingCart();
 const show = ref({});
 const availableSeats = ref([]);
 const selectedSeats = ref([]);
@@ -1239,6 +1267,46 @@ function resetSelection() {
 //   seatPreference.value = 'select';
 //   showSeatMap.value = true;
 // }
+
+// Handle adding seats to cart
+function handleAddToCart() {
+  if (selectedSeats.value.length === 0) return;
+  if (selectedSeats.value.length !== ticketCount.value) {
+    useToast().add({
+      severity: 'warn',
+      summary: 'Invalid Selection',
+      detail: `Please select exactly ${ticketCount.value} seats`,
+      life: 3000
+    });
+    return;
+  }
+
+  // Add to cart
+  addToCart(show.value, selectedSeats.value);
+
+  // Navigate back to shows list
+  router.push('/public/recitals');
+}
+
+// Handle updating cart for this show
+function handleUpdateCart() {
+  if (selectedSeats.value.length === 0) return;
+  if (selectedSeats.value.length !== ticketCount.value) {
+    useToast().add({
+      severity: 'warn',
+      summary: 'Invalid Selection',
+      detail: `Please select exactly ${ticketCount.value} seats`,
+      life: 3000
+    });
+    return;
+  }
+
+  // Update cart
+  addToCart(show.value, selectedSeats.value);
+
+  // Navigate to cart
+  router.push('/cart');
+}
 
 // In your reservation function in the seat selection page
 async function proceedToCheckout() {
